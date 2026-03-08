@@ -1,10 +1,6 @@
 ﻿export type UserRole = "admin" | "user";
 export type NotificationPriority = "low" | "normal" | "high" | "critical";
-export type NotificationResponseStatus =
-  | "ciente"
-  | "em_andamento"
-  | "resolvido"
-  | "aguardando";
+export type NotificationResponseStatus = "em_andamento" | "resolvido";
 
 export interface AuthUser {
   id: number;
@@ -38,6 +34,7 @@ export interface NotificationItem {
   deliveredAt: string;
   responseStatus: NotificationResponseStatus | null;
   responseAt: string | null;
+  responseMessage: string | null;
   isRead: boolean;
 }
 
@@ -61,6 +58,7 @@ export interface NotificationHistoryItem {
     deliveredAt: string;
     responseStatus: NotificationResponseStatus | null;
     responseAt: string | null;
+    responseMessage: string | null;
   }>;
   stats: {
     total: number;

@@ -84,7 +84,7 @@ describe("API notification flow", () => {
     expect(adminUsers.status).toBe(403);
   });
 
-  it("envia notificacao, registra resposta do usuario e permite auditoria admin", async () => {
+  it("mantem notificacao pendente apos refresh ate marcar resolvido", async () => {
     const adminAgent = request.agent(server);
     const userAgent = request.agent(server);
 
@@ -97,42 +97,63 @@ describe("API notification flow", () => {
     const sendResponse = await adminAgent.post("/api/v1/admin/notifications").send({
       title: "Teste",
       message: "Mensagem de teste",
-      priority: "critical",
+      priority: "high",
       recipient_mode: "users",
       recipient_ids: [targetUser.id]
     });
 
     expect(sendResponse.status).toBe(201);
 
-    const myNotifications = await userAgent.get("/api/v1/me/notifications?status=unread");
-    expect(myNotifications.status).toBe(200);
-    expect(myNotifications.body.notifications.length).toBe(1);
+    const myUnreadStart = await userAgent.get("/api/v1/me/notifications?status=unread");
+    expect(myUnreadStart.status).toBe(200);
+    expect(myUnreadStart.body.notifications.length).toBe(1);
 
-    const notificationId = myNotifications.body.notifications[0].id as number;
+    const notificationId = myUnreadStart.body.notifications[0].id as number;
 
-    const respond = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
+    const setInProgress = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
       response_status: "em_andamento"
     });
 
-    expect(respond.status).toBe(200);
-    expect(respond.body.responseStatus).toBe("em_andamento");
-    expect(respond.body.readAt).toBeTruthy();
+    expect(setInProgress.status).toBe(200);
+    expect(setInProgress.body.responseStatus).toBe("em_andamento");
+    expect(setInProgress.body.isRead).toBe(false);
 
-    const adminHistory = await adminAgent.get("/api/v1/admin/notifications?status=read");
-    expect(adminHistory.status).toBe(200);
-    expect(adminHistory.body.notifications.length).toBe(1);
-    expect(adminHistory.body.notifications[0].stats.read).toBe(1);
-    expect(adminHistory.body.notifications[0].stats.responded).toBe(1);
-    expect(adminHistory.body.notifications[0].recipients[0].responseStatus).toBe("em_andamento");
+    const myAllAfterProgress = await userAgent.get("/api/v1/me/notifications");
+    expect(myAllAfterProgress.status).toBe(200);
+    expect(myAllAfterProgress.body.notifications[0].isRead).toBe(false);
 
-    const onlineUsers = await adminAgent.get("/api/v1/admin/online-users");
-    expect(onlineUsers.status).toBe(200);
-    expect(onlineUsers.body.count).toBe(0);
+    const markReadWhileInProgress = await userAgent.post(`/api/v1/me/notifications/${notificationId}/read`);
+    expect(markReadWhileInProgress.status).toBe(200);
+    expect(markReadWhileInProgress.body.isRead).toBe(false);
 
-    const audit = await adminAgent.get("/api/v1/admin/audit?limit=10");
+    const myUnreadAfterRefreshScenario = await userAgent.get("/api/v1/me/notifications?status=unread");
+    expect(myUnreadAfterRefreshScenario.status).toBe(200);
+    expect(myUnreadAfterRefreshScenario.body.notifications.length).toBe(1);
+
+    const adminUnread = await adminAgent.get("/api/v1/admin/notifications?status=unread");
+    expect(adminUnread.status).toBe(200);
+    expect(adminUnread.body.notifications.length).toBe(1);
+
+    const resolve = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
+      response_status: "resolvido"
+    });
+
+    expect(resolve.status).toBe(200);
+    expect(resolve.body.isRead).toBe(true);
+
+    const myUnreadAfterResolve = await userAgent.get("/api/v1/me/notifications?status=unread");
+    expect(myUnreadAfterResolve.status).toBe(200);
+    expect(myUnreadAfterResolve.body.notifications.length).toBe(0);
+
+    const adminRead = await adminAgent.get("/api/v1/admin/notifications?status=read");
+    expect(adminRead.status).toBe(200);
+    expect(adminRead.body.notifications.length).toBe(1);
+    expect(adminRead.body.notifications[0].stats.unread).toBe(0);
+
+    const audit = await adminAgent.get("/api/v1/admin/audit?limit=20");
     expect(audit.status).toBe(200);
-    expect(audit.body.events.length).toBeGreaterThan(0);
-    expect(audit.body.events.some((event: { event_type: string }) => event.event_type === "admin.notification.send")).toBe(true);
-    expect(audit.body.events.some((event: { event_type: string }) => event.event_type === "notification.respond")).toBe(true);
+    expect(
+      audit.body.events.some((event: { event_type: string }) => event.event_type === "notification.respond")
+    ).toBe(true);
   });
 });

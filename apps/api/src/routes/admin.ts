@@ -53,6 +53,7 @@ interface RecipientRow {
   deliveredAt: string;
   responseStatus: NotificationResponseStatus | null;
   responseAt: string | null;
+  responseMessage: string | null;
 }
 
 interface AuditRow {
@@ -674,7 +675,8 @@ export const createAdminRouter = (
           nr.read_at AS readAt,
           nr.delivered_at AS deliveredAt,
           nr.response_status AS responseStatus,
-          nr.response_at AS responseAt
+          nr.response_at AS responseAt,
+          nr.response_message AS responseMessage
         FROM notification_recipients nr
         INNER JOIN users u ON u.id = nr.user_id
         WHERE nr.notification_id = ?
@@ -688,8 +690,8 @@ export const createAdminRouter = (
 
         const stats = {
           total: recipients.length,
-          read: recipients.filter((recipient) => recipient.readAt !== null).length,
-          unread: recipients.filter((recipient) => recipient.readAt === null).length,
+          read: recipients.filter((recipient) => recipient.responseStatus === "resolvido").length,
+          unread: recipients.filter((recipient) => recipient.responseStatus !== "resolvido").length,
           responded: recipients.filter((recipient) => recipient.responseStatus !== null).length
         };
 
@@ -726,3 +728,7 @@ export const createAdminRouter = (
 
   return router;
 };
+
+
+
+

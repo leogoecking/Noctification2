@@ -1,11 +1,7 @@
 ﻿export type UserRole = "admin" | "user";
 export type NotificationPriority = "low" | "normal" | "high" | "critical";
 export type RecipientMode = "all" | "users";
-export type NotificationResponseStatus =
-  | "ciente"
-  | "em_andamento"
-  | "resolvido"
-  | "aguardando";
+export type NotificationResponseStatus = "em_andamento" | "resolvido";
 
 export interface AuthUser {
   id: number;

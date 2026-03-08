@@ -16,11 +16,11 @@ Monorepo TypeScript com:
 - Popup/toast no canto + badge de pendencias + som curto
 - Modal para notificacoes criticas
 - Usuario marca leitura manualmente
+- Quando resposta = `em_andamento`, a notificacao fica pendente e dispara lembrete a cada 30 minutos ate `resolvido`
 - Usuario responde notificacoes com status curto:
-  - `ciente`
   - `em_andamento`
   - `resolvido`
-  - `aguardando`
+- Em ambos os status, o usuario pode enviar uma mensagem de retorno opcional
 - Admin acompanha lidas/nao lidas e respostas por destinatario
 - Painel admin com usuarios online em tempo real
 - Auditoria detalhada (`audit_log`) com envio, leitura e resposta
@@ -162,3 +162,5 @@ Tabelas:
 - `notification_recipients`
 - `audit_log`
 - `schema_migrations`
+
+

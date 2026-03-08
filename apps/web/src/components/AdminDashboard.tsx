@@ -19,6 +19,18 @@ const formatDate = (value: string | null): string => {
   return new Date(value).toLocaleString("pt-BR");
 };
 
+const responseStatusLabel = (status: "em_andamento" | "resolvido" | null): string => {
+  if (status === "em_andamento") {
+    return "Em andamento";
+  }
+
+  if (status === "resolvido") {
+    return "Resolvido";
+  }
+
+  return "Sem resposta";
+};
+
 const menuBaseClass =
   "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition";
 
@@ -306,7 +318,13 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
                 <div className="space-y-3">
                   {unreadNotifications.map((item) => {
-                    const unreadRecipients = item.recipients.filter((recipient) => !recipient.readAt);
+                    const unreadRecipients = item.recipients.filter(
+                      (recipient) => recipient.responseStatus !== "resolvido"
+                    );
+                    const inProgressCount = unreadRecipients.filter(
+                      (recipient) => recipient.responseStatus === "em_andamento"
+                    ).length;
+
                     return (
                       <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -319,9 +337,35 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                           </span>
                         </div>
                         <p className="mt-2 text-sm text-textMuted">{item.message}</p>
-                        <p className="mt-2 text-xs text-textMuted">
-                          Aguardando: {unreadRecipients.map((recipient) => recipient.login).join(", ") || "-"}
-                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="rounded-md bg-warning/20 px-2 py-1 text-warning">
+                            Pendente: {item.stats.unread}
+                          </span>
+                          <span className="rounded-md bg-accent/20 px-2 py-1 text-accent">
+                            Em andamento: {inProgressCount}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 space-y-2">
+                          {unreadRecipients.length === 0 && (
+                            <p className="text-xs text-textMuted">Sem usuarios pendentes.</p>
+                          )}
+
+                          {unreadRecipients.map((recipient) => (
+                            <div key={recipient.userId} className="rounded-lg border border-slate-700 px-2 py-2">
+                              <p className="text-xs text-textMain">
+                                <span className="font-semibold">{recipient.name}</span> ({recipient.login}) -{" "}
+                                {responseStatusLabel(recipient.responseStatus)}
+                              </p>
+                              <p className="text-[11px] text-textMuted">
+                                Mensagem do usuario: {recipient.responseMessage?.trim() || "-"}
+                              </p>
+                              <p className="text-[11px] text-textMuted">
+                                Atualizado em: {formatDate(recipient.responseAt)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}

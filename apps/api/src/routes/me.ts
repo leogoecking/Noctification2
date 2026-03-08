@@ -7,12 +7,7 @@ import { authenticate } from "../middleware/auth";
 import { emitReadUpdateToAdmins } from "../socket";
 import type { NotificationResponseStatus } from "../types";
 
-const RESPONSE_STATUSES: NotificationResponseStatus[] = [
-  "ciente",
-  "em_andamento",
-  "resolvido",
-  "aguardando"
-];
+const RESPONSE_STATUSES: NotificationResponseStatus[] = ["em_andamento", "resolvido"];
 
 interface NotificationRow {
   id: number;
@@ -27,7 +22,21 @@ interface NotificationRow {
   deliveredAt: string;
   responseStatus: NotificationResponseStatus | null;
   responseAt: string | null;
+  responseMessage: string | null;
 }
+
+const isResolved = (responseStatus: NotificationResponseStatus | null): boolean => {
+  return responseStatus === "resolvido";
+};
+
+const toOptionalResponseMessage = (value: unknown): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
 
 export const createMeRouter = (db: Database.Database, io: Server, config: AppConfig): Router => {
   const router = Router();
@@ -46,11 +55,11 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     const values: Array<number | string> = [req.authUser.id];
 
     if (status === "read") {
-      conditions.push("nr.read_at IS NOT NULL");
+      conditions.push("nr.response_status = 'resolvido'");
     }
 
     if (status === "unread") {
-      conditions.push("nr.read_at IS NULL");
+      conditions.push("IFNULL(nr.response_status, '') != 'resolvido'");
     }
 
     const notifications = db
@@ -68,7 +77,8 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
             nr.read_at AS readAt,
             nr.delivered_at AS deliveredAt,
             nr.response_status AS responseStatus,
-            nr.response_at AS responseAt
+            nr.response_at AS responseAt,
+            nr.response_message AS responseMessage
           FROM notification_recipients nr
           INNER JOIN notifications n ON n.id = nr.notification_id
           INNER JOIN users sender ON sender.id = n.sender_id
@@ -82,7 +92,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     res.json({
       notifications: notifications.map((item) => ({
         ...item,
-        isRead: item.readAt !== null
+        isRead: isResolved(item.responseStatus)
       }))
     });
   });
@@ -101,44 +111,51 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     }
 
     const timestamp = nowIso();
-    const update = db
+
+    db.prepare(
+      `
+        UPDATE notification_recipients
+        SET read_at = COALESCE(read_at, ?)
+        WHERE notification_id = ?
+          AND user_id = ?
+      `
+    ).run(timestamp, notificationId, req.authUser.id);
+
+    const current = db
       .prepare(
         `
-          UPDATE notification_recipients
-          SET read_at = ?
+          SELECT
+            read_at AS readAt,
+            response_status AS responseStatus,
+            response_at AS responseAt,
+            response_message AS responseMessage
+          FROM notification_recipients
           WHERE notification_id = ?
             AND user_id = ?
-            AND read_at IS NULL
         `
       )
-      .run(timestamp, notificationId, req.authUser.id);
+      .get(notificationId, req.authUser.id) as
+      | {
+          readAt: string | null;
+          responseStatus: NotificationResponseStatus | null;
+          responseAt: string | null;
+          responseMessage: string | null;
+        }
+      | undefined;
 
-    let readAt = timestamp;
-
-    if (update.changes === 0) {
-      const existing = db
-        .prepare(
-          `
-            SELECT read_at AS readAt
-            FROM notification_recipients
-            WHERE notification_id = ?
-              AND user_id = ?
-          `
-        )
-        .get(notificationId, req.authUser.id) as { readAt: string | null } | undefined;
-
-      if (!existing) {
-        res.status(404).json({ error: "Notificacao nao encontrada" });
-        return;
-      }
-
-      readAt = existing.readAt ?? timestamp;
+    if (!current || !current.readAt) {
+      res.status(404).json({ error: "Notificacao nao encontrada" });
+      return;
     }
+
+    const resolved = isResolved(current.responseStatus);
 
     emitReadUpdateToAdmins(io, {
       notificationId,
       userId: req.authUser.id,
-      readAt
+      readAt: current.readAt,
+      responseStatus: current.responseStatus,
+      responseAt: current.responseAt
     });
 
     logAudit(db, {
@@ -147,13 +164,17 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       targetType: "notification",
       targetId: notificationId,
       metadata: {
-        readAt
+        readAt: current.readAt,
+        responseStatus: current.responseStatus,
+        responseMessage: current.responseMessage,
+        isRead: resolved
       }
     });
 
     res.json({
       notificationId,
-      readAt
+      readAt: current.readAt,
+      isRead: resolved
     });
   });
 
@@ -165,6 +186,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
 
     const notificationId = Number(req.params.id);
     const responseStatus = req.body?.response_status as NotificationResponseStatus;
+    const responseMessage = toOptionalResponseMessage(req.body?.response_message);
 
     if (!Number.isInteger(notificationId) || notificationId <= 0) {
       res.status(400).json({ error: "ID invalido" });
@@ -173,7 +195,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
 
     if (!RESPONSE_STATUSES.includes(responseStatus)) {
       res.status(400).json({
-        error: "response_status invalido. Use: ciente, em_andamento, resolvido, aguardando"
+        error: "response_status invalido. Use: em_andamento, resolvido"
       });
       return;
     }
@@ -202,13 +224,17 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
         SET
           response_status = ?,
           response_at = ?,
-          read_at = COALESCE(read_at, ?)
+          response_message = ?,
+          read_at = COALESCE(read_at, ?),
+          last_reminder_at = NULL,
+          reminder_count = 0
         WHERE notification_id = ?
           AND user_id = ?
       `
-    ).run(responseStatus, timestamp, timestamp, notificationId, req.authUser.id);
+    ).run(responseStatus, timestamp, responseMessage, timestamp, notificationId, req.authUser.id);
 
     const readAt = existing.readAt ?? timestamp;
+    const resolved = isResolved(responseStatus);
 
     emitReadUpdateToAdmins(io, {
       notificationId,
@@ -225,8 +251,10 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       targetId: notificationId,
       metadata: {
         responseStatus,
+        responseMessage,
         responseAt: timestamp,
-        readAt
+        readAt,
+        isRead: resolved
       }
     });
 
@@ -234,7 +262,9 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       notificationId,
       readAt,
       responseStatus,
-      responseAt: timestamp
+      responseMessage,
+      responseAt: timestamp,
+      isRead: resolved
     });
   });
 

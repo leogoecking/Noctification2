@@ -27,20 +27,17 @@ interface IncomingNotification {
   };
 }
 
+interface IncomingReminder extends IncomingNotification {
+  reminderCount: number;
+}
+
 type FilterMode = "all" | "read" | "unread";
 
-const RESPONSE_OPTIONS: NotificationResponseStatus[] = [
-  "ciente",
-  "em_andamento",
-  "resolvido",
-  "aguardando"
-];
+const RESPONSE_OPTIONS: NotificationResponseStatus[] = ["em_andamento", "resolvido"];
 
 const RESPONSE_LABELS: Record<NotificationResponseStatus, string> = {
-  ciente: "Ciente",
   em_andamento: "Em andamento",
-  resolvido: "Resolvido",
-  aguardando: "Aguardando"
+  resolvido: "Resolvido"
 };
 
 const formatDate = (value: string | null): string => {
@@ -79,8 +76,16 @@ const toLocalNotification = (payload: IncomingNotification): NotificationItem =>
   deliveredAt: payload.createdAt,
   responseStatus: null,
   responseAt: null,
+  responseMessage: null,
   isRead: false
 });
+
+const BellIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
+    <path d="M10 20a2 2 0 0 0 4 0" />
+  </svg>
+);
 
 export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) => {
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -88,6 +93,8 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [selected, setSelected] = useState<NotificationItem | null>(null);
   const [criticalModal, setCriticalModal] = useState<NotificationItem | null>(null);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [responseMessageDraft, setResponseMessageDraft] = useState("");
 
   const loadNotifications = async (nextFilter: FilterMode) => {
     setLoading(true);
@@ -124,7 +131,39 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
         setCriticalModal(parsed);
       }
 
+      setBellOpen(true);
       onToast(`Nova notificacao: ${payload.title}`);
+      playAlert();
+    });
+
+    socket.on("notification:reminder", (payload: IncomingReminder) => {
+      setItems((prev) => {
+        const index = prev.findIndex((item) => item.id === payload.id);
+        if (index === -1) {
+          return [
+            {
+              ...toLocalNotification(payload),
+              responseStatus: "em_andamento",
+              responseAt: new Date().toISOString(),
+              isRead: false
+            },
+            ...prev
+          ];
+        }
+
+        return prev.map((item) =>
+          item.id === payload.id
+            ? {
+                ...item,
+                isRead: false,
+                responseStatus: "em_andamento"
+              }
+            : item
+        );
+      });
+
+      setBellOpen(true);
+      onToast(`Lembrete (${payload.reminderCount}): ${payload.title} ainda em andamento`);
       playAlert();
     });
 
@@ -148,11 +187,26 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     }
   }, [items, criticalModal]);
 
-  const unreadCount = useMemo(() => items.filter((item) => !item.isRead).length, [items]);
+  useEffect(() => {
+    if (selected) {
+      setResponseMessageDraft(selected.responseMessage ?? "");
+    }
+  }, [selected]);
+
+  useEffect(() => {
+    if (!selected && criticalModal) {
+      setResponseMessageDraft(criticalModal.responseMessage ?? "");
+    }
+  }, [criticalModal, selected]);
+
+  const unreadItems = useMemo(() => items.filter((item) => !item.isRead), [items]);
+  const unreadCount = unreadItems.length;
 
   const updateItemState = (
     notificationId: number,
-    patch: Partial<Pick<NotificationItem, "readAt" | "isRead" | "responseStatus" | "responseAt">>
+    patch: Partial<
+      Pick<NotificationItem, "readAt" | "isRead" | "responseStatus" | "responseAt" | "responseMessage">
+    >
   ) => {
     setItems((prev) => prev.map((item) => (item.id === notificationId ? { ...item, ...patch } : item)));
 
@@ -173,7 +227,7 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
       const response = await api.markRead(notificationId);
       updateItemState(notificationId, {
         readAt: response.readAt,
-        isRead: true
+        isRead: response.isRead
       });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Falha ao marcar como lida";
@@ -183,14 +237,16 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
 
   const respondNotification = async (
     notificationId: number,
-    responseStatus: NotificationResponseStatus
+    responseStatus: NotificationResponseStatus,
+    responseMessage?: string
   ) => {
     try {
-      const response = await api.respondNotification(notificationId, responseStatus);
+      const response = await api.respondNotification(notificationId, responseStatus, responseMessage);
       updateItemState(notificationId, {
         readAt: response.readAt,
-        isRead: true,
+        isRead: response.isRead,
         responseStatus,
+        responseMessage: response.responseMessage,
         responseAt: response.responseAt
       });
       onToast(`Resposta registrada: ${RESPONSE_LABELS[responseStatus]}`);
@@ -207,8 +263,67 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
           <h2 className="font-display text-xl text-textMain">Painel do Usuario</h2>
           <p className="text-sm text-textMuted">Conectado como {user.name}</p>
         </div>
-        <div className="rounded-xl bg-panelAlt px-4 py-2 text-sm text-textMain">
-          Pendentes: <strong className="text-accent">{unreadCount}</strong>
+
+        <div className="flex items-center gap-2">
+          <div className="rounded-xl bg-panelAlt px-4 py-2 text-sm text-textMain">
+            Pendentes: <strong className="text-accent">{unreadCount}</strong>
+          </div>
+
+          <div className="relative">
+            <button
+              className="relative rounded-xl border border-slate-600 bg-panelAlt p-2 text-textMain"
+              onClick={() => setBellOpen((prev) => !prev)}
+              aria-label="Abrir notificacoes"
+            >
+              <BellIcon />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {bellOpen && (
+              <div className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-slate-700 bg-panel p-3 shadow-glow">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-textMain">Notificacoes pendentes</p>
+                  <span className="text-xs text-textMuted">{unreadCount}</span>
+                </div>
+
+                {unreadItems.length === 0 && (
+                  <p className="text-xs text-textMuted">Sem pendencias.</p>
+                )}
+
+                <div className="max-h-72 space-y-2 overflow-auto">
+                  {unreadItems.map((item) => (
+                    <button
+                      key={item.id}
+                      className="w-full rounded-lg border border-slate-700 bg-panelAlt p-2 text-left"
+                      onClick={() => {
+                        setSelected(item);
+                        setBellOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-textMain">{item.title}</p>
+                        {item.priority === "critical" && (
+                          <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[10px] text-danger">
+                            Critica
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-textMuted">{item.message}</p>
+                      <p className="mt-1 text-[11px] text-textMuted">{formatDate(item.createdAt)}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <p className="mt-2 text-[11px] text-textMuted">
+                  Clique em uma notificacao para marcar leitura ou resposta.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -229,7 +344,7 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
           className={`rounded-lg px-3 py-2 text-sm ${filter === "read" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
           onClick={() => setFilter("read")}
         >
-          Lidas
+          Resolvidas
         </button>
       </div>
 
@@ -264,6 +379,9 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
                   Resposta: {RESPONSE_LABELS[item.responseStatus]} ({formatDate(item.responseAt)})
                 </p>
               )}
+              {item.responseMessage && (
+                <p className="mt-1 text-xs text-textMuted">Mensagem: {item.responseMessage}</p>
+              )}
             </button>
           ))}
         </div>
@@ -278,22 +396,37 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
               <p className="text-xs text-textMuted">Recebida: {formatDate(selected.deliveredAt)}</p>
               <p className="text-xs text-textMuted">Leitura: {formatDate(selected.readAt)}</p>
               <p className="text-xs text-textMuted">
-                Resposta: {selected.responseStatus ? RESPONSE_LABELS[selected.responseStatus] : "-"}
+                Status: {selected.responseStatus ? RESPONSE_LABELS[selected.responseStatus] : "-"}
               </p>
+              {selected.responseMessage && (
+                <p className="text-xs text-textMuted">Mensagem atual: {selected.responseMessage}</p>
+              )}
+
               {!selected.isRead && (
                 <button
                   className="w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
                   onClick={() => markAsRead(selected.id)}
                 >
-                  Marcar como lida
+                  Marcar visualizacao
                 </button>
               )}
+
+              <label className="block space-y-1">
+                <span className="text-xs text-textMuted">Mensagem de retorno (opcional)</span>
+                <textarea
+                  className="input min-h-20"
+                  placeholder="Digite um retorno, se quiser"
+                  value={responseMessageDraft}
+                  onChange={(event) => setResponseMessageDraft(event.target.value)}
+                />
+              </label>
+
               <div className="grid grid-cols-2 gap-2">
                 {RESPONSE_OPTIONS.map((status) => (
                   <button
                     key={status}
                     className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
-                    onClick={() => respondNotification(selected.id, status)}
+                    onClick={() => respondNotification(selected.id, status, responseMessageDraft)}
                   >
                     {RESPONSE_LABELS[status]}
                   </button>
@@ -314,12 +447,22 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
               Recebida em {formatDate(criticalModal.createdAt)}
             </p>
 
+            <label className="mt-3 block space-y-1">
+              <span className="text-xs text-textMuted">Mensagem de retorno (opcional)</span>
+              <textarea
+                className="input min-h-20"
+                placeholder="Digite um retorno, se quiser"
+                value={responseMessageDraft}
+                onChange={(event) => setResponseMessageDraft(event.target.value)}
+              />
+            </label>
+
             <div className="mt-4 grid grid-cols-2 gap-2">
               {RESPONSE_OPTIONS.map((status) => (
                 <button
                   key={status}
                   className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
-                  onClick={() => respondNotification(criticalModal.id, status)}
+                  onClick={() => respondNotification(criticalModal.id, status, responseMessageDraft)}
                 >
                   {RESPONSE_LABELS[status]}
                 </button>
@@ -331,7 +474,7 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
                 className="flex-1 rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
                 onClick={() => markAsRead(criticalModal.id)}
               >
-                Marcar como lida
+                Marcar visualizacao
               </button>
               <button
                 className="flex-1 rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain"
@@ -346,4 +489,3 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     </section>
   );
 };
-

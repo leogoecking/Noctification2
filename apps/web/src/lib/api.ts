@@ -88,20 +88,26 @@ export const api = {
   myNotifications: (query = "") => request<{ notifications: unknown[] }>(`/me/notifications${query}`),
 
   markRead: (id: number) =>
-    request<{ notificationId: number; readAt: string | null }>(`/me/notifications/${id}/read`, {
-      method: "POST"
-    }),
+    request<{ notificationId: number; readAt: string | null; isRead: boolean }>(
+      `/me/notifications/${id}/read`,
+      {
+        method: "POST"
+      }
+    ),
 
-  respondNotification: (id: number, responseStatus: string) =>
+  respondNotification: (id: number, responseStatus: string, responseMessage?: string) =>
     request<{
       notificationId: number;
       readAt: string | null;
       responseStatus: string;
+      responseMessage: string | null;
       responseAt: string;
+      isRead: boolean;
     }>(`/me/notifications/${id}/respond`, {
       method: "POST",
       bodyJson: {
-        response_status: responseStatus
+        response_status: responseStatus,
+        response_message: responseMessage
       }
     })
 };
