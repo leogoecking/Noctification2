@@ -11,8 +11,7 @@
     "bootstrap-admin": "tsx src/scripts/bootstrap-admin.ts",
     "test": "vitest run --pool=threads",
       "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
