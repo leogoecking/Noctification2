@@ -2,9 +2,9 @@
 import { createServer, type Server as HttpServer } from "node:http";
 import request from "supertest";
 import bcrypt from "bcryptjs";
-import { beforeEach, afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
-import { connectDatabase, runMigrations, nowIso } from "../db";
+import { connectDatabase, nowIso, runMigrations } from "../db";
 import { setupSocket } from "../socket";
 import type { AppConfig } from "../config";
 
@@ -84,7 +84,7 @@ describe("API notification flow", () => {
     expect(adminUsers.status).toBe(403);
   });
 
-  it("envia notificacao e marca leitura", async () => {
+  it("envia notificacao, registra resposta do usuario e permite auditoria admin", async () => {
     const adminAgent = request.agent(server);
     const userAgent = request.agent(server);
 
@@ -97,7 +97,7 @@ describe("API notification flow", () => {
     const sendResponse = await adminAgent.post("/api/v1/admin/notifications").send({
       title: "Teste",
       message: "Mensagem de teste",
-      priority: "high",
+      priority: "critical",
       recipient_mode: "users",
       recipient_ids: [targetUser.id]
     });
@@ -108,15 +108,31 @@ describe("API notification flow", () => {
     expect(myNotifications.status).toBe(200);
     expect(myNotifications.body.notifications.length).toBe(1);
 
-    const notificationId = myNotifications.body.notifications[0].id;
+    const notificationId = myNotifications.body.notifications[0].id as number;
 
-    const markRead = await userAgent.post(`/api/v1/me/notifications/${notificationId}/read`);
-    expect(markRead.status).toBe(200);
-    expect(markRead.body.readAt).toBeTruthy();
+    const respond = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
+      response_status: "em_andamento"
+    });
+
+    expect(respond.status).toBe(200);
+    expect(respond.body.responseStatus).toBe("em_andamento");
+    expect(respond.body.readAt).toBeTruthy();
 
     const adminHistory = await adminAgent.get("/api/v1/admin/notifications?status=read");
     expect(adminHistory.status).toBe(200);
     expect(adminHistory.body.notifications.length).toBe(1);
     expect(adminHistory.body.notifications[0].stats.read).toBe(1);
+    expect(adminHistory.body.notifications[0].stats.responded).toBe(1);
+    expect(adminHistory.body.notifications[0].recipients[0].responseStatus).toBe("em_andamento");
+
+    const onlineUsers = await adminAgent.get("/api/v1/admin/online-users");
+    expect(onlineUsers.status).toBe(200);
+    expect(onlineUsers.body.count).toBe(0);
+
+    const audit = await adminAgent.get("/api/v1/admin/audit?limit=10");
+    expect(audit.status).toBe(200);
+    expect(audit.body.events.length).toBeGreaterThan(0);
+    expect(audit.body.events.some((event: { event_type: string }) => event.event_type === "admin.notification.send")).toBe(true);
+    expect(audit.body.events.some((event: { event_type: string }) => event.event_type === "notification.respond")).toBe(true);
   });
 });

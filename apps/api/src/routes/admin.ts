@@ -4,9 +4,14 @@ import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
 import { logAudit, nowIso } from "../db";
 import { authenticate, requireRole } from "../middleware/auth";
-import { emitNotificationToUser } from "../socket";
+import { emitNotificationToUser, getOnlineUserIds } from "../socket";
 import type { AppConfig } from "../config";
-import type { NotificationPriority, RecipientMode, UserRole } from "../types";
+import type {
+  NotificationPriority,
+  NotificationResponseStatus,
+  RecipientMode,
+  UserRole
+} from "../types";
 
 const PRIORITIES: NotificationPriority[] = ["low", "normal", "high", "critical"];
 
@@ -46,6 +51,20 @@ interface RecipientRow {
   login: string;
   readAt: string | null;
   deliveredAt: string;
+  responseStatus: NotificationResponseStatus | null;
+  responseAt: string | null;
+}
+
+interface AuditRow {
+  id: number;
+  eventType: string;
+  targetType: string;
+  targetId: number | null;
+  metadataJson: string | null;
+  createdAt: string;
+  actorUserId: number | null;
+  actorName: string | null;
+  actorLogin: string | null;
 }
 
 const toNullableString = (value: unknown): string | null => {
@@ -67,6 +86,27 @@ const parseUserIds = (value: unknown): number[] => {
     .filter((entry) => Number.isInteger(entry) && entry > 0);
 
   return Array.from(new Set(normalized));
+};
+
+const parseLimit = (value: unknown, fallback: number, max: number): number => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.min(parsed, max);
+};
+
+const parseMetadata = (json: string | null): Record<string, unknown> | null => {
+  if (!json) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 };
 
 export const createAdminRouter = (
@@ -102,6 +142,100 @@ export const createAdminRouter = (
       users: users.map((user) => ({
         ...user,
         isActive: user.isActive === 1
+      }))
+    });
+  });
+
+  router.get("/online-users", (_req, res) => {
+    const onlineIds = getOnlineUserIds(io);
+
+    if (onlineIds.length === 0) {
+      res.json({ users: [], count: 0 });
+      return;
+    }
+
+    const placeholders = onlineIds.map(() => "?").join(",");
+    const users = db
+      .prepare(
+        `
+          SELECT
+            id,
+            name,
+            login,
+            role,
+            department,
+            job_title AS jobTitle
+          FROM users
+          WHERE id IN (${placeholders})
+          ORDER BY name ASC
+        `
+      )
+      .all(...onlineIds) as Array<{
+      id: number;
+      name: string;
+      login: string;
+      role: UserRole;
+      department: string;
+      jobTitle: string;
+    }>;
+
+    res.json({
+      users,
+      count: users.length
+    });
+  });
+
+  router.get("/audit", (req, res) => {
+    const limit = parseLimit(req.query.limit, 100, 500);
+    const eventType = toNullableString(req.query.event_type);
+
+    const conditions: string[] = [];
+    const values: Array<string | number> = [];
+
+    if (eventType) {
+      conditions.push("a.event_type = ?");
+      values.push(eventType);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const rows = db
+      .prepare(
+        `
+          SELECT
+            a.id,
+            a.event_type AS eventType,
+            a.target_type AS targetType,
+            a.target_id AS targetId,
+            a.metadata_json AS metadataJson,
+            a.created_at AS createdAt,
+            a.actor_user_id AS actorUserId,
+            u.name AS actorName,
+            u.login AS actorLogin
+          FROM audit_log a
+          LEFT JOIN users u ON u.id = a.actor_user_id
+          ${whereClause}
+          ORDER BY a.created_at DESC
+          LIMIT ?
+        `
+      )
+      .all(...values, limit) as AuditRow[];
+
+    res.json({
+      events: rows.map((row) => ({
+        id: row.id,
+        event_type: row.eventType,
+        target_type: row.targetType,
+        target_id: row.targetId,
+        created_at: row.createdAt,
+        actor: row.actorUserId
+          ? {
+              id: row.actorUserId,
+              name: row.actorName,
+              login: row.actorLogin
+            }
+          : null,
+        metadata: parseMetadata(row.metadataJson)
       }))
     });
   });
@@ -461,8 +595,10 @@ export const createAdminRouter = (
       targetId: notificationId,
       metadata: {
         recipientMode,
+        recipientIds: validRecipientIds,
         recipientCount: validRecipientIds.length,
-        priority
+        priority,
+        sentAt: createdAt
       }
     });
 
@@ -536,7 +672,9 @@ export const createAdminRouter = (
           u.name,
           u.login,
           nr.read_at AS readAt,
-          nr.delivered_at AS deliveredAt
+          nr.delivered_at AS deliveredAt,
+          nr.response_status AS responseStatus,
+          nr.response_at AS responseAt
         FROM notification_recipients nr
         INNER JOIN users u ON u.id = nr.user_id
         WHERE nr.notification_id = ?
@@ -551,7 +689,8 @@ export const createAdminRouter = (
         const stats = {
           total: recipients.length,
           read: recipients.filter((recipient) => recipient.readAt !== null).length,
-          unread: recipients.filter((recipient) => recipient.readAt === null).length
+          unread: recipients.filter((recipient) => recipient.readAt === null).length,
+          responded: recipients.filter((recipient) => recipient.responseStatus !== null).length
         };
 
         return {

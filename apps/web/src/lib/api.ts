@@ -54,6 +54,10 @@ export const api = {
 
   adminUsers: () => request<{ users: unknown[] }>("/admin/users"),
 
+  adminOnlineUsers: () => request<{ users: unknown[]; count: number }>("/admin/online-users"),
+
+  adminAudit: (query = "") => request<{ events: unknown[] }>(`/admin/audit${query}`),
+
   createUser: (payload: unknown) =>
     request<{ user: unknown }>("/admin/users", {
       method: "POST",
@@ -86,5 +90,18 @@ export const api = {
   markRead: (id: number) =>
     request<{ notificationId: number; readAt: string | null }>(`/me/notifications/${id}/read`, {
       method: "POST"
+    }),
+
+  respondNotification: (id: number, responseStatus: string) =>
+    request<{
+      notificationId: number;
+      readAt: string | null;
+      responseStatus: string;
+      responseAt: string;
+    }>(`/me/notifications/${id}/respond`, {
+      method: "POST",
+      bodyJson: {
+        response_status: responseStatus
+      }
     })
 };

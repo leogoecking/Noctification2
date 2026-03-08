@@ -4,7 +4,11 @@ import { Server } from "socket.io";
 import type Database from "better-sqlite3";
 import { verifyAccessToken } from "./auth";
 import type { AppConfig } from "./config";
-import type { NotificationPriority, UserRole } from "./types";
+import type {
+  NotificationPriority,
+  NotificationResponseStatus,
+  UserRole
+} from "./types";
 
 interface SocketUser {
   id: number;
@@ -23,6 +27,31 @@ export interface NotificationPushPayload {
     login: string;
   };
 }
+
+export const getOnlineUserIds = (io: Server): number[] => {
+  const ids = new Set<number>();
+
+  for (const [room, sockets] of io.sockets.adapter.rooms) {
+    if (!room.startsWith("user:") || sockets.size === 0) {
+      continue;
+    }
+
+    const parsed = Number(room.slice(5));
+    if (Number.isInteger(parsed) && parsed > 0) {
+      ids.add(parsed);
+    }
+  }
+
+  return Array.from(ids).sort((a, b) => a - b);
+};
+
+const emitOnlineUsersToAdmins = (io: Server): void => {
+  const userIds = getOnlineUserIds(io);
+  io.to("admins").emit("online_users:update", {
+    userIds,
+    count: userIds.length
+  });
+};
 
 export const setupSocket = (
   server: HttpServer,
@@ -79,6 +108,8 @@ export const setupSocket = (
       socket.join("admins");
     }
 
+    emitOnlineUsersToAdmins(io);
+
     socket.on("notifications:subscribe", (ack?: (response: { ok: boolean; unreadCount: number }) => void) => {
       const row = db
         .prepare(
@@ -93,6 +124,10 @@ export const setupSocket = (
       if (typeof ack === "function") {
         ack({ ok: true, unreadCount: row.unreadCount });
       }
+    });
+
+    socket.on("disconnect", () => {
+      emitOnlineUsersToAdmins(io);
     });
   });
 
@@ -113,6 +148,8 @@ export const emitReadUpdateToAdmins = (
     notificationId: number;
     userId: number;
     readAt: string;
+    responseStatus?: NotificationResponseStatus | null;
+    responseAt?: string | null;
   }
 ): void => {
   io.to("admins").emit("notification:read_update", payload);

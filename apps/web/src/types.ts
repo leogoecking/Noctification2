@@ -1,5 +1,10 @@
 ﻿export type UserRole = "admin" | "user";
 export type NotificationPriority = "low" | "normal" | "high" | "critical";
+export type NotificationResponseStatus =
+  | "ciente"
+  | "em_andamento"
+  | "resolvido"
+  | "aguardando";
 
 export interface AuthUser {
   id: number;
@@ -31,6 +36,8 @@ export interface NotificationItem {
   senderLogin: string;
   readAt: string | null;
   deliveredAt: string;
+  responseStatus: NotificationResponseStatus | null;
+  responseAt: string | null;
   isRead: boolean;
 }
 
@@ -52,10 +59,36 @@ export interface NotificationHistoryItem {
     login: string;
     readAt: string | null;
     deliveredAt: string;
+    responseStatus: NotificationResponseStatus | null;
+    responseAt: string | null;
   }>;
   stats: {
     total: number;
     read: number;
     unread: number;
+    responded: number;
   };
+}
+
+export interface OnlineUserItem {
+  id: number;
+  name: string;
+  login: string;
+  role: UserRole;
+  department: string;
+  jobTitle: string;
+}
+
+export interface AuditEventItem {
+  id: number;
+  event_type: string;
+  target_type: string;
+  target_id: number | null;
+  created_at: string;
+  actor: {
+    id: number;
+    name: string;
+    login: string;
+  } | null;
+  metadata: Record<string, unknown> | null;
 }

@@ -5,6 +5,14 @@ import type { AppConfig } from "../config";
 import { logAudit, nowIso } from "../db";
 import { authenticate } from "../middleware/auth";
 import { emitReadUpdateToAdmins } from "../socket";
+import type { NotificationResponseStatus } from "../types";
+
+const RESPONSE_STATUSES: NotificationResponseStatus[] = [
+  "ciente",
+  "em_andamento",
+  "resolvido",
+  "aguardando"
+];
 
 interface NotificationRow {
   id: number;
@@ -17,6 +25,8 @@ interface NotificationRow {
   senderLogin: string;
   readAt: string | null;
   deliveredAt: string;
+  responseStatus: NotificationResponseStatus | null;
+  responseAt: string | null;
 }
 
 export const createMeRouter = (db: Database.Database, io: Server, config: AppConfig): Router => {
@@ -56,7 +66,9 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
             sender.name AS senderName,
             sender.login AS senderLogin,
             nr.read_at AS readAt,
-            nr.delivered_at AS deliveredAt
+            nr.delivered_at AS deliveredAt,
+            nr.response_status AS responseStatus,
+            nr.response_at AS responseAt
           FROM notification_recipients nr
           INNER JOIN notifications n ON n.id = nr.notification_id
           INNER JOIN users sender ON sender.id = n.sender_id
@@ -101,6 +113,8 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       )
       .run(timestamp, notificationId, req.authUser.id);
 
+    let readAt = timestamp;
+
     if (update.changes === 0) {
       const existing = db
         .prepare(
@@ -118,17 +132,13 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
         return;
       }
 
-      res.json({
-        notificationId,
-        readAt: existing.readAt
-      });
-      return;
+      readAt = existing.readAt ?? timestamp;
     }
 
     emitReadUpdateToAdmins(io, {
       notificationId,
       userId: req.authUser.id,
-      readAt: timestamp
+      readAt
     });
 
     logAudit(db, {
@@ -137,13 +147,94 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       targetType: "notification",
       targetId: notificationId,
       metadata: {
-        readAt: timestamp
+        readAt
       }
     });
 
     res.json({
       notificationId,
-      readAt: timestamp
+      readAt
+    });
+  });
+
+  router.post("/notifications/:id/respond", (req, res) => {
+    if (!req.authUser) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return;
+    }
+
+    const notificationId = Number(req.params.id);
+    const responseStatus = req.body?.response_status as NotificationResponseStatus;
+
+    if (!Number.isInteger(notificationId) || notificationId <= 0) {
+      res.status(400).json({ error: "ID invalido" });
+      return;
+    }
+
+    if (!RESPONSE_STATUSES.includes(responseStatus)) {
+      res.status(400).json({
+        error: "response_status invalido. Use: ciente, em_andamento, resolvido, aguardando"
+      });
+      return;
+    }
+
+    const timestamp = nowIso();
+
+    const existing = db
+      .prepare(
+        `
+          SELECT read_at AS readAt
+          FROM notification_recipients
+          WHERE notification_id = ?
+            AND user_id = ?
+        `
+      )
+      .get(notificationId, req.authUser.id) as { readAt: string | null } | undefined;
+
+    if (!existing) {
+      res.status(404).json({ error: "Notificacao nao encontrada" });
+      return;
+    }
+
+    db.prepare(
+      `
+        UPDATE notification_recipients
+        SET
+          response_status = ?,
+          response_at = ?,
+          read_at = COALESCE(read_at, ?)
+        WHERE notification_id = ?
+          AND user_id = ?
+      `
+    ).run(responseStatus, timestamp, timestamp, notificationId, req.authUser.id);
+
+    const readAt = existing.readAt ?? timestamp;
+
+    emitReadUpdateToAdmins(io, {
+      notificationId,
+      userId: req.authUser.id,
+      readAt,
+      responseStatus,
+      responseAt: timestamp
+    });
+
+    logAudit(db, {
+      actorUserId: req.authUser.id,
+      eventType: "notification.respond",
+      targetType: "notification",
+      targetId: notificationId,
+      metadata: {
+        responseStatus,
+        responseAt: timestamp,
+        readAt
+      }
+    });
+
+    res.json({
+      notificationId,
+      readAt,
+      responseStatus,
+      responseAt: timestamp
     });
   });
 

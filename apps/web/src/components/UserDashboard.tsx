@@ -1,7 +1,12 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { connectSocket } from "../lib/socket";
-import type { AuthUser, NotificationItem, NotificationPriority } from "../types";
+import type {
+  AuthUser,
+  NotificationItem,
+  NotificationPriority,
+  NotificationResponseStatus
+} from "../types";
 
 interface UserDashboardProps {
   user: AuthUser;
@@ -23,6 +28,20 @@ interface IncomingNotification {
 }
 
 type FilterMode = "all" | "read" | "unread";
+
+const RESPONSE_OPTIONS: NotificationResponseStatus[] = [
+  "ciente",
+  "em_andamento",
+  "resolvido",
+  "aguardando"
+];
+
+const RESPONSE_LABELS: Record<NotificationResponseStatus, string> = {
+  ciente: "Ciente",
+  em_andamento: "Em andamento",
+  resolvido: "Resolvido",
+  aguardando: "Aguardando"
+};
 
 const formatDate = (value: string | null): string => {
   if (!value) {
@@ -47,11 +66,28 @@ const playAlert = () => {
   oscillator.stop(context.currentTime + 0.12);
 };
 
+const toLocalNotification = (payload: IncomingNotification): NotificationItem => ({
+  id: payload.id,
+  title: payload.title,
+  message: payload.message,
+  priority: payload.priority,
+  createdAt: payload.createdAt,
+  senderId: payload.sender.id,
+  senderName: payload.sender.name,
+  senderLogin: payload.sender.login,
+  readAt: null,
+  deliveredAt: payload.createdAt,
+  responseStatus: null,
+  responseAt: null,
+  isRead: false
+});
+
 export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) => {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [selected, setSelected] = useState<NotificationItem | null>(null);
+  const [criticalModal, setCriticalModal] = useState<NotificationItem | null>(null);
 
   const loadNotifications = async (nextFilter: FilterMode) => {
     setLoading(true);
@@ -81,22 +117,12 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     });
 
     socket.on("notification:new", (payload: IncomingNotification) => {
-      setItems((prev) => [
-        {
-          id: payload.id,
-          title: payload.title,
-          message: payload.message,
-          priority: payload.priority,
-          createdAt: payload.createdAt,
-          senderId: payload.sender.id,
-          senderName: payload.sender.name,
-          senderLogin: payload.sender.login,
-          readAt: null,
-          deliveredAt: payload.createdAt,
-          isRead: false
-        },
-        ...prev
-      ]);
+      const parsed = toLocalNotification(payload);
+      setItems((prev) => [parsed, ...prev]);
+
+      if (parsed.priority === "critical") {
+        setCriticalModal(parsed);
+      }
 
       onToast(`Nova notificacao: ${payload.title}`);
       playAlert();
@@ -111,34 +137,65 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     };
   }, [onError, onToast]);
 
+  useEffect(() => {
+    if (criticalModal) {
+      return;
+    }
+
+    const firstPendingCritical = items.find((item) => !item.isRead && item.priority === "critical");
+    if (firstPendingCritical) {
+      setCriticalModal(firstPendingCritical);
+    }
+  }, [items, criticalModal]);
+
   const unreadCount = useMemo(() => items.filter((item) => !item.isRead).length, [items]);
+
+  const updateItemState = (
+    notificationId: number,
+    patch: Partial<Pick<NotificationItem, "readAt" | "isRead" | "responseStatus" | "responseAt">>
+  ) => {
+    setItems((prev) => prev.map((item) => (item.id === notificationId ? { ...item, ...patch } : item)));
+
+    setSelected((prev) => (prev && prev.id === notificationId ? { ...prev, ...patch } : prev));
+
+    setCriticalModal((prev) => {
+      if (!prev || prev.id !== notificationId) {
+        return prev;
+      }
+
+      const next = { ...prev, ...patch };
+      return next.isRead ? null : next;
+    });
+  };
 
   const markAsRead = async (notificationId: number) => {
     try {
       const response = await api.markRead(notificationId);
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === notificationId
-            ? {
-                ...item,
-                readAt: response.readAt,
-                isRead: true
-              }
-            : item
-        )
-      );
-
-      setSelected((prev) =>
-        prev && prev.id === notificationId
-          ? {
-              ...prev,
-              readAt: response.readAt,
-              isRead: true
-            }
-          : prev
-      );
+      updateItemState(notificationId, {
+        readAt: response.readAt,
+        isRead: true
+      });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Falha ao marcar como lida";
+      onError(message);
+    }
+  };
+
+  const respondNotification = async (
+    notificationId: number,
+    responseStatus: NotificationResponseStatus
+  ) => {
+    try {
+      const response = await api.respondNotification(notificationId, responseStatus);
+      updateItemState(notificationId, {
+        readAt: response.readAt,
+        isRead: true,
+        responseStatus,
+        responseAt: response.responseAt
+      });
+      onToast(`Resposta registrada: ${RESPONSE_LABELS[responseStatus]}`);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Falha ao registrar resposta";
       onError(message);
     }
   };
@@ -186,13 +243,27 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
               className={`w-full rounded-xl border p-3 text-left transition ${
                 item.isRead
                   ? "border-slate-700 bg-panelAlt/60"
-                  : "border-accent/50 bg-accent/10"
+                  : item.priority === "critical"
+                    ? "border-danger bg-danger/10"
+                    : "border-accent/50 bg-accent/10"
               }`}
               onClick={() => setSelected(item)}
             >
-              <p className="font-medium text-textMain">{item.title}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-textMain">{item.title}</p>
+                {item.priority === "critical" && (
+                  <span className="rounded-md bg-danger/20 px-2 py-1 text-[10px] uppercase tracking-wide text-danger">
+                    Critica
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-sm text-textMuted">{item.message}</p>
               <p className="mt-2 text-xs text-textMuted">{formatDate(item.createdAt)}</p>
+              {item.responseStatus && (
+                <p className="mt-1 text-xs text-accentWarm">
+                  Resposta: {RESPONSE_LABELS[item.responseStatus]} ({formatDate(item.responseAt)})
+                </p>
+              )}
             </button>
           ))}
         </div>
@@ -206,6 +277,9 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
               <p className="whitespace-pre-wrap text-sm text-textMain">{selected.message}</p>
               <p className="text-xs text-textMuted">Recebida: {formatDate(selected.deliveredAt)}</p>
               <p className="text-xs text-textMuted">Leitura: {formatDate(selected.readAt)}</p>
+              <p className="text-xs text-textMuted">
+                Resposta: {selected.responseStatus ? RESPONSE_LABELS[selected.responseStatus] : "-"}
+              </p>
               {!selected.isRead && (
                 <button
                   className="w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
@@ -214,10 +288,62 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
                   Marcar como lida
                 </button>
               )}
+              <div className="grid grid-cols-2 gap-2">
+                {RESPONSE_OPTIONS.map((status) => (
+                  <button
+                    key={status}
+                    className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
+                    onClick={() => respondNotification(selected.id, status)}
+                  >
+                    {RESPONSE_LABELS[status]}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </aside>
       </div>
+
+      {criticalModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-danger bg-panel p-5 shadow-glow">
+            <p className="text-xs uppercase tracking-[0.2em] text-danger">Notificacao critica</p>
+            <h3 className="mt-2 font-display text-xl text-textMain">{criticalModal.title}</h3>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-textMain">{criticalModal.message}</p>
+            <p className="mt-3 text-xs text-textMuted">
+              Recebida em {formatDate(criticalModal.createdAt)}
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {RESPONSE_OPTIONS.map((status) => (
+                <button
+                  key={status}
+                  className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
+                  onClick={() => respondNotification(criticalModal.id, status)}
+                >
+                  {RESPONSE_LABELS[status]}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                className="flex-1 rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+                onClick={() => markAsRead(criticalModal.id)}
+              >
+                Marcar como lida
+              </button>
+              <button
+                className="flex-1 rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain"
+                onClick={() => setCriticalModal(null)}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
+

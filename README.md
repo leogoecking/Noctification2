@@ -13,9 +13,17 @@ Monorepo TypeScript com:
 - Admin envia notificacao para um, varios ou todos os usuarios
 - Entrega instantanea para usuarios online via Socket.IO
 - Persistencia para usuarios offline (recebem ao logar)
+- Popup/toast no canto + badge de pendencias + som curto
+- Modal para notificacoes criticas
 - Usuario marca leitura manualmente
-- Admin acompanha lidas/nao lidas com horario de leitura
-- Auditoria basica (`audit_log`)
+- Usuario responde notificacoes com status curto:
+  - `ciente`
+  - `em_andamento`
+  - `resolvido`
+  - `aguardando`
+- Admin acompanha lidas/nao lidas e respostas por destinatario
+- Painel admin com usuarios online em tempo real
+- Auditoria detalhada (`audit_log`) com envio, leitura e resposta
 
 ## Estrutura
 
@@ -80,6 +88,8 @@ Web: `http://localhost:5173`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 - `GET /api/v1/admin/users`
+- `GET /api/v1/admin/online-users`
+- `GET /api/v1/admin/audit?limit=`
 - `POST /api/v1/admin/users`
 - `PATCH /api/v1/admin/users/:id`
 - `PATCH /api/v1/admin/users/:id/status`
@@ -87,11 +97,13 @@ Web: `http://localhost:5173`
 - `GET /api/v1/admin/notifications?status=&user_id=&from=&to=`
 - `GET /api/v1/me/notifications?status=`
 - `POST /api/v1/me/notifications/:id/read`
+- `POST /api/v1/me/notifications/:id/respond`
 
 ## Eventos Socket.IO
 
 - Servidor -> usuario: `notification:new`
 - Servidor -> admin: `notification:read_update`
+- Servidor -> admin: `online_users:update`
 - Cliente -> servidor: `notifications:subscribe`
 
 ## Build e testes
