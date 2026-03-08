@@ -111,11 +111,13 @@ describe("API notification flow", () => {
     const notificationId = myUnreadStart.body.notifications[0].id as number;
 
     const setInProgress = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
-      response_status: "em_andamento"
+      response_status: "em_andamento",
+      response_message: "Estou verificando o incidente"
     });
 
     expect(setInProgress.status).toBe(200);
     expect(setInProgress.body.responseStatus).toBe("em_andamento");
+    expect(setInProgress.body.responseMessage).toBe("Estou verificando o incidente");
     expect(setInProgress.body.isRead).toBe(false);
 
     const myAllAfterProgress = await userAgent.get("/api/v1/me/notifications");
@@ -133,6 +135,7 @@ describe("API notification flow", () => {
     const adminUnread = await adminAgent.get("/api/v1/admin/notifications?status=unread");
     expect(adminUnread.status).toBe(200);
     expect(adminUnread.body.notifications.length).toBe(1);
+    expect(adminUnread.body.notifications[0].recipients[0].responseMessage).toBe("Estou verificando o incidente");
 
     const resolve = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
       response_status: "resolvido"
@@ -157,3 +160,4 @@ describe("API notification flow", () => {
     ).toBe(true);
   });
 });
+

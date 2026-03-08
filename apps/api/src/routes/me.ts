@@ -186,7 +186,9 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
 
     const notificationId = Number(req.params.id);
     const responseStatus = req.body?.response_status as NotificationResponseStatus;
-    const responseMessage = toOptionalResponseMessage(req.body?.response_message);
+    const responseMessage = toOptionalResponseMessage(
+      req.body?.response_message ?? req.body?.responseMessage ?? req.body?.message
+    );
 
     if (!Number.isInteger(notificationId) || notificationId <= 0) {
       res.status(400).json({ error: "ID invalido" });
@@ -270,3 +272,4 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
 
   return router;
 };
+

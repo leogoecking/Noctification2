@@ -8,8 +8,10 @@ interface AdminDashboardProps {
   onToast: (message: string) => void;
 }
 
+type NotificationRecipient = NotificationHistoryItem["recipients"][number];
+
 type RecipientMode = "all" | "users";
-type AdminMenu = "dashboard" | "send" | "users";
+type AdminMenu = "dashboard" | "send" | "users" | "history_notifications";
 
 const formatDate = (value: string | null): string => {
   if (!value) {
@@ -33,6 +35,20 @@ const responseStatusLabel = (status: "em_andamento" | "resolvido" | null): strin
 
 const menuBaseClass =
   "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition";
+
+const menuButtonClass = (active: boolean): string => {
+  return `${menuBaseClass} ${
+    active ? "bg-accent text-slate-900" : "text-textMuted hover:bg-panelAlt"
+  }`;
+};
+
+const toErrorMessage = (error: unknown, fallback: string): string => {
+  return error instanceof ApiError ? error.message : fallback;
+};
+
+const hasRecipientResponse = (recipient: NotificationRecipient): boolean => {
+  return recipient.responseStatus !== null || Boolean(recipient.responseMessage?.trim());
+};
 
 const IconDashboard = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -59,12 +75,23 @@ const IconUsers = () => (
   </svg>
 );
 
+const IconArchive = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" />
+    <path d="M10 12h4" />
+  </svg>
+);
+
+
 export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
   const [menu, setMenu] = useState<AdminMenu>("dashboard");
   const [users, setUsers] = useState<UserItem[]>([]);
   const [history, setHistory] = useState<NotificationHistoryItem[]>([]);
+  const [historyAll, setHistoryAll] = useState<NotificationHistoryItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingHistoryAll, setLoadingHistoryAll] = useState(false);
 
   const [notificationForm, setNotificationForm] = useState({
     title: "",
@@ -99,8 +126,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
       const response = await api.adminUsers();
       setUsers(response.users as UserItem[]);
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha ao carregar usuarios";
-      onError(message);
+      onError(toErrorMessage(error, "Falha ao carregar usuarios"));
     } finally {
       setLoadingUsers(false);
     }
@@ -112,30 +138,47 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
       const response = await api.adminNotifications("?status=unread");
       setHistory(response.notifications as NotificationHistoryItem[]);
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha ao carregar dashboard";
-      onError(message);
+      onError(toErrorMessage(error, "Falha ao carregar dashboard"));
     } finally {
       setLoadingHistory(false);
+    }
+  }, [onError]);
+
+  const loadNotificationHistory = useCallback(async () => {
+    setLoadingHistoryAll(true);
+    try {
+      const response = await api.adminNotifications();
+      setHistoryAll(response.notifications as NotificationHistoryItem[]);
+    } catch (error) {
+      onError(toErrorMessage(error, "Falha ao carregar historico"));
+    } finally {
+      setLoadingHistoryAll(false);
     }
   }, [onError]);
 
   useEffect(() => {
     loadUsers();
     loadUnreadDashboard();
-  }, [loadUsers, loadUnreadDashboard]);
+    loadNotificationHistory();
+  }, [loadUsers, loadUnreadDashboard, loadNotificationHistory]);
 
   useEffect(() => {
     const socket = connectSocket();
     socket.on("notification:read_update", () => {
       loadUnreadDashboard();
+      loadNotificationHistory();
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [loadUnreadDashboard]);
+  }, [loadUnreadDashboard, loadNotificationHistory]);
 
   const unreadNotifications = useMemo(() => history.filter((item) => item.stats.unread > 0), [history]);
+  const completedNotifications = useMemo(
+    () => historyAll.filter((item) => item.stats.total > 0 && item.stats.unread === 0),
+    [historyAll]
+  );
 
   const metrics = useMemo(() => {
     const pendingRecipients = unreadNotifications.reduce((acc, item) => acc + item.stats.unread, 0);
@@ -146,11 +189,13 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     return {
       pendingNotifications: unreadNotifications.length,
       pendingRecipients,
-      criticalOpen
+      criticalOpen,
+      completedNotifications: completedNotifications.length
     };
-  }, [unreadNotifications]);
+  }, [completedNotifications.length, unreadNotifications]);
 
   const activeUsers = useMemo(() => users.filter((item) => item.isActive), [users]);
+
 
   const sendNotification = async () => {
     if (!notificationForm.title.trim() || !notificationForm.message.trim()) {
@@ -174,10 +219,10 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
       });
       onToast("Notificacao enviada");
       await loadUnreadDashboard();
+      await loadNotificationHistory();
       setMenu("dashboard");
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha ao enviar notificacao";
-      onError(message);
+      onError(toErrorMessage(error, "Falha ao enviar notificacao"));
     }
   };
 
@@ -200,8 +245,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
       });
       await loadUsers();
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha ao criar usuario";
-      onError(message);
+      onError(toErrorMessage(error, "Falha ao criar usuario"));
     }
   };
 
@@ -225,8 +269,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
       setEditForm((prev) => ({ ...prev, password: "" }));
       await loadUsers();
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha ao atualizar usuario";
-      onError(message);
+      onError(toErrorMessage(error, "Falha ao atualizar usuario"));
     }
   };
 
@@ -236,8 +279,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
       onToast(`Usuario ${user.isActive ? "desativado" : "ativado"}`);
       await loadUsers();
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha ao alterar status";
-      onError(message);
+      onError(toErrorMessage(error, "Falha ao alterar status"));
     }
   };
 
@@ -250,7 +292,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
           <nav className="space-y-1">
             <button
-              className={`${menuBaseClass} ${menu === "dashboard" ? "bg-accent text-slate-900" : "text-textMuted hover:bg-panelAlt"}`}
+              className={menuButtonClass(menu === "dashboard")}
               onClick={() => setMenu("dashboard")}
             >
               <IconDashboard />
@@ -258,7 +300,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
             </button>
 
             <button
-              className={`${menuBaseClass} ${menu === "send" ? "bg-accent text-slate-900" : "text-textMuted hover:bg-panelAlt"}`}
+              className={menuButtonClass(menu === "send")}
               onClick={() => setMenu("send")}
             >
               <IconBell />
@@ -266,11 +308,19 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
             </button>
 
             <button
-              className={`${menuBaseClass} ${menu === "users" ? "bg-accent text-slate-900" : "text-textMuted hover:bg-panelAlt"}`}
+              className={menuButtonClass(menu === "users")}
               onClick={() => setMenu("users")}
             >
               <IconUsers />
               Usuarios
+            </button>
+
+            <button
+              className={menuButtonClass(menu === "history_notifications")}
+              onClick={() => setMenu("history_notifications")}
+            >
+              <IconArchive />
+              Historico notificacoes
             </button>
           </nav>
         </aside>
@@ -283,7 +333,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                 <p className="text-sm text-textMuted">Visao rapida das pendencias de leitura</p>
               </header>
 
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-4">
                 <article className="rounded-2xl border border-slate-700 bg-panel p-4">
                   <p className="text-xs uppercase tracking-wide text-textMuted">Nao lidas</p>
                   <p className="mt-1 font-display text-2xl text-textMain">{metrics.pendingNotifications}</p>
@@ -297,6 +347,11 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                 <article className="rounded-2xl border border-slate-700 bg-panel p-4">
                   <p className="text-xs uppercase tracking-wide text-textMuted">Criticas abertas</p>
                   <p className="mt-1 font-display text-2xl text-danger">{metrics.criticalOpen}</p>
+                </article>
+
+                <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+                  <p className="text-xs uppercase tracking-wide text-textMuted">Concluidas</p>
+                  <p className="mt-1 font-display text-2xl text-success">{metrics.completedNotifications}</p>
                 </article>
               </div>
 
@@ -360,6 +415,11 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                               <p className="text-[11px] text-textMuted">
                                 Mensagem do usuario: {recipient.responseMessage?.trim() || "-"}
                               </p>
+                              {recipient.responseStatus === "em_andamento" && Boolean(recipient.responseMessage?.trim()) && (
+                                <p className="text-[11px] font-semibold text-accent">
+                                  Retorno em andamento: {recipient.responseMessage?.trim()}
+                                </p>
+                              )}
                               <p className="text-[11px] text-textMuted">
                                 Atualizado em: {formatDate(recipient.responseAt)}
                               </p>
@@ -371,9 +431,118 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                   })}
                 </div>
               </article>
+
+              <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="font-display text-lg text-textMain">Concluidas recentes</h4>
+                  <button
+                    className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+                    onClick={loadNotificationHistory}
+                  >
+                    Atualizar
+                  </button>
+                </div>
+
+                {loadingHistoryAll && <p className="text-sm text-textMuted">Carregando...</p>}
+                {!loadingHistoryAll && completedNotifications.length === 0 && (
+                  <p className="text-sm text-textMuted">Nenhuma notificacao concluida.</p>
+                )}
+
+                <div className="space-y-3">
+                  {completedNotifications.slice(0, 5).map((item) => (
+                    <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-textMain">{item.title}</p>
+                          <p className="text-xs text-textMuted">Concluida em {formatDate(item.created_at)}</p>
+                        </div>
+                        <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
+                          Resolvidas: {item.stats.read}/{item.stats.total}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-textMuted">{item.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </article>
             </>
           )}
 
+
+          {menu === "history_notifications" && (
+            <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-display text-lg text-textMain">Historico de notificacoes</h3>
+                  <p className="text-sm text-textMuted">Ultimas notificacoes enviadas e status por destinatario</p>
+                </div>
+                <button
+                  className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+                  onClick={loadNotificationHistory}
+                >
+                  Atualizar
+                </button>
+              </div>
+
+              {loadingHistoryAll && <p className="text-sm text-textMuted">Carregando...</p>}
+              {!loadingHistoryAll && historyAll.length === 0 && (
+                <p className="text-sm text-textMuted">Nenhuma notificacao no historico.</p>
+              )}
+
+              <div className="space-y-3">
+                {historyAll.map((item) => {
+                  const notificationResponses = item.recipients.filter(hasRecipientResponse);
+
+                  return (
+                    <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-textMain">{item.title}</p>
+                          <p className="text-xs text-textMuted">Enviada em {formatDate(item.created_at)}</p>
+                        </div>
+                        <span className="rounded-md bg-accent/20 px-2 py-1 text-xs text-accent">
+                          {item.recipient_mode === "all" ? "Todos" : "Usuarios especificos"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-textMuted">{item.message}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-md bg-panel px-2 py-1 text-textMuted">Total: {item.stats.total}</span>
+                        <span className="rounded-md bg-success/20 px-2 py-1 text-success">Resolvidas: {item.stats.read}</span>
+                        <span className="rounded-md bg-warning/20 px-2 py-1 text-warning">Pendentes: {item.stats.unread}</span>
+                        <span className="rounded-md bg-panel px-2 py-1 text-textMuted">Com resposta: {item.stats.responded}</span>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        {notificationResponses.length === 0 && (
+                          <p className="text-xs text-textMuted">Sem respostas para esta notificacao.</p>
+                        )}
+
+                        {notificationResponses.map((recipient) => (
+                          <div key={recipient.userId} className="rounded-lg border border-slate-700 px-2 py-2">
+                            <p className="text-xs text-textMain">
+                              <span className="font-semibold">{recipient.name}</span> ({recipient.login}) -{" "}
+                              {responseStatusLabel(recipient.responseStatus)}
+                            </p>
+                            <p className="text-[11px] text-textMuted">
+                              Mensagem: {recipient.responseMessage?.trim() || "(sem mensagem)"}
+                            </p>
+                            {recipient.responseStatus === "em_andamento" && Boolean(recipient.responseMessage?.trim()) && (
+                              <p className="text-[11px] font-semibold text-accent">
+                                Retorno em andamento: {recipient.responseMessage?.trim()}
+                              </p>
+                            )}
+                            <p className="text-[11px] text-textMuted">
+                              Atualizado em: {formatDate(recipient.responseAt ?? recipient.readAt)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+          )}
           {menu === "send" && (
             <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
               <h3 className="font-display text-lg text-textMain">Enviar notificacao</h3>
@@ -555,3 +724,22 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     </section>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
