@@ -1,0 +1,17 @@
+{
+  "name": "noctification2",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @noctification/api",
+    "dev:web": "npm run dev --workspace @noctification/web",
+    "build": "npm run build --workspace @noctification/api && npm run build --workspace @noctification/web",
+    "test": "npm run test --workspace @noctification/api"
+
+    
+  }
+}

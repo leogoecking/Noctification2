@@ -1,0 +1,56 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.12), transparent 40%),
+    radial-gradient(circle at 95% 5%, rgba(251, 113, 133, 0.12), transparent 45%),
+    #0b1018;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.7rem;
+  border: 1px solid rgb(51 65 85);
+  background: rgba(15, 23, 42, 0.7);
+  color: #d6e2ff;
+  padding: 0.6rem 0.75rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus {
+  border-color: rgba(34, 211, 238, 0.8);
+}
+
+.btn-primary {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  background: linear-gradient(120deg, #22d3ee, #0ea5e9);
+  color: #06131f;
+  font-weight: 700;
+  padding: 0.6rem 0.95rem;
+}
+
+.btn-accent {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(251, 113, 133, 0.45);
+  background: linear-gradient(120deg, #fb7185, #f43f5e);
+  color: #14070b;
+  font-weight: 700;
+  padding: 0.6rem 0.95rem;
+}

@@ -1,0 +1,17 @@
+﻿[Unit]
+Description=Noctification API
+After=network.target
+
+[Service]
+Type=simple
+User=noctification
+Group=noctification
+WorkingDirectory=/opt/noctification/apps/api
+EnvironmentFile=/etc/noctification/api.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
