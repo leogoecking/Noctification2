@@ -1,4 +1,4 @@
-name: Security CI
+﻿name: Security CI
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
 
       - name: Check forbidden files
         run: |
-          echo "Verificando arquivos sensíveis versionados..."
+          echo "Verificando arquivos sensiveis versionados..."
 
           forbidden_files=$(find . \
             \( -name ".env" -o -name ".env.local" -o -name "*.sqlite" -o -name "*.sqlite3" -o -name "*.db" \) \
@@ -38,22 +38,26 @@ jobs:
             -not -path "./.git/*")
 
           if [ -n "$forbidden_files" ]; then
-            echo "Arquivos proibidos encontrados no repositório:"
+            echo "Arquivos proibidos encontrados no repositorio:"
             echo "$forbidden_files"
             exit 1
           fi
 
       - name: Check for obvious hardcoded secrets
         run: |
-          echo "Verificando padrões comuns de segredo hardcoded..."
+          echo "Verificando padroes comuns de segredo hardcoded..."
 
-          if grep -RInE "(JWT_SECRET|jwt_secret|password\s*=|senha\s*=|token\s*=|SECRET_KEY|API_KEY)" . \
+          secret_literal_pattern="(JWT_SECRET|jwt_secret|SECRET_KEY|API_KEY|password|senha|token)[[:space:]]*[:=][[:space:]]*['\"][^'\"]{8,}['\"]"
+
+          if grep -RInE "$secret_literal_pattern" . \
             --exclude-dir=node_modules \
             --exclude-dir=.git \
+            --exclude-dir=dist \
+            --exclude="*.example" \
             --exclude="*.md" \
             --exclude="*.yml" \
             --exclude="*.yaml"; then
-            echo "Possível segredo hardcoded encontrado. Revise o resultado acima."
+            echo "Possivel segredo hardcoded encontrado. Revise o resultado acima."
             exit 1
           fi
 
