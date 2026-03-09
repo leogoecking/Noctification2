@@ -1,17 +1,15 @@
 [Unit]
-Description=Noctification API
+Description=Noctification API (user)
 After=network.target
 
 [Service]
 Type=simple
-User=noctification
-Group=noctification
-Environment=APP_ROOT=/home/noctification/noctification
-EnvironmentFile=/etc/noctification/api.env
+Environment=APP_ROOT=%h/noctification
+EnvironmentFile=-%h/.config/noctification/api.env
 ExecStart=/usr/bin/bash -lc 'cd "${APP_ROOT}/apps/api" && exec /usr/bin/node dist/index.js'
 Restart=always
 RestartSec=5
 KillSignal=SIGINT
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

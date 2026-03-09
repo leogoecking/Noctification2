@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." >/dev/null 2>&1 && pwd)"
+SYSTEM_ENV_FILE="/etc/noctification/api.env"
+LOCAL_ENV_FILE="$PROJECT_ROOT/apps/api/.env"
+
 API_BASE="http://127.0.0.1:4000"
-ENV_FILE="/etc/noctification/api.env"
+ENV_FILE="$SYSTEM_ENV_FILE"
+if [[ ! -f "$ENV_FILE" && -f "$LOCAL_ENV_FILE" ]]; then
+  ENV_FILE="$LOCAL_ENV_FILE"
+fi
 ORIGIN=""
 LOGIN="admin"
 PASSWORD="admin"
@@ -17,7 +25,7 @@ Validates API health, CORS, login, cookie creation and /auth/me.
 Options:
   --api-base <url>       API base (default: http://127.0.0.1:4000)
   --origin <url>         Frontend origin for CORS check (default: read from CORS_ORIGIN in env file)
-  --env-file <path>      Env file path (default: /etc/noctification/api.env)
+  --env-file <path>      Env file path (default: /etc/noctification/api.env; fallback: apps/api/.env)
   --login <value>        Login credential (default: admin)
   --password <value>     Password credential (default: admin)
   --timeout <seconds>    Curl timeout (default: 10)
@@ -108,18 +116,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
+log "Env file used: $ENV_FILE"
 log "Checking health endpoint..."
 curl -fsS --max-time "$TIMEOUT_SECONDS" "$API_BASE/api/v1/health" >/dev/null
 
 log "Checking CORS preflight for /auth/login..."
-PREFLIGHT_STATUS="$({
-  curl -sS -o /dev/null -D "$HEADERS_FILE" -w '%{http_code}' \
-    -X OPTIONS "$API_BASE/api/v1/auth/login" \
-    -H "Origin: $ORIGIN" \
-    -H 'Access-Control-Request-Method: POST' \
-    -H 'Access-Control-Request-Headers: content-type' \
-    --max-time "$TIMEOUT_SECONDS"
-} || true)"
+PREFLIGHT_STATUS="$(
+  {
+    curl -sS -o /dev/null -D "$HEADERS_FILE" -w '%{http_code}' \
+      -X OPTIONS "$API_BASE/api/v1/auth/login" \
+      -H "Origin: $ORIGIN" \
+      -H 'Access-Control-Request-Method: POST' \
+      -H 'Access-Control-Request-Headers: content-type' \
+      --max-time "$TIMEOUT_SECONDS"
+  } || true
+)"
 
 if [[ "$PREFLIGHT_STATUS" != "200" && "$PREFLIGHT_STATUS" != "204" ]]; then
   fail "Preflight returned HTTP $PREFLIGHT_STATUS (expected 200 or 204)"
@@ -132,14 +143,16 @@ fi
 
 log "Testing login..."
 LOGIN_PAYLOAD="$(printf '{"login":"%s","password":"%s"}' "$LOGIN" "$PASSWORD")"
-LOGIN_STATUS="$({
-  curl -sS -o "$BODY_FILE" -D "$HEADERS_FILE" -c "$COOKIE_FILE" -w '%{http_code}' \
-    -X POST "$API_BASE/api/v1/auth/login" \
-    -H "Origin: $ORIGIN" \
-    -H 'Content-Type: application/json' \
-    --data "$LOGIN_PAYLOAD" \
-    --max-time "$TIMEOUT_SECONDS"
-} || true)"
+LOGIN_STATUS="$(
+  {
+    curl -sS -o "$BODY_FILE" -D "$HEADERS_FILE" -c "$COOKIE_FILE" -w '%{http_code}' \
+      -X POST "$API_BASE/api/v1/auth/login" \
+      -H "Origin: $ORIGIN" \
+      -H 'Content-Type: application/json' \
+      --data "$LOGIN_PAYLOAD" \
+      --max-time "$TIMEOUT_SECONDS"
+  } || true
+)"
 
 if [[ "$LOGIN_STATUS" != "200" ]]; then
   MSG="$(cat "$BODY_FILE" 2>/dev/null || true)"
@@ -151,12 +164,14 @@ if ! tr -d '\r' < "$HEADERS_FILE" | grep -qi '^set-cookie: nc_access='; then
 fi
 
 log "Testing /auth/me using issued cookie..."
-ME_STATUS="$({
-  curl -sS -o "$BODY_FILE" -b "$COOKIE_FILE" -w '%{http_code}' \
-    "$API_BASE/api/v1/auth/me" \
-    -H "Origin: $ORIGIN" \
-    --max-time "$TIMEOUT_SECONDS"
-} || true)"
+ME_STATUS="$(
+  {
+    curl -sS -o "$BODY_FILE" -b "$COOKIE_FILE" -w '%{http_code}' \
+      "$API_BASE/api/v1/auth/me" \
+      -H "Origin: $ORIGIN" \
+      --max-time "$TIMEOUT_SECONDS"
+  } || true
+)"
 
 if [[ "$ME_STATUS" != "200" ]]; then
   MSG="$(cat "$BODY_FILE" 2>/dev/null || true)"

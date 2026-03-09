@@ -125,9 +125,10 @@ npm run build --workspace @noctification/web
 npm run test --workspace @noctification/api
 ```
 
-## Deploy Debian (API via systemd, sem Nginx)
+## Deploy Debian (sem depender de /opt)
 
-Este guia publica a API em `:4000` com `systemd`. O frontend (`apps/web`) deve ser servido separadamente (Nginx, Caddy, Vercel etc) e o `CORS_ORIGIN` precisa apontar para a URL real do frontend.
+Este guia publica a API em `:4000` com `systemd`, usando por padrao o caminho `/home/noctification/noctification`.
+O frontend (`apps/web`) deve ser servido separadamente (Nginx, Caddy, Vercel etc) e o `CORS_ORIGIN` precisa apontar para a URL real do frontend.
 
 ### 1. Preparar servidor
 
@@ -135,25 +136,23 @@ Este guia publica a API em `:4000` com `systemd`. O frontend (`apps/web`) deve s
 - Criar usuario de servico e diretorios base:
 
 ```bash
-sudo useradd --system --home /opt/noctification --shell /usr/sbin/nologin noctification || true
-sudo mkdir -p /opt/noctification /etc/noctification /opt/noctification/backups/db
-sudo chown -R noctification:noctification /opt/noctification
+sudo useradd --system --home /home/noctification --create-home --shell /usr/sbin/nologin noctification || true
+sudo mkdir -p /home/noctification/noctification /etc/noctification /home/noctification/noctification/backups/db
+sudo chown -R noctification:noctification /home/noctification
 ```
 
 ### 2. Copiar codigo para o servidor
 
-Por padrao, o deploy usa `/opt/noctification`. Se usar outro caminho, ajuste `APP_ROOT` em `/etc/noctification/api.env` e em `/etc/cron.d/noctification-db-backup`.
-
-Exemplo com `rsync` a partir da sua maquina local:
+Sem acesso ao `/opt`, use o diretorio em `/home`:
 
 ```bash
-rsync -av --delete ./ usuario@SEU_SERVIDOR:/opt/noctification/
+rsync -av --delete ./ usuario@SEU_SERVIDOR:/home/noctification/noctification/
 ```
 
 ### 3. Instalar dependencias e buildar
 
 ```bash
-cd /opt/noctification
+cd /home/noctification/noctification
 npm install
 npm run build
 ```
@@ -161,7 +160,7 @@ npm run build
 ### 4. Configurar ambiente de producao
 
 ```bash
-sudo cp /opt/noctification/ops/systemd/api.env.example /etc/noctification/api.env
+sudo cp /home/noctification/noctification/ops/systemd/api.env.example /etc/noctification/api.env
 sudo nano /etc/noctification/api.env
 ```
 
@@ -170,16 +169,16 @@ Ajuste no minimo:
 - `JWT_SECRET` (valor forte e unico)
 - `ADMIN_PASSWORD`
 - `CORS_ORIGIN` (URL publica do frontend)
-- `APP_ROOT` (padrao: `/opt/noctification`)
+- `APP_ROOT` (padrao: `/home/noctification/noctification`)
 - `DB_PATH` (padrao: `./data/noctification.db`)
 
 ### 5. Criar banco, migrar e preparar admin
 
 ```bash
-sudo mkdir -p /opt/noctification/apps/api/data
-sudo chown -R noctification:noctification /opt/noctification/apps/api/data
+sudo mkdir -p /home/noctification/noctification/apps/api/data
+sudo chown -R noctification:noctification /home/noctification/noctification/apps/api/data
 
-cd /opt/noctification/apps/api
+cd /home/noctification/noctification/apps/api
 set -a
 source /etc/noctification/api.env
 set +a
@@ -190,7 +189,7 @@ npm run bootstrap-admin
 ### 6. Instalar e iniciar o service
 
 ```bash
-sudo cp /opt/noctification/ops/systemd/noctification-api.service /etc/systemd/system/
+sudo cp /home/noctification/noctification/ops/systemd/noctification-api.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now noctification-api
 ```
@@ -209,17 +208,39 @@ Validacao completa de login/CORS/cookie em um comando:
 bash ops/scripts/validate-debian-login.sh --origin http://192.168.0.123:5173
 ```
 
-`npm run validate:debian` executa essa mesma validacao (usa `CORS_ORIGIN` do `/etc/noctification/api.env` quando `--origin` nao for informado).
+`npm run validate:debian` executa essa mesma validacao.
+Por padrao, ele tenta ler `CORS_ORIGIN` de `/etc/noctification/api.env` e, se nao existir, faz fallback para `apps/api/.env`.
 
 ### 8. Ativar backup diario do SQLite
 
 ```bash
-sudo chmod +x /opt/noctification/ops/scripts/backup-db.sh
-sudo cp /opt/noctification/ops/cron/noctification-db-backup.cron /etc/cron.d/noctification-db-backup
+sudo chmod +x /home/noctification/noctification/ops/scripts/backup-db.sh
+sudo cp /home/noctification/noctification/ops/cron/noctification-db-backup.cron /etc/cron.d/noctification-db-backup
 sudo nano /etc/cron.d/noctification-db-backup   # ajuste APP_ROOT se necessario
-sudo /opt/noctification/ops/scripts/backup-db.sh
+sudo /home/noctification/noctification/ops/scripts/backup-db.sh
 ```
 
+### 9. Opcao sem root (systemd --user)
+
+Se voce nao puder usar `/etc/systemd/system` nem `/etc/noctification`, rode como servico de usuario:
+
+```bash
+mkdir -p ~/.config/systemd/user ~/.config/noctification
+cp /home/noctification/noctification/ops/systemd/api.env.example ~/.config/noctification/api.env
+nano ~/.config/noctification/api.env
+# ajuste APP_ROOT para o caminho real no seu HOME, ex.: /home/seu_usuario/noctification
+
+cp /home/noctification/noctification/ops/systemd/noctification-api.user.service ~/.config/systemd/user/noctification-api.service
+systemctl --user daemon-reload
+systemctl --user enable --now noctification-api
+loginctl enable-linger "$USER"
+```
+
+Para validar nesse modo, passe o env file explicitamente (ou use `--origin`):
+
+```bash
+bash ops/scripts/validate-debian-login.sh --env-file ~/.config/noctification/api.env
+```
 ## Banco de dados
 
 Tabelas:
