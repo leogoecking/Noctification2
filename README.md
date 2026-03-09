@@ -15,7 +15,7 @@ Monorepo TypeScript com:
 - Persistencia para usuarios offline (recebem ao logar)
 - Popup/toast no canto + badge de pendencias + som curto
 - Modal para notificacoes criticas
-- Usuario marca leitura manualmente
+- Usuario pode registrar leitura manualmente (`read_at`), mas so conta como lida quando resposta = `resolvido`
 - Quando resposta = `em_andamento`, a notificacao fica pendente e dispara lembrete a cada 30 minutos ate `resolvido`
 - Usuario responde notificacoes com status curto:
   - `em_andamento`
@@ -102,6 +102,7 @@ Web: `http://localhost:5173`
 ## Eventos Socket.IO
 
 - Servidor -> usuario: `notification:new`
+- Servidor -> usuario: `notification:reminder`
 - Servidor -> admin: `notification:read_update`
 - Servidor -> admin: `online_users:update`
 - Cliente -> servidor: `notifications:subscribe`
@@ -114,43 +115,89 @@ npm run build --workspace @noctification/web
 npm run test --workspace @noctification/api
 ```
 
-## Deploy Debian (sem Nginx)
+## Deploy Debian (API via systemd, sem Nginx)
 
-### 1. Build
+Este guia publica a API em `:4000` com `systemd`. O frontend (`apps/web`) deve ser servido separadamente (Nginx, Caddy, Vercel etc) e o `CORS_ORIGIN` precisa apontar para a URL real do frontend.
+
+### 1. Preparar servidor
+
+- Garantir Node.js 20+ e npm 10+.
+- Criar usuario de servico e diretorios base:
 
 ```bash
+sudo useradd --system --home /opt/noctification --shell /usr/sbin/nologin noctification || true
+sudo mkdir -p /opt/noctification /etc/noctification /opt/noctification/backups/db
+sudo chown -R noctification:noctification /opt/noctification
+```
+
+### 2. Copiar codigo para o servidor
+
+No servidor, o projeto precisa existir em `/opt/noctification` (o service usa `WorkingDirectory=/opt/noctification/apps/api`).
+
+Exemplo com `rsync` a partir da sua maquina local:
+
+```bash
+rsync -av --delete ./ usuario@SEU_SERVIDOR:/opt/noctification/
+```
+
+### 3. Instalar dependencias e buildar
+
+```bash
+cd /opt/noctification
 npm install
 npm run build
 ```
 
-### 2. Ambiente de producao
-
-- Copiar `ops/systemd/api.env.example` para `/etc/noctification/api.env`
-- Ajustar `JWT_SECRET`, `ADMIN_PASSWORD`, `CORS_ORIGIN`
-
-### 3. Criar usuario de servico e permissao
+### 4. Configurar ambiente de producao
 
 ```bash
-sudo useradd --system --home /opt/noctification --shell /usr/sbin/nologin noctification || true
-sudo mkdir -p /opt/noctification
-sudo chown -R noctification:noctification /opt/noctification
+sudo cp /opt/noctification/ops/systemd/api.env.example /etc/noctification/api.env
+sudo nano /etc/noctification/api.env
 ```
 
-### 4. Instalar service
+Ajuste no minimo:
+
+- `JWT_SECRET` (valor forte e unico)
+- `ADMIN_PASSWORD`
+- `CORS_ORIGIN` (URL publica do frontend)
+- `DB_PATH` (padrao: `/opt/noctification/apps/api/data/noctification.db`)
+
+### 5. Criar banco, migrar e preparar admin
 
 ```bash
-sudo cp ops/systemd/noctification-api.service /etc/systemd/system/
+sudo mkdir -p /opt/noctification/apps/api/data
+sudo chown -R noctification:noctification /opt/noctification/apps/api/data
+
+cd /opt/noctification/apps/api
+set -a
+source /etc/noctification/api.env
+set +a
+npm run migrate
+npm run bootstrap-admin
+```
+
+### 6. Instalar e iniciar o service
+
+```bash
+sudo cp /opt/noctification/ops/systemd/noctification-api.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now noctification-api
 ```
 
-### 5. Backup diario do banco
+### 7. Validar operacao
 
 ```bash
-sudo mkdir -p /opt/noctification/ops/scripts
-sudo cp ops/scripts/backup-db.sh /opt/noctification/ops/scripts/
+systemctl status --no-pager noctification-api
+curl http://127.0.0.1:4000/api/v1/health
+journalctl -u noctification-api -n 100 --no-pager
+```
+
+### 8. Ativar backup diario do SQLite
+
+```bash
 sudo chmod +x /opt/noctification/ops/scripts/backup-db.sh
-sudo cp ops/cron/noctification-db-backup.cron /etc/cron.d/noctification-db-backup
+sudo cp /opt/noctification/ops/cron/noctification-db-backup.cron /etc/cron.d/noctification-db-backup
+sudo /opt/noctification/ops/scripts/backup-db.sh
 ```
 
 ## Banco de dados
@@ -162,5 +209,3 @@ Tabelas:
 - `notification_recipients`
 - `audit_log`
 - `schema_migrations`
-
-
