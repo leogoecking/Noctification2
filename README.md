@@ -142,7 +142,7 @@ sudo chown -R noctification:noctification /opt/noctification
 
 ### 2. Copiar codigo para o servidor
 
-No servidor, o projeto precisa existir em `/opt/noctification` (o service usa `WorkingDirectory=/opt/noctification/apps/api`).
+Por padrao, o deploy usa `/opt/noctification`. Se usar outro caminho, ajuste `APP_ROOT` em `/etc/noctification/api.env` e em `/etc/cron.d/noctification-db-backup`.
 
 Exemplo com `rsync` a partir da sua maquina local:
 
@@ -170,7 +170,8 @@ Ajuste no minimo:
 - `JWT_SECRET` (valor forte e unico)
 - `ADMIN_PASSWORD`
 - `CORS_ORIGIN` (URL publica do frontend)
-- `DB_PATH` (padrao: `/opt/noctification/apps/api/data/noctification.db`)
+- `APP_ROOT` (padrao: `/opt/noctification`)
+- `DB_PATH` (padrao: `./data/noctification.db`)
 
 ### 5. Criar banco, migrar e preparar admin
 
@@ -215,6 +216,7 @@ bash ops/scripts/validate-debian-login.sh --origin http://192.168.0.123:5173
 ```bash
 sudo chmod +x /opt/noctification/ops/scripts/backup-db.sh
 sudo cp /opt/noctification/ops/cron/noctification-db-backup.cron /etc/cron.d/noctification-db-backup
+sudo nano /etc/cron.d/noctification-db-backup   # ajuste APP_ROOT se necessario
 sudo /opt/noctification/ops/scripts/backup-db.sh
 ```
 

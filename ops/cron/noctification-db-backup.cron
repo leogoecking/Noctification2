@@ -1,1 +1,8 @@
-﻿0 2 * * * DB_FILE=/opt/noctification/apps/api/data/noctification.db BACKUP_DIR=/opt/noctification/backups/db RETENTION_DAYS=14 /opt/noctification/ops/scripts/backup-db.sh >> /var/log/noctification-backup.log 2>&1
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+APP_ROOT=/opt/noctification
+DB_FILE=/opt/noctification/apps/api/data/noctification.db
+BACKUP_DIR=/opt/noctification/backups/db
+RETENTION_DAYS=14
+
+0 2 * * * noctification $APP_ROOT/ops/scripts/backup-db.sh >> $APP_ROOT/backups/db/noctification-backup.log 2>&1

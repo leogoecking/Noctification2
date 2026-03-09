@@ -1,4 +1,4 @@
-﻿[Unit]
+[Unit]
 Description=Noctification API
 After=network.target
 
@@ -6,9 +6,9 @@ After=network.target
 Type=simple
 User=noctification
 Group=noctification
-WorkingDirectory=/opt/noctification/apps/api
+Environment=APP_ROOT=/opt/noctification
 EnvironmentFile=/etc/noctification/api.env
-ExecStart=/usr/bin/node dist/index.js
+ExecStart=/usr/bin/bash -lc 'cd "${APP_ROOT}/apps/api" && exec /usr/bin/node dist/index.js'
 Restart=always
 RestartSec=5
 KillSignal=SIGINT
