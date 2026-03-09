@@ -543,6 +543,10 @@ export const createAdminRouter = (
       return;
     }
 
+    if (!isActive) {
+      io.in(`user:${userId}`).disconnectSockets(true);
+    }
+
     logAudit(db, {
       actorUserId: req.authUser.id,
       eventType: "admin.user.status",

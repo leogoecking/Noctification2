@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import bcrypt from "bcryptjs";
 import type Database from "better-sqlite3";
 import { createAccessToken } from "../auth";
@@ -14,18 +14,20 @@ interface LoginRow {
   passwordHash: string;
 }
 
+const isSecureCookie = (config: AppConfig): boolean => config.nodeEnv === "production";
+
 const authCookieOptions = (config: AppConfig) => ({
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: false,
+  secure: isSecureCookie(config),
   maxAge: config.jwtExpiresHours * 60 * 60 * 1000
 });
 
-const clearCookieOptions = {
+const clearCookieOptions = (config: AppConfig) => ({
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: false
-};
+  secure: isSecureCookie(config)
+});
 
 export const createAuthRouter = (db: Database.Database, config: AppConfig): Router => {
   const router = Router();
@@ -109,7 +111,7 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
       });
     }
 
-    res.clearCookie(config.cookieName, clearCookieOptions);
+    res.clearCookie(config.cookieName, clearCookieOptions(config));
     res.status(204).send();
   });
 
