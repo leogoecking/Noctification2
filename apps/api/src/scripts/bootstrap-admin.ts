@@ -1,7 +1,9 @@
-﻿import path from "node:path";
+import path from "node:path";
 import bcrypt from "bcryptjs";
 import { config } from "../config";
 import { connectDatabase, nowIso, runMigrations } from "../db";
+
+const FIRST_LOGIN_ADMIN_PASSWORD = "admin";
 
 const run = async () => {
   const db = connectDatabase(config.dbPath);
@@ -19,7 +21,8 @@ const run = async () => {
     .prepare("SELECT id FROM users WHERE login = ?")
     .get(login) as { id: number } | undefined;
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordToApply = existing ? password : FIRST_LOGIN_ADMIN_PASSWORD;
+  const passwordHash = await bcrypt.hash(passwordToApply, 12);
   const timestamp = nowIso();
 
   if (existing) {
@@ -49,7 +52,7 @@ const run = async () => {
       `
     ).run(name, login, passwordHash, timestamp, timestamp);
 
-    console.log(`Admin criado: ${login}`);
+    console.log(`Admin criado: ${login} (senha inicial: admin)`);
   }
 
   db.close();

@@ -48,6 +48,8 @@ npm run dev
 
 O `setup` instala dependencias, cria `.env` a partir dos exemplos (se nao existir), aplica migracoes e prepara o admin inicial.
 
+Senha inicial do admin no primeiro login: `admin`.
+
 ## Setup rapido Debian (1 comando)
 
 Execute no servidor Debian (com o repositorio ja disponivel na maquina):
@@ -60,6 +62,8 @@ sudo bash ops/scripts/setup-debian.sh \
 ```
 
 Esse comando automatiza copia para `/opt/noctification`, install/build, migracoes, bootstrap do admin, `systemd` e cron de backup.
+
+No primeiro login do admin em Debian, a senha tambem sera `admin`.
 
 ## Setup local
 

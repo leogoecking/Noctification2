@@ -1,4 +1,4 @@
-﻿import dotenv from "dotenv";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -32,7 +32,7 @@ export const config: AppConfig = {
   cookieName: "nc_access",
   adminSeed: {
     login: process.env.ADMIN_LOGIN ?? "admin",
-    password: process.env.ADMIN_PASSWORD ?? "ChangeMeNow123!",
+    password: process.env.ADMIN_PASSWORD ?? "admin",
     name: process.env.ADMIN_NAME ?? "Administrador"
   }
 };

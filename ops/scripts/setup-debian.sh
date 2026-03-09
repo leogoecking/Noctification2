@@ -66,6 +66,12 @@ set_env_key() {
   fi
 }
 
+normalize_env_file() {
+  # Remove UTF-8 BOM if present and normalize CRLF -> LF.
+  sed -i '1s/^\xEF\xBB\xBF//' "$ENV_FILE"
+  sed -i 's/\r$//' "$ENV_FILE"
+}
+
 copy_project() {
   log "Copying project to $APP_ROOT ..."
 
@@ -152,6 +158,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
   log "Creating env file from template..."
   cp "$APP_ROOT/ops/systemd/api.env.example" "$ENV_FILE"
 fi
+
+normalize_env_file
 
 if [[ -n "$CORS_ORIGIN" ]]; then
   set_env_key "CORS_ORIGIN" "$CORS_ORIGIN"
