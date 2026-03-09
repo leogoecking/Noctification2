@@ -16,7 +16,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test:api": "npm run test --workspace=apps/api",
-    "test:web": "npm run test --workspace=apps/web"
+    "test:web": "npm run test --workspace=apps/web",
+    "validate:debian": "bash ops/scripts/validate-debian-login.sh"
   },
   "devDependencies": {
     "eslint": "^8.57.1",

@@ -1,4 +1,4 @@
-﻿# Noctification2 - Sistema Interno de Notificacoes
+# Noctification2 - Sistema Interno de Notificacoes
 
 Monorepo TypeScript com:
 
@@ -47,6 +47,7 @@ npm run dev
 ```
 
 O `setup` instala dependencias, cria `.env` a partir dos exemplos (se nao existir), aplica migracoes e prepara o admin inicial.
+Sem `VITE_API_BASE`/`VITE_SOCKET_URL`, o frontend usa automaticamente o mesmo host da pagina na porta `4000`.
 
 ## Setup local
 
@@ -200,6 +201,14 @@ systemctl status --no-pager noctification-api
 curl http://127.0.0.1:4000/api/v1/health
 journalctl -u noctification-api -n 100 --no-pager
 ```
+
+Validacao completa de login/CORS/cookie em um comando:
+
+```bash
+bash ops/scripts/validate-debian-login.sh --origin http://192.168.0.123:5173
+```
+
+`npm run validate:debian` executa essa mesma validacao (usa `CORS_ORIGIN` do `/etc/noctification/api.env` quando `--origin` nao for informado).
 
 ### 8. Ativar backup diario do SQLite
 

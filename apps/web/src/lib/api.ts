@@ -1,4 +1,14 @@
-﻿const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:4000/api/v1";
+const resolveDefaultApiBase = (): string => {
+  if (typeof window === "undefined") {
+    return "http://localhost:4000/api/v1";
+  }
+
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:4000/api/v1`;
+};
+
+const API_BASE = (import.meta.env.VITE_API_BASE ?? resolveDefaultApiBase()).replace(/\/+$/, "");
 
 interface RequestOptions extends RequestInit {
   bodyJson?: unknown;
