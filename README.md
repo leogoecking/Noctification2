@@ -48,6 +48,19 @@ npm run dev
 
 O `setup` instala dependencias, cria `.env` a partir dos exemplos (se nao existir), aplica migracoes e prepara o admin inicial.
 
+## Setup rapido Debian (1 comando)
+
+Execute no servidor Debian (com o repositorio ja disponivel na maquina):
+
+```bash
+sudo bash ops/scripts/setup-debian.sh \
+  --cors-origin https://app.seudominio.com \
+  --jwt-secret "troque-por-um-segredo-forte" \
+  --admin-password "troque-por-uma-senha-forte"
+```
+
+Esse comando automatiza copia para `/opt/noctification`, install/build, migracoes, bootstrap do admin, `systemd` e cron de backup.
+
 ## Setup local
 
 1. Instalar dependencias:
@@ -127,6 +140,8 @@ npm run test --workspace @noctification/api
 ## Deploy Debian (API via systemd, sem Nginx)
 
 Este guia publica a API em `:4000` com `systemd`. O frontend (`apps/web`) deve ser servido separadamente (Nginx, Caddy, Vercel etc) e o `CORS_ORIGIN` precisa apontar para a URL real do frontend.
+
+Opcao automatica: `npm run setup:debian` (ou `bash ops/scripts/setup-debian.sh`) no servidor Debian.
 
 ### 1. Preparar servidor
 
