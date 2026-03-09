@@ -39,6 +39,15 @@ Monorepo TypeScript com:
 - Node.js 20+
 - npm 10+
 
+## Setup rapido (1 comando)
+
+```bash
+npm run setup
+npm run dev
+```
+
+O `setup` instala dependencias, cria `.env` a partir dos exemplos (se nao existir), aplica migracoes e prepara o admin inicial.
+
 ## Setup local
 
 1. Instalar dependencias:

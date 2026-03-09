@@ -1,25 +1,27 @@
 {
-    "name":  "noctification2",
-    "private":  true,
-    "version":  "1.0.0",
-    "workspaces":  [
-                       "apps/api",
-                       "apps/web"
-                   ],
-    "scripts":  {
-                    "dev:api":  "npm run dev --workspace @noctification/api",
-                    "dev:web":  "npm run dev --workspace @noctification/web",
-                    "build":  "npm run build --workspace @noctification/api \u0026\u0026 npm run build --workspace @noctification/web",
-                    "test":  "npm run test --workspace @noctification/api",
-                    "lint":  "npm run lint --workspaces --if-present",
-                    "typecheck":  "npm run typecheck --workspaces --if-present",
-                    "test:api":  "npm run test --workspace=apps/api",
-                    "test:web":  "npm run test --workspace=apps/web"
-                },
-    "devDependencies":  {
-                            "eslint":  "^8.57.1",
-                            "@typescript-eslint/parser":  "^8.32.1",
-                            "@typescript-eslint/eslint-plugin":  "^8.32.1",
-                            "eslint-plugin-react-hooks":  "^5.2.0"
-                        }
+  "name": "noctification2",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup.cjs",
+    "dev": "node scripts/dev.cjs",
+    "dev:api": "npm run dev --workspace @noctification/api",
+    "dev:web": "npm run dev --workspace @noctification/web",
+    "build": "npm run build --workspace @noctification/api && npm run build --workspace @noctification/web",
+    "test": "npm run test --workspace @noctification/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:api": "npm run test --workspace=apps/api",
+    "test:web": "npm run test --workspace=apps/web"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "eslint-plugin-react-hooks": "^5.2.0"
+  }
 }
