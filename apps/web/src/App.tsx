@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { UserDashboard } from "./components/UserDashboard";
@@ -17,15 +17,15 @@ export default function App() {
   const [submittingLogin, setSubmittingLogin] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const pushToast = (message: string, tone: Toast["tone"] = "ok") => {
+  const pushToast = useCallback((message: string, tone: Toast["tone"] = "ok") => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
     setToasts((prev) => [...prev, { id, message, tone }]);
     window.setTimeout(() => {
       setToasts((prev) => prev.filter((item) => item.id !== id));
     }, 3500);
-  };
+  }, []);
 
-  const loadSession = async () => {
+  const loadSession = useCallback(async () => {
     try {
       const response = await api.me();
       setCurrentUser(response.user as AuthUser);
@@ -34,13 +34,13 @@ export default function App() {
     } finally {
       setLoadingSession(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadSession();
-  }, []);
+  }, [loadSession]);
 
-  const login = async (loginValue: string, password: string) => {
+  const login = useCallback(async (loginValue: string, password: string) => {
     setSubmittingLogin(true);
 
     try {
@@ -53,9 +53,9 @@ export default function App() {
     } finally {
       setSubmittingLogin(false);
     }
-  };
+  }, [pushToast]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.logout();
       setCurrentUser(null);
@@ -64,7 +64,21 @@ export default function App() {
       const message = error instanceof ApiError ? error.message : "Falha ao sair";
       pushToast(message, "error");
     }
-  };
+  }, [pushToast]);
+
+  const handleErrorToast = useCallback(
+    (message: string) => {
+      pushToast(message, "error");
+    },
+    [pushToast]
+  );
+
+  const handleOkToast = useCallback(
+    (message: string) => {
+      pushToast(message, "ok");
+    },
+    [pushToast]
+  );
 
   const pageTitle = useMemo(() => {
     if (!currentUser) {
@@ -100,18 +114,11 @@ export default function App() {
         {!loadingSession && !currentUser && <LoginScreen onSubmit={login} isLoading={submittingLogin} />}
 
         {!loadingSession && currentUser?.role === "user" && (
-          <UserDashboard
-            user={currentUser}
-            onError={(message) => pushToast(message, "error")}
-            onToast={(message) => pushToast(message, "ok")}
-          />
+          <UserDashboard user={currentUser} onError={handleErrorToast} onToast={handleOkToast} />
         )}
 
         {!loadingSession && currentUser?.role === "admin" && (
-          <AdminDashboard
-            onError={(message) => pushToast(message, "error")}
-            onToast={(message) => pushToast(message, "ok")}
-          />
+          <AdminDashboard onError={handleErrorToast} onToast={handleOkToast} />
         )}
       </div>
 
@@ -132,3 +139,4 @@ export default function App() {
     </main>
   );
 }
+

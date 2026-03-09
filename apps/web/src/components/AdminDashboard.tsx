@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { connectSocket } from "../lib/socket";
 import type { NotificationHistoryItem, NotificationPriority, UserItem } from "../types";
@@ -164,15 +164,25 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
   useEffect(() => {
     const socket = connectSocket();
-    socket.on("notification:read_update", () => {
+
+    const onReadUpdate = () => {
       loadUnreadDashboard();
       loadNotificationHistory();
-    });
+    };
+
+    const onConnectError = () => {
+      onError("Falha na conexao em tempo real (admin)");
+    };
+
+    socket.on("notification:read_update", onReadUpdate);
+    socket.on("connect_error", onConnectError);
 
     return () => {
+      socket.off("notification:read_update", onReadUpdate);
+      socket.off("connect_error", onConnectError);
       socket.disconnect();
     };
-  }, [loadUnreadDashboard, loadNotificationHistory]);
+  }, [loadUnreadDashboard, loadNotificationHistory, onError]);
 
   const unreadNotifications = useMemo(() => history.filter((item) => item.stats.unread > 0), [history]);
   const completedNotifications = useMemo(
@@ -724,22 +734,4 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     </section>
   );
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

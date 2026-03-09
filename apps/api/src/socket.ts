@@ -1,4 +1,4 @@
-﻿import type { Server as HttpServer } from "node:http";
+import type { Server as HttpServer } from "node:http";
 import { parse as parseCookie } from "cookie";
 import { Server } from "socket.io";
 import type Database from "better-sqlite3";
@@ -44,6 +44,18 @@ export interface NotificationPushPayload {
 const REMINDER_INTERVAL_MS = 30 * 60 * 1000;
 
 const nowIso = (): string => new Date().toISOString();
+
+const isCorsOriginAllowed = (allowedOrigins: Set<string>, origin?: string): boolean => {
+  if (!origin) {
+    return true;
+  }
+
+  if (allowedOrigins.has("*")) {
+    return true;
+  }
+
+  return allowedOrigins.has(origin);
+};
 
 export const getOnlineUserIds = (io: Server): number[] => {
   const ids = new Set<number>();
@@ -142,9 +154,13 @@ export const setupSocket = (
   db: Database.Database,
   config: AppConfig
 ): Server => {
+  const allowedOrigins = new Set(config.corsOrigins);
+
   const io = new Server(server, {
     cors: {
-      origin: config.corsOrigin,
+      origin: (origin, callback) => {
+        callback(null, isCorsOriginAllowed(allowedOrigins, origin));
+      },
       credentials: true
     }
   });

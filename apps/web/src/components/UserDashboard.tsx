@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { connectSocket } from "../lib/socket";
 import type {
@@ -49,18 +49,32 @@ const formatDate = (value: string | null): string => {
 };
 
 const playAlert = () => {
-  const context = new AudioContext();
-  const oscillator = context.createOscillator();
-  const gainNode = context.createGain();
+  const AudioCtor =
+    window.AudioContext ??
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtor) {
+    return;
+  }
 
-  oscillator.type = "triangle";
-  oscillator.frequency.value = 880;
-  gainNode.gain.value = 0.04;
+  try {
+    const context = new AudioCtor();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
 
-  oscillator.connect(gainNode);
-  gainNode.connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.12);
+    oscillator.type = "triangle";
+    oscillator.frequency.value = 880;
+    gainNode.gain.value = 0.04;
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.12);
+    oscillator.onended = () => {
+      void context.close();
+    };
+  } catch {
+    // Browser can block autoplay sounds before user interaction.
+  }
 };
 
 const toLocalNotification = (payload: IncomingNotification): NotificationItem => ({
@@ -119,11 +133,11 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
   useEffect(() => {
     const socket = connectSocket();
 
-    socket.on("connect", () => {
+    const onConnect = () => {
       socket.emit("notifications:subscribe", () => undefined);
-    });
+    };
 
-    socket.on("notification:new", (payload: IncomingNotification) => {
+    const onNotificationNew = (payload: IncomingNotification) => {
       const parsed = toLocalNotification(payload);
       setItems((prev) => [parsed, ...prev]);
 
@@ -134,9 +148,9 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
       setBellOpen(true);
       onToast(`Nova notificacao: ${payload.title}`);
       playAlert();
-    });
+    };
 
-    socket.on("notification:reminder", (payload: IncomingReminder) => {
+    const onNotificationReminder = (payload: IncomingReminder) => {
       setItems((prev) => {
         const index = prev.findIndex((item) => item.id === payload.id);
         if (index === -1) {
@@ -165,13 +179,22 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
       setBellOpen(true);
       onToast(`Lembrete (${payload.reminderCount}): ${payload.title} ainda em andamento`);
       playAlert();
-    });
+    };
 
-    socket.on("connect_error", () => {
+    const onConnectError = () => {
       onError("Falha na conexao em tempo real");
-    });
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("notification:new", onNotificationNew);
+    socket.on("notification:reminder", onNotificationReminder);
+    socket.on("connect_error", onConnectError);
 
     return () => {
+      socket.off("connect", onConnect);
+      socket.off("notification:new", onNotificationNew);
+      socket.off("notification:reminder", onNotificationReminder);
+      socket.off("connect_error", onConnectError);
       socket.disconnect();
     };
   }, [onError, onToast]);
@@ -489,3 +512,4 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     </section>
   );
 };
+

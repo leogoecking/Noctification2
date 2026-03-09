@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import bcrypt from "bcryptjs";
 import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
@@ -14,6 +14,7 @@ import type {
 } from "../types";
 
 const PRIORITIES: NotificationPriority[] = ["low", "normal", "high", "critical"];
+const SQLITE_MAX_VARIABLES = 900;
 
 interface UserRow {
   id: number;
@@ -108,6 +109,45 @@ const parseMetadata = (json: string | null): Record<string, unknown> | null => {
   } catch {
     return null;
   }
+};
+
+const isUniqueLoginConstraintError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return message.includes("unique constraint failed") && message.includes("users.login");
+};
+
+const fetchActiveUserIds = (db: Database.Database, userIds: number[]): number[] => {
+  const uniqueUserIds = Array.from(new Set(userIds));
+  if (uniqueUserIds.length === 0) {
+    return [];
+  }
+
+  const activeUserIds: number[] = [];
+
+  for (let index = 0; index < uniqueUserIds.length; index += SQLITE_MAX_VARIABLES) {
+    const chunk = uniqueUserIds.slice(index, index + SQLITE_MAX_VARIABLES);
+    const placeholders = chunk.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `
+          SELECT id
+          FROM users
+          WHERE is_active = 1
+          AND id IN (${placeholders})
+        `
+      )
+      .all(...chunk) as Array<{ id: number }>;
+
+    for (const row of rows) {
+      activeUserIds.push(row.id);
+    }
+  }
+
+  return Array.from(new Set(activeUserIds));
 };
 
 export const createAdminRouter = (
@@ -252,7 +292,17 @@ export const createAdminRouter = (
     const password = toNullableString(req.body?.password);
     const department = toNullableString(req.body?.department) ?? "";
     const jobTitle = toNullableString(req.body?.job_title) ?? "";
-    const role = req.body?.role === "admin" ? "admin" : "user";
+    const roleValue = req.body?.role;
+    let role: UserRole = "user";
+
+    if (roleValue !== undefined) {
+      if (roleValue !== "admin" && roleValue !== "user") {
+        res.status(400).json({ error: "role deve ser admin ou user" });
+        return;
+      }
+
+      role = roleValue;
+    }
 
     if (!name || !login || !password) {
       res.status(400).json({ error: "name, login e password sao obrigatorios" });
@@ -271,23 +321,34 @@ export const createAdminRouter = (
     const hashedPassword = await bcrypt.hash(password, 12);
     const timestamp = nowIso();
 
-    const result = db
-      .prepare(
-        `
-          INSERT INTO users (
-            name,
-            login,
-            password_hash,
-            department,
-            job_title,
-            role,
-            is_active,
-            created_at,
-            updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-        `
-      )
-      .run(name, login, hashedPassword, department, jobTitle, role, timestamp, timestamp);
+    let result: { lastInsertRowid: number | bigint };
+
+    try {
+      result = db
+        .prepare(
+          `
+            INSERT INTO users (
+              name,
+              login,
+              password_hash,
+              department,
+              job_title,
+              role,
+              is_active,
+              created_at,
+              updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+          `
+        )
+        .run(name, login, hashedPassword, department, jobTitle, role, timestamp, timestamp);
+    } catch (error) {
+      if (isUniqueLoginConstraintError(error)) {
+        res.status(409).json({ error: "Login ja existente" });
+        return;
+      }
+
+      throw error;
+    }
 
     const created = db
       .prepare(
@@ -368,7 +429,12 @@ export const createAdminRouter = (
     }
 
     const role = req.body?.role;
-    if (role === "admin" || role === "user") {
+    if (role !== undefined) {
+      if (role !== "admin" && role !== "user") {
+        res.status(400).json({ error: "role deve ser admin ou user" });
+        return;
+      }
+
       updates.push("role = ?");
       params.push(role);
     }
@@ -389,9 +455,20 @@ export const createAdminRouter = (
     params.push(nowIso());
     params.push(userId);
 
-    const result = db
-      .prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`)
-      .run(...params);
+    let result: { changes: number };
+
+    try {
+      result = db
+        .prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`)
+        .run(...params);
+    } catch (error) {
+      if (isUniqueLoginConstraintError(error)) {
+        res.status(409).json({ error: "Login ja existente" });
+        return;
+      }
+
+      throw error;
+    }
 
     if (result.changes === 0) {
       res.status(404).json({ error: "Usuario nao encontrado" });
@@ -515,18 +592,10 @@ export const createAdminRouter = (
       return;
     }
 
-    const validRecipientRows = db
-      .prepare(
-        `
-          SELECT id
-          FROM users
-          WHERE is_active = 1
-          AND id IN (${recipientIds.map(() => "?").join(",")})
-        `
-      )
-      .all(...recipientIds) as Array<{ id: number }>;
-
-    const validRecipientIds = Array.from(new Set(validRecipientRows.map((row) => row.id)));
+    const validRecipientIds =
+      recipientMode === "all"
+        ? Array.from(new Set(recipientIds))
+        : fetchActiveUserIds(db, recipientIds);
 
     if (validRecipientIds.length === 0) {
       res.status(400).json({ error: "Destinatarios nao encontrados ou inativos" });
@@ -728,7 +797,4 @@ export const createAdminRouter = (
 
   return router;
 };
-
-
-
 

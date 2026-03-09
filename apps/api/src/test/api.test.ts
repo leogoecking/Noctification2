@@ -1,4 +1,4 @@
-﻿import path from "node:path";
+import path from "node:path";
 import { createServer, type Server as HttpServer } from "node:http";
 import request from "supertest";
 import bcrypt from "bcryptjs";
@@ -15,6 +15,7 @@ const testConfig: AppConfig = {
   jwtSecret: "test-secret",
   jwtExpiresHours: 8,
   corsOrigin: "http://localhost:5173",
+  corsOrigins: ["http://localhost:5173"],
   cookieName: "nc_access",
   adminSeed: {
     login: "admin",
@@ -82,6 +83,86 @@ describe("API notification flow", () => {
     const adminUsers = await userAgent.get("/api/v1/admin/users");
 
     expect(adminUsers.status).toBe(403);
+  });
+
+  it("retorna 400 ao criar usuario com role invalida", async () => {
+    const adminAgent = request.agent(server);
+
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+
+    const createResponse = await adminAgent.post("/api/v1/admin/users").send({
+      name: "Role Invalida",
+      login: "role_invalida",
+      password: "123456",
+      role: "superadmin"
+    });
+
+    expect(createResponse.status).toBe(400);
+    expect(createResponse.body.error).toMatch(/role deve ser admin ou user/i);
+  });
+
+  it("retorna 400 ao atualizar usuario com role invalida", async () => {
+    const adminAgent = request.agent(server);
+
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+    const usersResponse = await adminAgent.get("/api/v1/admin/users");
+    const targetUser = usersResponse.body.users.find((user: { login: string }) => user.login === "user");
+
+    const updateResponse = await adminAgent.patch(`/api/v1/admin/users/${targetUser.id}`).send({
+      role: "superadmin"
+    });
+
+    expect(updateResponse.status).toBe(400);
+    expect(updateResponse.body.error).toMatch(/role deve ser admin ou user/i);
+  });
+
+  it("retorna 409 ao tentar atualizar usuario para login ja existente", async () => {
+    const adminAgent = request.agent(server);
+
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+    const usersResponse = await adminAgent.get("/api/v1/admin/users");
+    const targetUser = usersResponse.body.users.find((user: { login: string }) => user.login === "user");
+
+    const updateResponse = await adminAgent.patch(`/api/v1/admin/users/${targetUser.id}`).send({
+      login: "admin"
+    });
+
+    expect(updateResponse.status).toBe(409);
+    expect(updateResponse.body.error).toMatch(/Login ja existente/i);
+  });
+
+  it("suporta envio para muitos destinatarios sem erro de limite do SQLite", async () => {
+    const adminAgent = request.agent(server);
+
+    const passwordHash = await bcrypt.hash("123456", 10);
+    const now = nowIso();
+    const insertUser = db.prepare(
+      `
+        INSERT INTO users (name, login, password_hash, department, job_title, role, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, 'Operacao', 'Analista', 'user', 1, ?, ?)
+      `
+    );
+
+    for (let i = 1; i <= 1100; i += 1) {
+      insertUser.run(`Carga ${i}`, `bulk_${i}`, passwordHash, now, now);
+    }
+
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+    const usersResponse = await adminAgent.get("/api/v1/admin/users");
+    const bulkIds = usersResponse.body.users
+      .filter((user: { login: string; role: string }) => user.role === "user" && user.login.startsWith("bulk_"))
+      .map((user: { id: number }) => user.id);
+
+    const sendResponse = await adminAgent.post("/api/v1/admin/notifications").send({
+      title: "Carga grande",
+      message: "Teste com muitos destinatarios",
+      priority: "normal",
+      recipient_mode: "users",
+      recipient_ids: bulkIds
+    });
+
+    expect(sendResponse.status).toBe(201);
+    expect(sendResponse.body.notification.recipient_count).toBe(bulkIds.length);
   });
 
   it("mantem notificacao pendente apos refresh ate marcar resolvido", async () => {

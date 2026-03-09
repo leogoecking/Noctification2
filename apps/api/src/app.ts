@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import type Database from "better-sqlite3";
@@ -8,12 +8,27 @@ import { createAuthRouter } from "./routes/auth";
 import { createAdminRouter } from "./routes/admin";
 import { createMeRouter } from "./routes/me";
 
+const isCorsOriginAllowed = (allowedOrigins: Set<string>, origin?: string): boolean => {
+  if (!origin) {
+    return true;
+  }
+
+  if (allowedOrigins.has("*")) {
+    return true;
+  }
+
+  return allowedOrigins.has(origin);
+};
+
 export const createApp = (db: Database.Database, io: Server, config: AppConfig) => {
   const app = express();
+  const allowedOrigins = new Set(config.corsOrigins);
 
   app.use(
     cors({
-      origin: config.corsOrigin,
+      origin: (origin, callback) => {
+        callback(null, isCorsOriginAllowed(allowedOrigins, origin));
+      },
       credentials: true
     })
   );
@@ -43,3 +58,4 @@ export const createApp = (db: Database.Database, io: Server, config: AppConfig) 
 
   return app;
 };
+
