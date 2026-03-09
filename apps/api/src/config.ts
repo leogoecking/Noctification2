@@ -16,12 +16,12 @@ const parseCsv = (value: string, fallback: string[]): string[] => {
   return parsed.length > 0 ? parsed : fallback;
 };
 
-const DEFAULT_JWT_SECRET = "change-this-secret";
-const DEFAULT_ADMIN_PASSWORD = "ChangeMeNow123!";
+const DEV_JWT_FALLBACK = "change-this-secret";
+const DEV_ADMIN_FALLBACK = "ChangeMeNow123!";
 const INSECURE_PRODUCTION_VALUES = new Set([
-  DEFAULT_JWT_SECRET,
+  DEV_JWT_FALLBACK,
   "CHANGE_ME_TO_A_LONG_RANDOM_SECRET",
-  DEFAULT_ADMIN_PASSWORD,
+  DEV_ADMIN_FALLBACK,
   "CHANGE_ME_ADMIN_PASSWORD"
 ]);
 
@@ -48,14 +48,14 @@ export const config: AppConfig = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: toNumber(process.env.PORT, 4000),
   dbPath: process.env.DB_PATH ?? "./data/noctification.db",
-  jwtSecret: process.env.JWT_SECRET ?? DEFAULT_JWT_SECRET,
+  jwtSecret: process.env.JWT_SECRET ?? DEV_JWT_FALLBACK,
   jwtExpiresHours: toNumber(process.env.JWT_EXPIRES_HOURS, 8),
   corsOrigin,
   corsOrigins: parseCsv(corsOrigin, [defaultCorsOrigin]),
   cookieName: "nc_access",
   adminSeed: {
     login: process.env.ADMIN_LOGIN ?? "admin",
-    password: process.env.ADMIN_PASSWORD ?? DEFAULT_ADMIN_PASSWORD,
+    password: process.env.ADMIN_PASSWORD ?? DEV_ADMIN_FALLBACK,
     name: process.env.ADMIN_NAME ?? "Administrador"
   }
 };
