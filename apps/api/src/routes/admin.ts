@@ -5,7 +5,7 @@ import type { Server } from "socket.io";
 import { logAudit, nowIso } from "../db";
 import { authenticate, requireRole } from "../middleware/auth";
 import { emitNotificationToUser, getOnlineUserIds } from "../socket";
-import type { AppConfig } from "../config";
+import { FIXED_ADMIN_LOGIN, type AppConfig } from "../config";
 import type {
   NotificationPriority,
   NotificationResponseStatus,
@@ -15,6 +15,8 @@ import type {
 
 const PRIORITIES: NotificationPriority[] = ["low", "normal", "high", "critical"];
 const SQLITE_MAX_VARIABLES = 900;
+
+const isFixedAdminLogin = (login: string): boolean => login.toLowerCase() === FIXED_ADMIN_LOGIN;
 
 interface UserRow {
   id: number;
@@ -301,7 +303,12 @@ export const createAdminRouter = (
         return;
       }
 
-      role = roleValue;
+      if (roleValue === "admin") {
+        res.status(400).json({ error: "Apenas o admin fixo e permitido" });
+        return;
+      }
+
+      role = "user";
     }
 
     if (!name || !login || !password) {
@@ -401,6 +408,17 @@ export const createAdminRouter = (
       return;
     }
 
+    const targetUser = db.prepare("SELECT id, login FROM users WHERE id = ?").get(userId) as
+      | { id: number; login: string }
+      | undefined;
+
+    if (!targetUser) {
+      res.status(404).json({ error: "Usuario nao encontrado" });
+      return;
+    }
+
+    const fixedAdminUser = isFixedAdminLogin(targetUser.login);
+
     const updates: string[] = [];
     const params: Array<string | number> = [];
 
@@ -412,6 +430,16 @@ export const createAdminRouter = (
 
     const login = toNullableString(req.body?.login);
     if (login) {
+      if (fixedAdminUser && !isFixedAdminLogin(login)) {
+        res.status(400).json({ error: "Login do admin fixo nao pode ser alterado" });
+        return;
+      }
+
+      if (!fixedAdminUser && isFixedAdminLogin(login)) {
+        res.status(400).json({ error: "Login reservado para administrador" });
+        return;
+      }
+
       updates.push("login = ?");
       params.push(login);
     }
@@ -435,12 +463,27 @@ export const createAdminRouter = (
         return;
       }
 
+      if (fixedAdminUser && role !== "admin") {
+        res.status(400).json({ error: "Role do admin fixo nao pode ser alterado" });
+        return;
+      }
+
+      if (!fixedAdminUser && role === "admin") {
+        res.status(400).json({ error: "Apenas o admin fixo e permitido" });
+        return;
+      }
+
       updates.push("role = ?");
       params.push(role);
     }
 
     const password = toNullableString(req.body?.password);
     if (password) {
+      if (fixedAdminUser) {
+        res.status(400).json({ error: "Senha do admin fixo nao pode ser alterada" });
+        return;
+      }
+
       const hashedPassword = await bcrypt.hash(password, 12);
       updates.push("password_hash = ?");
       params.push(hashedPassword);
@@ -520,6 +563,20 @@ export const createAdminRouter = (
 
     if (!Number.isInteger(userId) || userId <= 0 || typeof isActive !== "boolean") {
       res.status(400).json({ error: "Payload invalido" });
+      return;
+    }
+
+    const targetUser = db.prepare("SELECT id, login FROM users WHERE id = ?").get(userId) as
+      | { id: number; login: string }
+      | undefined;
+
+    if (!targetUser) {
+      res.status(404).json({ error: "Usuario nao encontrado" });
+      return;
+    }
+
+    if (isFixedAdminLogin(targetUser.login) && !isActive) {
+      res.status(400).json({ error: "Admin fixo nao pode ser desativado" });
       return;
     }
 
@@ -722,13 +779,13 @@ export const createAdminRouter = (
 
     if (status === "read") {
       conditions.push(
-        "NOT EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND IFNULL(nr3.response_status, '') != 'resolvido')"
+        "NOT EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND nr3.read_at IS NULL)"
       );
     }
 
     if (status === "unread") {
       conditions.push(
-        "EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND IFNULL(nr3.response_status, '') != 'resolvido')"
+        "EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND nr3.read_at IS NULL)"
       );
     }
 
@@ -780,8 +837,8 @@ export const createAdminRouter = (
 
         const stats = {
           total: recipients.length,
-          read: recipients.filter((recipient) => recipient.responseStatus === "resolvido").length,
-          unread: recipients.filter((recipient) => recipient.responseStatus !== "resolvido").length,
+          read: recipients.filter((recipient) => recipient.readAt !== null).length,
+          unread: recipients.filter((recipient) => recipient.readAt === null).length,
           responded: recipients.filter((recipient) => recipient.responseStatus !== null).length
         };
 
@@ -807,4 +864,12 @@ export const createAdminRouter = (
 
   return router;
 };
+
+
+
+
+
+
+
+
 

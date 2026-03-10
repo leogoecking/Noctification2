@@ -1,4 +1,4 @@
-﻿import path from "node:path";
+import path from "node:path";
 import bcrypt from "bcryptjs";
 import { config } from "../config";
 import { connectDatabase, nowIso, runMigrations } from "../db";
@@ -12,7 +12,7 @@ const run = async () => {
   const name = config.adminSeed.name.trim();
 
   if (!login || !password || !name) {
-    throw new Error("ADMIN_LOGIN, ADMIN_PASSWORD e ADMIN_NAME sao obrigatorios");
+    throw new Error("Configuracao do admin fixo invalida");
   }
 
   const existing = db
@@ -31,7 +31,7 @@ const run = async () => {
       `
     ).run(name, passwordHash, timestamp, existing.id);
 
-    console.log(`Admin atualizado: ${login}`);
+    console.log(`Admin fixo atualizado: ${login}`);
   } else {
     db.prepare(
       `
@@ -49,7 +49,7 @@ const run = async () => {
       `
     ).run(name, login, passwordHash, timestamp, timestamp);
 
-    console.log(`Admin criado: ${login}`);
+    console.log(`Admin fixo criado: ${login}`);
   }
 
   db.close();
@@ -59,3 +59,4 @@ run().catch((error) => {
   console.error(error);
   process.exit(1);
 });
+

@@ -11,11 +11,49 @@ interface Toast {
   tone: "ok" | "error";
 }
 
+type AppPath = "/" | "/login" | "/admin/login" | "/notifications";
+
+const normalizePath = (rawPath: string): AppPath => {
+  if (rawPath === "/login") {
+    return "/login";
+  }
+
+  if (rawPath === "/admin/login") {
+    return "/admin/login";
+  }
+
+  if (rawPath === "/notifications") {
+    return "/notifications";
+  }
+
+  return "/";
+};
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
-  const [submittingLogin, setSubmittingLogin] = useState(false);
+  const [submittingAuth, setSubmittingAuth] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [currentPath, setCurrentPath] = useState<AppPath>(normalizePath(window.location.pathname));
+
+  const navigate = useCallback((path: AppPath, replace = false) => {
+    if (replace) {
+      window.history.replaceState({}, "", path);
+    } else {
+      window.history.pushState({}, "", path);
+    }
+
+    setCurrentPath(path);
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setCurrentPath(normalizePath(window.location.pathname));
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const pushToast = useCallback((message: string, tone: Toast["tone"] = "ok") => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
@@ -40,31 +78,90 @@ export default function App() {
     loadSession();
   }, [loadSession]);
 
-  const login = useCallback(async (loginValue: string, password: string) => {
-    setSubmittingLogin(true);
-
-    try {
-      const response = await api.login(loginValue, password);
-      setCurrentUser(response.user as AuthUser);
-      pushToast("Login realizado com sucesso", "ok");
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha no login";
-      pushToast(message, "error");
-    } finally {
-      setSubmittingLogin(false);
+  useEffect(() => {
+    if (loadingSession) {
+      return;
     }
-  }, [pushToast]);
+
+    if (!currentUser) {
+      if (currentPath !== "/login" && currentPath !== "/admin/login") {
+        navigate("/login", true);
+      }
+      return;
+    }
+
+    if (currentUser.role === "admin") {
+      if (currentPath !== "/") {
+        navigate("/", true);
+      }
+      return;
+    }
+
+    if (currentUser.role === "user" && currentPath === "/admin/login") {
+      navigate("/", true);
+    }
+  }, [currentPath, currentUser, loadingSession, navigate]);
+
+  const login = useCallback(
+    async (loginValue: string, password: string, expectedRole: AuthUser["role"]) => {
+      setSubmittingAuth(true);
+
+      try {
+        const response = await api.login(loginValue, password);
+        const user = response.user as AuthUser;
+
+        if (user.role !== expectedRole) {
+          throw new ApiError(
+            expectedRole === "admin"
+              ? "Use /login para acesso de usuario"
+              : "Use /admin/login para acesso administrativo",
+            403
+          );
+        }
+
+        setCurrentUser(user);
+        navigate("/", true);
+        pushToast("Login realizado com sucesso", "ok");
+      } catch (error) {
+        const message = error instanceof ApiError ? error.message : "Falha no login";
+        pushToast(message, "error");
+      } finally {
+        setSubmittingAuth(false);
+      }
+    },
+    [navigate, pushToast]
+  );
+
+  const register = useCallback(
+    async (name: string, loginValue: string, password: string) => {
+      setSubmittingAuth(true);
+
+      try {
+        const response = await api.register(name, loginValue, password);
+        setCurrentUser(response.user as AuthUser);
+        navigate("/", true);
+        pushToast("Conta criada com sucesso", "ok");
+      } catch (error) {
+        const message = error instanceof ApiError ? error.message : "Falha ao criar conta";
+        pushToast(message, "error");
+      } finally {
+        setSubmittingAuth(false);
+      }
+    },
+    [navigate, pushToast]
+  );
 
   const logout = useCallback(async () => {
     try {
       await api.logout();
       setCurrentUser(null);
+      navigate("/login", true);
       pushToast("Sessao encerrada", "ok");
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Falha ao sair";
       pushToast(message, "error");
     }
-  }, [pushToast]);
+  }, [navigate, pushToast]);
 
   const handleErrorToast = useCallback(
     (message: string) => {
@@ -82,11 +179,15 @@ export default function App() {
 
   const pageTitle = useMemo(() => {
     if (!currentUser) {
-      return "Sistema de Notificacao Interna";
+      return currentPath === "/admin/login" ? "Console Administrativo" : "Acesso de Usuario";
     }
 
-    return currentUser.role === "admin" ? "Console Administrativo" : "Painel Operacional";
-  }, [currentUser]);
+    if (currentUser.role === "admin") {
+      return "Console Administrativo";
+    }
+
+    return currentPath === "/notifications" ? "Todas as Notificacoes" : "Painel Operacional";
+  }, [currentPath, currentUser]);
 
   return (
     <main className="min-h-screen bg-canvas text-textMain">
@@ -96,6 +197,23 @@ export default function App() {
             <p className="text-xs uppercase tracking-[0.2em] text-accent">Plataforma interna</p>
             <h1 className="font-display text-2xl text-textMain">{pageTitle}</h1>
           </div>
+
+          {!currentUser && (
+            <div className="flex items-center gap-2">
+              <button
+                className={`rounded-xl px-3 py-2 text-sm ${currentPath === "/login" ? "bg-accent text-slate-900" : "border border-slate-600 text-textMuted"}`}
+                onClick={() => navigate("/login")}
+              >
+                /login
+              </button>
+              <button
+                className={`rounded-xl px-3 py-2 text-sm ${currentPath === "/admin/login" ? "bg-accent text-slate-900" : "border border-slate-600 text-textMuted"}`}
+                onClick={() => navigate("/admin/login")}
+              >
+                /admin/login
+              </button>
+            </div>
+          )}
 
           {currentUser && (
             <div className="flex items-center gap-3">
@@ -111,10 +229,32 @@ export default function App() {
 
         {loadingSession && <p className="text-sm text-textMuted">Carregando sessao...</p>}
 
-        {!loadingSession && !currentUser && <LoginScreen onSubmit={login} isLoading={submittingLogin} />}
+        {!loadingSession && !currentUser && currentPath === "/login" && (
+          <LoginScreen
+            mode="user"
+            onLogin={(loginValue, password) => login(loginValue, password, "user")}
+            onRegister={register}
+            isLoading={submittingAuth}
+          />
+        )}
+
+        {!loadingSession && !currentUser && currentPath === "/admin/login" && (
+          <LoginScreen
+            mode="admin"
+            onLogin={(loginValue, password) => login(loginValue, password, "admin")}
+            isLoading={submittingAuth}
+          />
+        )}
 
         {!loadingSession && currentUser?.role === "user" && (
-          <UserDashboard user={currentUser} onError={handleErrorToast} onToast={handleOkToast} />
+          <UserDashboard
+            user={currentUser}
+            isNotificationsPage={currentPath === "/notifications"}
+            onOpenAllNotifications={() => navigate("/notifications")}
+            onBackToDashboard={() => navigate("/")}
+            onError={handleErrorToast}
+            onToast={handleOkToast}
+          />
         )}
 
         {!loadingSession && currentUser?.role === "admin" && (
@@ -139,4 +279,3 @@ export default function App() {
     </main>
   );
 }
-

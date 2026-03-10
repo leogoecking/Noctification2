@@ -360,7 +360,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                 </article>
 
                 <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-                  <p className="text-xs uppercase tracking-wide text-textMuted">Concluidas</p>
+                  <p className="text-xs uppercase tracking-wide text-textMuted">Lidas</p>
                   <p className="mt-1 font-display text-2xl text-success">{metrics.completedNotifications}</p>
                 </article>
               </div>
@@ -383,9 +383,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
                 <div className="space-y-3">
                   {unreadNotifications.map((item) => {
-                    const unreadRecipients = item.recipients.filter(
-                      (recipient) => recipient.responseStatus !== "resolvido"
-                    );
+                    const unreadRecipients = item.recipients.filter((recipient) => recipient.readAt === null);
                     const inProgressCount = unreadRecipients.filter(
                       (recipient) => recipient.responseStatus === "em_andamento"
                     ).length;
@@ -444,7 +442,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
               <article className="rounded-2xl border border-slate-700 bg-panel p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-display text-lg text-textMain">Concluidas recentes</h4>
+                  <h4 className="font-display text-lg text-textMain">Lidas recentes</h4>
                   <button
                     className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
                     onClick={loadNotificationHistory}
@@ -467,7 +465,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                           <p className="text-xs text-textMuted">Concluida em {formatDate(item.created_at)}</p>
                         </div>
                         <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
-                          Resolvidas: {item.stats.read}/{item.stats.total}
+                          Lidas: {item.stats.read}/{item.stats.total}
                         </span>
                       </div>
                       <p className="mt-2 text-sm text-textMuted">{item.message}</p>
@@ -517,7 +515,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                       <p className="mt-2 text-sm text-textMuted">{item.message}</p>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs">
                         <span className="rounded-md bg-panel px-2 py-1 text-textMuted">Total: {item.stats.total}</span>
-                        <span className="rounded-md bg-success/20 px-2 py-1 text-success">Resolvidas: {item.stats.read}</span>
+                        <span className="rounded-md bg-success/20 px-2 py-1 text-success">Lidas: {item.stats.read}</span>
                         <span className="rounded-md bg-warning/20 px-2 py-1 text-warning">Pendentes: {item.stats.unread}</span>
                         <span className="rounded-md bg-panel px-2 py-1 text-textMuted">Com resposta: {item.stats.responded}</span>
                       </div>
@@ -734,4 +732,8 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     </section>
   );
 };
+
+
+
+
 

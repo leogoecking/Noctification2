@@ -1,130 +1,110 @@
 {
   "audit_date": "2026-03-10",
   "repository": "Noctification2",
+  "scope": "Classic notification flow refactor with compatibility",
   "summary": {
-    "total_findings": 4,
-    "fixed": 3,
-    "open": 1,
+    "total_findings": 7,
+    "fixed": 7,
+    "open": 0,
     "critical": 0,
-    "high": 2,
-    "medium": 1,
+    "high": 3,
+    "medium": 3,
     "low": 1
   },
   "findings": [
     {
-      "bug_id": "SEC-AUTH-001",
+      "bug_id": "AUTH-REG-001",
       "severity": "high",
-      "priority": 1,
-      "category": "security",
-      "component": "API auth",
-      "files": [
-        "apps/api/src/routes/auth.ts",
-        "apps/api/src/test/api.test.ts"
-      ],
-      "status": "fixed",
-      "complexity": "medium",
-      "current_behavior": "Unlimited invalid login attempts were accepted.",
-      "expected_behavior": "Repeated invalid login attempts should trigger temporary lockout.",
-      "root_cause": "Missing login throttling/lockout control in /auth/login route.",
-      "impact": {
-        "user": "Potential account compromise by brute force.",
-        "system": "Increased auth attack surface and load.",
-        "business": "Security incident risk and trust impact."
-      },
-      "reproduction_steps": [
-        "Call POST /api/v1/auth/login with valid login and invalid password repeatedly.",
-        "Observe repeated 401 without any lockout before fix."
-      ],
-      "verification": [
-        "API test 'bloqueia login apos muitas tentativas invalidas' passes.",
-        "After five invalid attempts, next attempt returns HTTP 429 and Retry-After header."
-      ]
-    },
-    {
-      "bug_id": "BUG-API-001",
-      "severity": "high",
-      "priority": 1,
       "category": "functional",
-      "component": "Admin notification history API",
-      "files": [
-        "apps/api/src/routes/admin.ts",
-        "apps/api/src/test/api.test.ts"
-      ],
       "status": "fixed",
-      "complexity": "medium",
-      "current_behavior": "Unread/read status filtering was applied after LIMIT 200.",
-      "expected_behavior": "Status filtering should happen before LIMIT.",
-      "root_cause": "Filtering logic executed in memory on already-limited result set.",
-      "impact": {
-        "user": "Admins can miss unread notifications.",
-        "system": "Operational backlog visibility is incomplete.",
-        "business": "Delayed incident response."
-      },
-      "reproduction_steps": [
-        "Seed 205 notifications where oldest 5 are unread and newest 200 are resolved.",
-        "Call GET /api/v1/admin/notifications?status=unread.",
-        "Before fix, endpoint returns zero unread records."
-      ],
-      "verification": [
-        "API test 'nao perde notificacoes nao lidas antigas ao filtrar status unread' passes.",
-        "GET /admin/notifications validates status and returns expected unread records."
-      ]
+      "component": "API auth",
+      "files": ["apps/api/src/routes/auth.ts", "apps/api/src/test/api.test.ts"],
+      "description": "User self-registration endpoint was missing.",
+      "expected": "POST /api/v1/auth/register accepts name/login/password and creates a user session.",
+      "root_cause": "Auth routes only supported login/logout/me flows.",
+      "verification": ["API tests: register success, duplicate login, invalid payload"]
     },
     {
-      "bug_id": "SEC-DEP-001",
-      "severity": "low",
-      "priority": 3,
-      "category": "dependency-security",
-      "component": "API dependency graph",
-      "files": [
-        "apps/api/package.json",
-        "package-lock.json"
-      ],
+      "bug_id": "AUTH-ADMIN-001",
+      "severity": "high",
+      "category": "security-policy",
       "status": "fixed",
-      "complexity": "low",
-      "current_behavior": "Dependency cookie@^0.6.0 matched advisory GHSA-pxg6-pf52-xh8x.",
-      "expected_behavior": "Use patched dependency version.",
-      "root_cause": "Outdated direct dependency pin.",
-      "impact": {
-        "user": "Low direct impact but avoidable parser input risk.",
-        "system": "Known vulnerable package in production chain.",
-        "business": "Compliance and security posture degradation."
-      },
-      "reproduction_steps": [
-        "Run npm audit --json before update.",
-        "Observe cookie vulnerability entry."
-      ],
-      "verification": [
-        "Updated to cookie@^1.1.1.",
-        "npm audit --json reports zero vulnerabilities."
-      ]
+      "component": "API auth/admin",
+      "files": ["apps/api/src/config.ts", "apps/api/src/routes/auth.ts", "apps/api/src/routes/admin.ts"],
+      "description": "Admin identity could drift from required fixed credential model.",
+      "expected": "Fixed admin/admin in all environments with immutable admin identity.",
+      "root_cause": "Admin seed could be environment-driven and editable.",
+      "verification": ["API tests: fixed admin login accepted, wrong admin password rejected, creating extra admin blocked"]
     },
     {
-      "bug_id": "QA-WEB-001",
+      "bug_id": "NOTIF-READ-001",
+      "severity": "high",
+      "category": "functional",
+      "status": "fixed",
+      "component": "Notifications read semantics",
+      "files": ["apps/api/src/routes/me.ts", "apps/api/src/routes/admin.ts", "apps/api/src/socket.ts"],
+      "description": "Read/unread semantics were coupled with response status.",
+      "expected": "Read state based on read_at only; response status tracked independently.",
+      "root_cause": "Historical business logic mixed acknowledgement and operational response dimensions.",
+      "verification": ["API tests: status read/unread uses read_at; response workflow remains independent"]
+    },
+    {
+      "bug_id": "NOTIF-USER-002",
       "severity": "medium",
-      "priority": 2,
-      "category": "quality",
-      "component": "Web test coverage",
-      "files": [
-        "apps/web"
-      ],
-      "status": "open",
-      "complexity": "medium",
-      "current_behavior": "Frontend workspace has no test files.",
-      "expected_behavior": "Core frontend flows should have automated tests.",
-      "root_cause": "No test suite implementation for web components.",
-      "impact": {
-        "user": "UI regressions may reach production.",
-        "system": "CI cannot detect frontend behavioral breakage.",
-        "business": "Higher support and regression cost."
-      },
-      "reproduction_steps": [
-        "Run npm run test:web.",
-        "Observe output: No test files found."
-      ],
-      "verification": [
-        "Pending remediation: add web tests and enforce non-empty suite in CI."
-      ]
+      "category": "functional",
+      "status": "fixed",
+      "component": "User notifications API",
+      "files": ["apps/api/src/routes/me.ts", "apps/web/src/lib/api.ts", "apps/web/src/components/UserDashboard.tsx"],
+      "description": "Missing bulk read operation for user notifications.",
+      "expected": "POST /api/v1/me/notifications/read-all marks only logged user unread records as read.",
+      "root_cause": "API exposed only per-item read mutation.",
+      "verification": ["API test: read-all updates only current user unread notifications", "Web test: mark-all updates counter"]
+    },
+    {
+      "bug_id": "WEB-ROUTE-001",
+      "severity": "medium",
+      "category": "ui-ux",
+      "status": "fixed",
+      "component": "Web routing/auth screens",
+      "files": ["apps/web/src/App.tsx", "apps/web/src/components/LoginScreen.tsx"],
+      "description": "Dedicated user/admin login routes and register toggle were absent.",
+      "expected": "Support /login and /admin/login with role-aware access flow.",
+      "root_cause": "Single auth entry path.",
+      "verification": ["Web tests: login screen register toggle and admin mode behavior", "App route tests"]
+    },
+    {
+      "bug_id": "WEB-BELL-002",
+      "severity": "medium",
+      "category": "ui-ux",
+      "status": "fixed",
+      "component": "Web notifications experience",
+      "files": ["apps/web/src/components/UserDashboard.tsx", "apps/web/src/components/UserDashboard.test.tsx"],
+      "description": "Bell dropdown/page flow did not fully match classic requirement.",
+      "expected": "Dropdown shows latest 10 overall with unread badge, CTA to full page, mark-all action on full page.",
+      "root_cause": "Partial UX implementation.",
+      "verification": ["Web tests: dropdown max 10, CTA navigation callback, mark-all flow"]
+    },
+    {
+      "bug_id": "WEB-ADMIN-READ-003",
+      "severity": "low",
+      "category": "functional",
+      "status": "fixed",
+      "component": "Admin dashboard pending list",
+      "files": ["apps/web/src/components/AdminDashboard.tsx"],
+      "description": "Pending recipients list still filtered by response status instead of read state.",
+      "expected": "Pending should follow readAt === null.",
+      "root_cause": "Legacy coupling retained in UI view logic.",
+      "verification": ["Code path updated to readAt filter; lint/typecheck/tests/build passed after change"]
     }
-  ]
+  ],
+  "validation": {
+    "commands": [
+      "npm run lint",
+      "npm run typecheck",
+      "npm run test",
+      "npm run test:web",
+      "npm run build"
+    ],
+    "result": "passed"
+  }
 }

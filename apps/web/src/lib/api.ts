@@ -49,6 +49,12 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
 };
 
 export const api = {
+  register: (name: string, login: string, password: string) =>
+    request<{ user: unknown }>("/auth/register", {
+      method: "POST",
+      bodyJson: { name, login, password }
+    }),
+
   login: (login: string, password: string) =>
     request<{ user: unknown }>("/auth/login", {
       method: "POST",
@@ -104,6 +110,11 @@ export const api = {
         method: "POST"
       }
     ),
+
+  markAllRead: () =>
+    request<{ updatedCount: number; readAt: string | null }>("/me/notifications/read-all", {
+      method: "POST"
+    }),
 
   respondNotification: (id: number, responseStatus: string, responseMessage?: string) =>
     request<{

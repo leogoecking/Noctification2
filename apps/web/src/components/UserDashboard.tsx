@@ -10,6 +10,9 @@ import type {
 
 interface UserDashboardProps {
   user: AuthUser;
+  isNotificationsPage: boolean;
+  onOpenAllNotifications: () => void;
+  onBackToDashboard: () => void;
   onError: (message: string) => void;
   onToast: (message: string) => void;
 }
@@ -101,7 +104,14 @@ const BellIcon = () => (
   </svg>
 );
 
-export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) => {
+export const UserDashboard = ({
+  user,
+  isNotificationsPage,
+  onOpenAllNotifications,
+  onBackToDashboard,
+  onError,
+  onToast
+}: UserDashboardProps) => {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -109,6 +119,7 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
   const [criticalModal, setCriticalModal] = useState<NotificationItem | null>(null);
   const [bellOpen, setBellOpen] = useState(false);
   const [responseMessageDraft, setResponseMessageDraft] = useState("");
+  const [submittingReadAll, setSubmittingReadAll] = useState(false);
 
   const loadNotifications = async (nextFilter: FilterMode) => {
     setLoading(true);
@@ -169,7 +180,6 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
           item.id === payload.id
             ? {
                 ...item,
-                isRead: false,
                 responseStatus: "em_andamento"
               }
             : item
@@ -224,6 +234,7 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
 
   const unreadItems = useMemo(() => items.filter((item) => !item.isRead), [items]);
   const unreadCount = unreadItems.length;
+  const dropdownItems = useMemo(() => items.slice(0, 10), [items]);
 
   const updateItemState = (
     notificationId: number,
@@ -258,6 +269,36 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     }
   };
 
+  const markAllAsRead = async () => {
+    setSubmittingReadAll(true);
+    try {
+      const response = await api.markAllRead();
+      if (!response.readAt || response.updatedCount === 0) {
+        onToast("Nenhuma notificacao pendente para marcar");
+        return;
+      }
+
+      setItems((prev) =>
+        prev.map((item) =>
+          item.isRead
+            ? item
+            : {
+                ...item,
+                readAt: response.readAt,
+                isRead: true
+              }
+        )
+      );
+      setCriticalModal(null);
+      onToast(`${response.updatedCount} notificacao(oes) marcadas como lidas`);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Falha ao marcar todas como lidas";
+      onError(message);
+    } finally {
+      setSubmittingReadAll(false);
+    }
+  };
+
   const respondNotification = async (
     notificationId: number,
     responseStatus: NotificationResponseStatus,
@@ -283,20 +324,22 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     <section className="animate-fade-in space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-panel p-4 shadow-glow">
         <div>
-          <h2 className="font-display text-xl text-textMain">Painel do Usuario</h2>
+          <h2 className="font-display text-xl text-textMain">
+            {isNotificationsPage ? "Todas as notificacoes" : "Painel do Usuario"}
+          </h2>
           <p className="text-sm text-textMuted">Conectado como {user.name}</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="rounded-xl bg-panelAlt px-4 py-2 text-sm text-textMain">
-            Pendentes: <strong className="text-accent">{unreadCount}</strong>
+          <div data-testid="unread-counter" className="rounded-xl bg-panelAlt px-4 py-2 text-sm text-textMain">
+            Nao lidas: <strong className="text-accent">{unreadCount}</strong>
           </div>
 
           <div className="relative">
             <button
               className="relative rounded-xl border border-slate-600 bg-panelAlt p-2 text-textMain"
               onClick={() => setBellOpen((prev) => !prev)}
-              aria-label="Abrir notificacoes"
+              aria-label="Abrir notificacoes" data-testid="notif-bell-btn"
             >
               <BellIcon />
               {unreadCount > 0 && (
@@ -307,18 +350,18 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
             </button>
 
             {bellOpen && (
-              <div className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-slate-700 bg-panel p-3 shadow-glow">
+              <div data-testid="notif-dropdown" className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-slate-700 bg-panel p-3 shadow-glow">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-textMain">Notificacoes pendentes</p>
-                  <span className="text-xs text-textMuted">{unreadCount}</span>
+                  <p className="text-sm font-semibold text-textMain">Ultimas 10 notificacoes</p>
+                  <span className="text-xs text-textMuted">Nao lidas: {unreadCount}</span>
                 </div>
 
-                {unreadItems.length === 0 && (
-                  <p className="text-xs text-textMuted">Sem pendencias.</p>
+                {dropdownItems.length === 0 && (
+                  <p className="text-xs text-textMuted">Sem notificacoes.</p>
                 )}
 
-                <div className="max-h-72 space-y-2 overflow-auto">
-                  {unreadItems.map((item) => (
+                <div data-testid="notif-dropdown-list" className="max-h-72 space-y-2 overflow-auto">
+                  {dropdownItems.map((item) => (
                     <button
                       key={item.id}
                       className="w-full rounded-lg border border-slate-700 bg-panelAlt p-2 text-left"
@@ -329,11 +372,14 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-textMain">{item.title}</p>
-                        {item.priority === "critical" && (
-                          <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[10px] text-danger">
-                            Critica
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {!item.isRead && <span className="h-2 w-2 rounded-full bg-accent" />}
+                          {item.priority === "critical" && (
+                            <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[10px] text-danger">
+                              Critica
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <p className="mt-1 text-xs text-textMuted">{item.message}</p>
                       <p className="mt-1 text-[11px] text-textMuted">{formatDate(item.createdAt)}</p>
@@ -341,14 +387,50 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
                   ))}
                 </div>
 
-                <p className="mt-2 text-[11px] text-textMuted">
-                  Clique em uma notificacao para marcar leitura ou resposta.
-                </p>
+                <button
+                  data-testid="view-all-notifications-btn"
+                  className="mt-2 w-full rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain"
+                  onClick={() => {
+                    onOpenAllNotifications();
+                    setBellOpen(false);
+                  }}
+                >
+                  Ver todas as notificacoes
+                </button>
               </div>
             )}
           </div>
         </div>
       </header>
+
+      <div className="flex flex-wrap gap-2">
+        {!isNotificationsPage && (
+          <button
+            className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+            onClick={onOpenAllNotifications}
+          >
+            Ver todas as notificacoes
+          </button>
+        )}
+        {isNotificationsPage && (
+          <>
+            <button
+              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+              onClick={onBackToDashboard}
+            >
+              Voltar ao painel
+            </button>
+            <button
+              data-testid="mark-all-read-btn"
+              className="rounded-lg bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+              onClick={markAllAsRead}
+              disabled={submittingReadAll}
+            >
+              {submittingReadAll ? "Marcando..." : "Marcar todas como lidas"}
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -367,7 +449,7 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
           className={`rounded-lg px-3 py-2 text-sm ${filter === "read" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
           onClick={() => setFilter("read")}
         >
-          Resolvidas
+          Lidas
         </button>
       </div>
 
@@ -389,11 +471,14 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium text-textMain">{item.title}</p>
-                {item.priority === "critical" && (
-                  <span className="rounded-md bg-danger/20 px-2 py-1 text-[10px] uppercase tracking-wide text-danger">
-                    Critica
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {!item.isRead && <span className="h-2 w-2 rounded-full bg-accent" />}
+                  {item.priority === "critical" && (
+                    <span className="rounded-md bg-danger/20 px-2 py-1 text-[10px] uppercase tracking-wide text-danger">
+                      Critica
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="mt-1 text-sm text-textMuted">{item.message}</p>
               <p className="mt-2 text-xs text-textMuted">{formatDate(item.createdAt)}</p>
@@ -419,7 +504,7 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
               <p className="text-xs text-textMuted">Recebida: {formatDate(selected.deliveredAt)}</p>
               <p className="text-xs text-textMuted">Leitura: {formatDate(selected.readAt)}</p>
               <p className="text-xs text-textMuted">
-                Status: {selected.responseStatus ? RESPONSE_LABELS[selected.responseStatus] : "-"}
+                Status de resposta: {selected.responseStatus ? RESPONSE_LABELS[selected.responseStatus] : "-"}
               </p>
               {selected.responseMessage && (
                 <p className="text-xs text-textMuted">Mensagem atual: {selected.responseMessage}</p>
@@ -512,4 +597,6 @@ export const UserDashboard = ({ user, onError, onToast }: UserDashboardProps) =>
     </section>
   );
 };
+
+
 

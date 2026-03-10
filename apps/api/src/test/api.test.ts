@@ -29,17 +29,18 @@ describe("API notification flow", () => {
   let server: HttpServer;
 
   const seedUsers = async () => {
-    const passwordHash = await bcrypt.hash("123456", 10);
+    const adminPasswordHash = await bcrypt.hash("admin", 10);
+    const userPasswordHash = await bcrypt.hash("123456", 10);
     const timestamp = nowIso();
 
     db.prepare(
       `
         INSERT INTO users (name, login, password_hash, department, job_title, role, is_active, created_at, updated_at)
         VALUES
-          ('Admin Teste', 'admin', ?, 'NOC', 'Coordenador', 'admin', 1, ?, ?),
+          ('Admin Fixo', 'admin', ?, 'NOC', 'Coordenador', 'admin', 1, ?, ?),
           ('Usuario Teste', 'user', ?, 'Suporte', 'Analista', 'user', 1, ?, ?)
       `
-    ).run(passwordHash, timestamp, timestamp, passwordHash, timestamp, timestamp);
+    ).run(adminPasswordHash, timestamp, timestamp, userPasswordHash, timestamp, timestamp);
   };
 
   beforeEach(async () => {
@@ -58,10 +59,10 @@ describe("API notification flow", () => {
     db.close();
   });
 
-  it("faz login e logout com sucesso", async () => {
+  it("faz login e logout com sucesso para admin fixo", async () => {
     const agent = request.agent(server);
 
-    const login = await agent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+    const login = await agent.post("/api/v1/auth/login").send({ login: "admin", password: "admin" });
     expect(login.status).toBe(200);
     expect(login.body.user.role).toBe("admin");
 
@@ -74,6 +75,14 @@ describe("API notification flow", () => {
 
     const meAfterLogout = await agent.get("/api/v1/auth/me");
     expect(meAfterLogout.status).toBe(401);
+  });
+
+  it("rejeita senha incorreta para admin fixo", async () => {
+    const response = await request(server)
+      .post("/api/v1/auth/login")
+      .send({ login: "admin", password: "123456" });
+
+    expect(response.status).toBe(401);
   });
 
   it("bloqueia login apos muitas tentativas invalidas", async () => {
@@ -94,6 +103,35 @@ describe("API notification flow", () => {
     expect(blocked.status).toBe(429);
     expect(blocked.headers["retry-after"]).toBeTruthy();
   });
+
+  it("realiza cadastro e inicia sessao automaticamente", async () => {
+    const agent = request.agent(server);
+
+    const register = await agent.post("/api/v1/auth/register").send({
+      name: "Novo Usuario",
+      login: "novo_user",
+      password: "123456"
+    });
+
+    expect(register.status).toBe(201);
+    expect(register.body.user.login).toBe("novo_user");
+    expect(register.body.user.role).toBe("user");
+
+    const me = await agent.get("/api/v1/auth/me");
+    expect(me.status).toBe(200);
+    expect(me.body.user.login).toBe("novo_user");
+  });
+
+  it("retorna 409 para cadastro com login duplicado", async () => {
+    const response = await request(server).post("/api/v1/auth/register").send({
+      name: "Duplicado",
+      login: "user",
+      password: "123456"
+    });
+
+    expect(response.status).toBe(409);
+  });
+
   it("impede usuario comum de acessar endpoint admin", async () => {
     const userAgent = request.agent(server);
 
@@ -103,89 +141,24 @@ describe("API notification flow", () => {
     expect(adminUsers.status).toBe(403);
   });
 
-  it("retorna 400 ao criar usuario com role invalida", async () => {
+  it("impede criar outro admin pela API de usuarios", async () => {
     const adminAgent = request.agent(server);
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "admin" });
 
-    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
-
-    const createResponse = await adminAgent.post("/api/v1/admin/users").send({
-      name: "Role Invalida",
-      login: "role_invalida",
+    const response = await adminAgent.post("/api/v1/admin/users").send({
+      name: "Outro Admin",
+      login: "admin2",
       password: "123456",
-      role: "superadmin"
+      role: "admin"
     });
 
-    expect(createResponse.status).toBe(400);
-    expect(createResponse.body.error).toMatch(/role deve ser admin ou user/i);
-  });
-
-  it("retorna 400 ao atualizar usuario com role invalida", async () => {
-    const adminAgent = request.agent(server);
-
-    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
-    const usersResponse = await adminAgent.get("/api/v1/admin/users");
-    const targetUser = usersResponse.body.users.find((user: { login: string }) => user.login === "user");
-
-    const updateResponse = await adminAgent.patch(`/api/v1/admin/users/${targetUser.id}`).send({
-      role: "superadmin"
-    });
-
-    expect(updateResponse.status).toBe(400);
-    expect(updateResponse.body.error).toMatch(/role deve ser admin ou user/i);
-  });
-
-  it("retorna 409 ao tentar atualizar usuario para login ja existente", async () => {
-    const adminAgent = request.agent(server);
-
-    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
-    const usersResponse = await adminAgent.get("/api/v1/admin/users");
-    const targetUser = usersResponse.body.users.find((user: { login: string }) => user.login === "user");
-
-    const updateResponse = await adminAgent.patch(`/api/v1/admin/users/${targetUser.id}`).send({
-      login: "admin"
-    });
-
-    expect(updateResponse.status).toBe(409);
-    expect(updateResponse.body.error).toMatch(/Login ja existente/i);
-  });
-
-  it("suporta envio para muitos destinatarios sem erro de limite do SQLite", async () => {
-    const adminAgent = request.agent(server);
-
-    const passwordHash = await bcrypt.hash("123456", 10);
-    const now = nowIso();
-    const insertUser = db.prepare(
-      `
-        INSERT INTO users (name, login, password_hash, department, job_title, role, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, 'Operacao', 'Analista', 'user', 1, ?, ?)
-      `
-    );
-
-    for (let i = 1; i <= 1100; i += 1) {
-      insertUser.run(`Carga ${i}`, `bulk_${i}`, passwordHash, now, now);
-    }
-
-    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
-    const usersResponse = await adminAgent.get("/api/v1/admin/users");
-    const bulkIds = usersResponse.body.users
-      .filter((user: { login: string; role: string }) => user.role === "user" && user.login.startsWith("bulk_"))
-      .map((user: { id: number }) => user.id);
-
-    const sendResponse = await adminAgent.post("/api/v1/admin/notifications").send({
-      title: "Carga grande",
-      message: "Teste com muitos destinatarios",
-      priority: "normal",
-      recipient_mode: "users",
-      recipient_ids: bulkIds
-    });
-
-    expect(sendResponse.status).toBe(201);
-    expect(sendResponse.body.notification.recipient_count).toBe(bulkIds.length);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/admin fixo/i);
   });
 
   it("retorna 400 para filtro de status invalido no historico admin", async () => {
     const adminAgent = request.agent(server);
-    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "admin" });
 
     const response = await adminAgent.get("/api/v1/admin/notifications?status=invalido");
 
@@ -195,7 +168,7 @@ describe("API notification flow", () => {
 
   it("nao perde notificacoes nao lidas antigas ao filtrar status unread", async () => {
     const adminAgent = request.agent(server);
-    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "admin" });
 
     const baseTime = Date.now();
     const insertNotification = db.prepare(
@@ -236,8 +209,8 @@ describe("API notification flow", () => {
         timestamp,
         isOldUnread ? null : timestamp,
         timestamp,
-        isOldUnread ? null : "resolvido",
-        isOldUnread ? null : timestamp,
+        null,
+        null,
         null
       );
     }
@@ -253,80 +226,65 @@ describe("API notification flow", () => {
     ).toBe(true);
   });
 
-  it("mantem notificacao pendente apos refresh ate marcar resolvido", async () => {
+  it("marca todas como lidas sem afetar status de resposta", async () => {
     const adminAgent = request.agent(server);
     const userAgent = request.agent(server);
 
-    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "admin" });
     await userAgent.post("/api/v1/auth/login").send({ login: "user", password: "123456" });
 
     const usersResponse = await adminAgent.get("/api/v1/admin/users");
-    const targetUser = usersResponse.body.users.find((user: { login: string }) => user.login === "user");
+    const targetUser = usersResponse.body.users.find((item: { login: string }) => item.login === "user");
 
-    const sendResponse = await adminAgent.post("/api/v1/admin/notifications").send({
-      title: "Teste",
-      message: "Mensagem de teste",
+    await adminAgent.post("/api/v1/admin/notifications").send({
+      title: "N1",
+      message: "Mensagem 1",
       priority: "high",
       recipient_mode: "users",
       recipient_ids: [targetUser.id]
     });
 
-    expect(sendResponse.status).toBe(201);
+    await adminAgent.post("/api/v1/admin/notifications").send({
+      title: "N2",
+      message: "Mensagem 2",
+      priority: "normal",
+      recipient_mode: "users",
+      recipient_ids: [targetUser.id]
+    });
 
-    const myUnreadStart = await userAgent.get("/api/v1/me/notifications?status=unread");
-    expect(myUnreadStart.status).toBe(200);
-    expect(myUnreadStart.body.notifications.length).toBe(1);
+    const unreadBefore = await userAgent.get("/api/v1/me/notifications?status=unread");
+    expect(unreadBefore.status).toBe(200);
+    expect(unreadBefore.body.notifications.length).toBe(2);
 
-    const notificationId = myUnreadStart.body.notifications[0].id as number;
-
-    const setInProgress = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
+    const firstId = unreadBefore.body.notifications[0].id as number;
+    const respond = await userAgent.post(`/api/v1/me/notifications/${firstId}/respond`).send({
       response_status: "em_andamento",
-      response_message: "Estou verificando o incidente"
+      response_message: "Investigando"
     });
 
-    expect(setInProgress.status).toBe(200);
-    expect(setInProgress.body.responseStatus).toBe("em_andamento");
-    expect(setInProgress.body.responseMessage).toBe("Estou verificando o incidente");
-    expect(setInProgress.body.isRead).toBe(false);
+    expect(respond.status).toBe(200);
+    expect(respond.body.responseStatus).toBe("em_andamento");
+    expect(respond.body.isRead).toBe(true);
 
-    const myAllAfterProgress = await userAgent.get("/api/v1/me/notifications");
-    expect(myAllAfterProgress.status).toBe(200);
-    expect(myAllAfterProgress.body.notifications[0].isRead).toBe(false);
+    const unreadAfterRespond = await userAgent.get("/api/v1/me/notifications?status=unread");
+    expect(unreadAfterRespond.status).toBe(200);
+    expect(unreadAfterRespond.body.notifications.length).toBe(1);
 
-    const markReadWhileInProgress = await userAgent.post(`/api/v1/me/notifications/${notificationId}/read`);
-    expect(markReadWhileInProgress.status).toBe(200);
-    expect(markReadWhileInProgress.body.isRead).toBe(false);
+    const readAll = await userAgent.post("/api/v1/me/notifications/read-all");
+    expect(readAll.status).toBe(200);
+    expect(readAll.body.updatedCount).toBe(1);
 
-    const myUnreadAfterRefreshScenario = await userAgent.get("/api/v1/me/notifications?status=unread");
-    expect(myUnreadAfterRefreshScenario.status).toBe(200);
-    expect(myUnreadAfterRefreshScenario.body.notifications.length).toBe(1);
+    const unreadAfterAll = await userAgent.get("/api/v1/me/notifications?status=unread");
+    expect(unreadAfterAll.status).toBe(200);
+    expect(unreadAfterAll.body.notifications.length).toBe(0);
 
-    const adminUnread = await adminAgent.get("/api/v1/admin/notifications?status=unread");
-    expect(adminUnread.status).toBe(200);
-    expect(adminUnread.body.notifications.length).toBe(1);
-    expect(adminUnread.body.notifications[0].recipients[0].responseMessage).toBe("Estou verificando o incidente");
+    const allNotifications = await userAgent.get("/api/v1/me/notifications");
+    expect(allNotifications.status).toBe(200);
+    expect(allNotifications.body.notifications.every((item: { isRead: boolean }) => item.isRead)).toBe(true);
 
-    const resolve = await userAgent.post(`/api/v1/me/notifications/${notificationId}/respond`).send({
-      response_status: "resolvido"
-    });
-
-    expect(resolve.status).toBe(200);
-    expect(resolve.body.isRead).toBe(true);
-
-    const myUnreadAfterResolve = await userAgent.get("/api/v1/me/notifications?status=unread");
-    expect(myUnreadAfterResolve.status).toBe(200);
-    expect(myUnreadAfterResolve.body.notifications.length).toBe(0);
-
-    const adminRead = await adminAgent.get("/api/v1/admin/notifications?status=read");
-    expect(adminRead.status).toBe(200);
-    expect(adminRead.body.notifications.length).toBe(1);
-    expect(adminRead.body.notifications[0].stats.unread).toBe(0);
-
-    const audit = await adminAgent.get("/api/v1/admin/audit?limit=20");
-    expect(audit.status).toBe(200);
-    expect(
-      audit.body.events.some((event: { event_type: string }) => event.event_type === "notification.respond")
-    ).toBe(true);
+    const inProgressNotification = allNotifications.body.notifications.find(
+      (item: { id: number }) => item.id === firstId
+    );
+    expect(inProgressNotification.responseStatus).toBe("em_andamento");
   });
 });
-

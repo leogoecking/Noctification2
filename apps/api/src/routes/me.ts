@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
 import type { AppConfig } from "../config";
@@ -25,10 +25,6 @@ interface NotificationRow {
   responseMessage: string | null;
 }
 
-const isResolved = (responseStatus: NotificationResponseStatus | null): boolean => {
-  return responseStatus === "resolvido";
-};
-
 const toOptionalResponseMessage = (value: unknown): string | null => {
   if (typeof value !== "string") {
     return null;
@@ -51,15 +47,20 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
 
     const status = typeof req.query.status === "string" ? req.query.status : "";
 
+    if (status !== "" && status !== "read" && status !== "unread") {
+      res.status(400).json({ error: "status deve ser read ou unread" });
+      return;
+    }
+
     const conditions = ["nr.user_id = ?"];
     const values: Array<number | string> = [req.authUser.id];
 
     if (status === "read") {
-      conditions.push("nr.response_status = 'resolvido'");
+      conditions.push("nr.read_at IS NOT NULL");
     }
 
     if (status === "unread") {
-      conditions.push("IFNULL(nr.response_status, '') != 'resolvido'");
+      conditions.push("nr.read_at IS NULL");
     }
 
     const notifications = db
@@ -92,8 +93,77 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     res.json({
       notifications: notifications.map((item) => ({
         ...item,
-        isRead: isResolved(item.responseStatus)
+        isRead: item.readAt !== null
       }))
+    });
+  });
+
+  router.post("/notifications/read-all", (req, res) => {
+    if (!req.authUser) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return;
+    }
+
+    const unreadRows = db
+      .prepare(
+        `
+          SELECT
+            notification_id AS notificationId,
+            response_status AS responseStatus,
+            response_at AS responseAt
+          FROM notification_recipients
+          WHERE user_id = ?
+            AND read_at IS NULL
+        `
+      )
+      .all(req.authUser.id) as Array<{
+      notificationId: number;
+      responseStatus: NotificationResponseStatus | null;
+      responseAt: string | null;
+    }>;
+
+    if (unreadRows.length === 0) {
+      res.json({ updatedCount: 0, readAt: null });
+      return;
+    }
+
+    const timestamp = nowIso();
+
+    const result = db
+      .prepare(
+        `
+          UPDATE notification_recipients
+          SET read_at = ?
+          WHERE user_id = ?
+            AND read_at IS NULL
+        `
+      )
+      .run(timestamp, req.authUser.id);
+
+    for (const row of unreadRows) {
+      emitReadUpdateToAdmins(io, {
+        notificationId: row.notificationId,
+        userId: req.authUser.id,
+        readAt: timestamp,
+        responseStatus: row.responseStatus,
+        responseAt: row.responseAt
+      });
+    }
+
+    logAudit(db, {
+      actorUserId: req.authUser.id,
+      eventType: "notification.read_all",
+      targetType: "user",
+      targetId: req.authUser.id,
+      metadata: {
+        updatedCount: result.changes,
+        readAt: timestamp
+      }
+    });
+
+    res.json({
+      updatedCount: result.changes,
+      readAt: timestamp
     });
   });
 
@@ -148,8 +218,6 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       return;
     }
 
-    const resolved = isResolved(current.responseStatus);
-
     emitReadUpdateToAdmins(io, {
       notificationId,
       userId: req.authUser.id,
@@ -167,14 +235,14 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
         readAt: current.readAt,
         responseStatus: current.responseStatus,
         responseMessage: current.responseMessage,
-        isRead: resolved
+        isRead: true
       }
     });
 
     res.json({
       notificationId,
       readAt: current.readAt,
-      isRead: resolved
+      isRead: true
     });
   });
 
@@ -236,7 +304,6 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     ).run(responseStatus, timestamp, responseMessage, timestamp, notificationId, req.authUser.id);
 
     const readAt = existing.readAt ?? timestamp;
-    const resolved = isResolved(responseStatus);
 
     emitReadUpdateToAdmins(io, {
       notificationId,
@@ -256,7 +323,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
         responseMessage,
         responseAt: timestamp,
         readAt,
-        isRead: resolved
+        isRead: true
       }
     });
 
@@ -266,10 +333,9 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       responseStatus,
       responseMessage,
       responseAt: timestamp,
-      isRead: resolved
+      isRead: true
     });
   });
 
   return router;
 };
-

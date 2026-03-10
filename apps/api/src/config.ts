@@ -17,13 +17,14 @@ const parseCsv = (value: string, fallback: string[]): string[] => {
 };
 
 const DEV_JWT_FALLBACK = "change-this-secret";
-const DEV_ADMIN_FALLBACK = "ChangeMeNow123!";
 const INSECURE_PRODUCTION_VALUES = new Set([
   DEV_JWT_FALLBACK,
-  "CHANGE_ME_TO_A_LONG_RANDOM_SECRET",
-  DEV_ADMIN_FALLBACK,
-  "CHANGE_ME_ADMIN_PASSWORD"
+  "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
 ]);
+
+export const FIXED_ADMIN_LOGIN = "admin";
+export const FIXED_ADMIN_PASSWORD = "admin";
+export const FIXED_ADMIN_NAME = "Administrador";
 
 export interface AppConfig {
   nodeEnv: string;
@@ -54,18 +55,14 @@ export const config: AppConfig = {
   corsOrigins: parseCsv(corsOrigin, [defaultCorsOrigin]),
   cookieName: "nc_access",
   adminSeed: {
-    login: process.env.ADMIN_LOGIN ?? "admin",
-    password: process.env.ADMIN_PASSWORD ?? DEV_ADMIN_FALLBACK,
-    name: process.env.ADMIN_NAME ?? "Administrador"
+    login: FIXED_ADMIN_LOGIN,
+    password: FIXED_ADMIN_PASSWORD,
+    name: FIXED_ADMIN_NAME
   }
 };
 
 if (config.nodeEnv === "production") {
   if (INSECURE_PRODUCTION_VALUES.has(config.jwtSecret)) {
     throw new Error("JWT_SECRET inseguro para producao. Defina um segredo forte e unico.");
-  }
-
-  if (INSECURE_PRODUCTION_VALUES.has(config.adminSeed.password)) {
-    throw new Error("ADMIN_PASSWORD inseguro para producao. Defina uma senha forte e unica.");
   }
 }

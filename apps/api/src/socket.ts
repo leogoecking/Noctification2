@@ -217,7 +217,7 @@ export const setupSocket = (
             SELECT COUNT(*) AS unreadCount
             FROM notification_recipients
             WHERE user_id = ?
-              AND IFNULL(response_status, '') != 'resolvido'
+              AND read_at IS NULL
           `
         )
         .get(user.id) as { unreadCount: number };
@@ -263,4 +263,5 @@ export const emitReadUpdateToAdmins = (
 ): void => {
   io.to("admins").emit("notification:read_update", payload);
 };
+
 
