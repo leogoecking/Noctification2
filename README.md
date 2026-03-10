@@ -8,6 +8,7 @@ Monorepo TypeScript com:
 ## Funcionalidades v1
 
 - Login/logout com JWT em cookie HttpOnly (`nc_access`)
+- Protecao contra forca bruta no login (bloqueio temporario apos repetidas tentativas invalidas)
 - Perfis `admin` e `user`
 - Admin pode criar/editar/ativar/desativar usuarios
 - Admin envia notificacao para um, varios ou todos os usuarios
@@ -250,3 +251,4 @@ Tabelas:
 - `notification_recipients`
 - `audit_log`
 - `schema_migrations`
+

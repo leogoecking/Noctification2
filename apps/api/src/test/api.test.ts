@@ -76,6 +76,24 @@ describe("API notification flow", () => {
     expect(meAfterLogout.status).toBe(401);
   });
 
+  it("bloqueia login apos muitas tentativas invalidas", async () => {
+    const agent = request.agent(server);
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const response = await agent
+        .post("/api/v1/auth/login")
+        .send({ login: "admin", password: "senha-incorreta" });
+
+      expect(response.status).toBe(401);
+    }
+
+    const blocked = await agent
+      .post("/api/v1/auth/login")
+      .send({ login: "admin", password: "senha-incorreta" });
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers["retry-after"]).toBeTruthy();
+  });
   it("impede usuario comum de acessar endpoint admin", async () => {
     const userAgent = request.agent(server);
 
@@ -163,6 +181,76 @@ describe("API notification flow", () => {
 
     expect(sendResponse.status).toBe(201);
     expect(sendResponse.body.notification.recipient_count).toBe(bulkIds.length);
+  });
+
+  it("retorna 400 para filtro de status invalido no historico admin", async () => {
+    const adminAgent = request.agent(server);
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+
+    const response = await adminAgent.get("/api/v1/admin/notifications?status=invalido");
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/status deve ser read ou unread/i);
+  });
+
+  it("nao perde notificacoes nao lidas antigas ao filtrar status unread", async () => {
+    const adminAgent = request.agent(server);
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "123456" });
+
+    const baseTime = Date.now();
+    const insertNotification = db.prepare(
+      `
+        INSERT INTO notifications (title, message, priority, sender_id, recipient_mode, created_at)
+        VALUES (?, ?, 'normal', 1, 'users', ?)
+      `
+    );
+    const insertRecipient = db.prepare(
+      `
+        INSERT INTO notification_recipients (
+          notification_id,
+          user_id,
+          delivered_at,
+          read_at,
+          created_at,
+          response_status,
+          response_at,
+          response_message,
+          last_reminder_at,
+          reminder_count
+        ) VALUES (?, 2, ?, ?, ?, ?, ?, ?, NULL, 0)
+      `
+    );
+
+    for (let index = 1; index <= 205; index += 1) {
+      const timestamp = new Date(baseTime + index * 1000).toISOString();
+      const notification = insertNotification.run(
+        `Historico ${index}`,
+        `Mensagem ${index}`,
+        timestamp
+      );
+      const notificationId = Number(notification.lastInsertRowid);
+      const isOldUnread = index <= 5;
+
+      insertRecipient.run(
+        notificationId,
+        timestamp,
+        isOldUnread ? null : timestamp,
+        timestamp,
+        isOldUnread ? null : "resolvido",
+        isOldUnread ? null : timestamp,
+        null
+      );
+    }
+
+    const unreadResponse = await adminAgent.get("/api/v1/admin/notifications?status=unread");
+
+    expect(unreadResponse.status).toBe(200);
+    expect(unreadResponse.body.notifications.length).toBe(5);
+    expect(
+      unreadResponse.body.notifications.every(
+        (item: { stats: { unread: number } }) => item.stats.unread > 0
+      )
+    ).toBe(true);
   });
 
   it("mantem notificacao pendente apos refresh ate marcar resolvido", async () => {

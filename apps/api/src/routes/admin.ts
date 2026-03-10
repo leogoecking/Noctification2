@@ -715,6 +715,23 @@ export const createAdminRouter = (
       values.push(to);
     }
 
+    if (status !== "" && status !== "read" && status !== "unread") {
+      res.status(400).json({ error: "status deve ser read ou unread" });
+      return;
+    }
+
+    if (status === "read") {
+      conditions.push(
+        "NOT EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND IFNULL(nr3.response_status, '') != 'resolvido')"
+      );
+    }
+
+    if (status === "unread") {
+      conditions.push(
+        "EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND IFNULL(nr3.response_status, '') != 'resolvido')"
+      );
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const notifications = db
@@ -783,17 +800,6 @@ export const createAdminRouter = (
           recipients,
           stats
         };
-      })
-      .filter((item) => {
-        if (status === "read") {
-          return item.stats.total > 0 && item.stats.unread === 0;
-        }
-
-        if (status === "unread") {
-          return item.stats.unread > 0;
-        }
-
-        return true;
       });
 
     res.json({ notifications: enriched });

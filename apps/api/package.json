@@ -10,13 +10,13 @@
     "migrate": "tsx src/scripts/migrate.ts",
     "bootstrap-admin": "tsx src/scripts/bootstrap-admin.ts",
     "test": "vitest run --pool=threads",
-      "lint": "eslint .",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.8.1",
-    "cookie": "^0.6.0",
+    "cookie": "^1.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
