@@ -3,7 +3,7 @@ import type { AdminMetrics, OnlineSummary } from "./types";
 import {
   formatDate,
   isRecipientInProgress,
-  responseStatusLabel,
+  operationalStatusLabel,
   summarizeAuditMetadata
 } from "./utils";
 
@@ -203,10 +203,13 @@ export const AdminOverviewPanel = ({
         <div className="space-y-3">
           {unreadNotifications.map((item) => {
             const activeRecipients = item.recipients.filter(
-              (recipient) => recipient.visualizedAt === null || isRecipientInProgress(recipient)
+              (recipient) => recipient.operationalStatus !== "resolvida"
             );
-            const pendingCount = item.recipients.filter((recipient) => recipient.visualizedAt === null).length;
+            const pendingCount = item.recipients.filter(
+              (recipient) => recipient.operationalStatus === "recebida"
+            ).length;
             const inProgressCount = item.stats.inProgress;
+            const assumedCount = item.stats.assumed ?? 0;
 
             return (
               <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
@@ -224,6 +227,11 @@ export const AdminOverviewPanel = ({
                         Em andamento: {inProgressCount}
                       </span>
                     )}
+                    {assumedCount > 0 && (
+                      <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
+                        Assumidas: {assumedCount}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <p className="mt-2 text-sm text-textMuted">{item.message}</p>
@@ -233,6 +241,9 @@ export const AdminOverviewPanel = ({
                   </span>
                   <span className="rounded-md bg-accent/20 px-2 py-1 text-accent">
                     Em andamento: {inProgressCount}
+                  </span>
+                  <span className="rounded-md bg-success/20 px-2 py-1 text-success">
+                    Assumidas: {assumedCount}
                   </span>
                 </div>
 
@@ -245,7 +256,7 @@ export const AdminOverviewPanel = ({
                     <div key={recipient.userId} className="rounded-lg border border-slate-700 px-2 py-2">
                       <p className="text-xs text-textMain">
                         <span className="font-semibold">{recipient.name}</span> ({recipient.login}) -{" "}
-                        {responseStatusLabel(recipient.responseStatus)}
+                        {operationalStatusLabel(recipient.operationalStatus)}
                       </p>
                       <p className="text-[11px] text-textMuted">
                         Visualizada em: {formatDate(recipient.visualizedAt)}
@@ -253,7 +264,7 @@ export const AdminOverviewPanel = ({
                       <p className="text-[11px] text-textMuted">
                         Mensagem do usuario: {recipient.responseMessage?.trim() || "-"}
                       </p>
-                      {recipient.responseStatus === "em_andamento" &&
+                      {recipient.operationalStatus === "em_andamento" &&
                         Boolean(recipient.responseMessage?.trim()) && (
                           <p className="text-[11px] font-semibold text-accent">
                             Retorno em andamento: {recipient.responseMessage?.trim()}

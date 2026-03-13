@@ -7,8 +7,8 @@ import { authenticate, requireRole } from "../middleware/auth";
 import { emitNotificationToUser, getOnlineUserIds } from "../socket";
 import { FIXED_ADMIN_LOGIN, type AppConfig } from "../config";
 import type {
+  NotificationOperationalStatus,
   NotificationPriority,
-  NotificationResponseStatus,
   RecipientMode,
   UserRole
 } from "../types";
@@ -54,7 +54,7 @@ interface RecipientRow {
   login: string;
   visualizedAt: string | null;
   deliveredAt: string;
-  responseStatus: NotificationResponseStatus | null;
+  operationalStatus: NotificationOperationalStatus;
   responseAt: string | null;
   responseMessage: string | null;
 }
@@ -72,13 +72,16 @@ interface AuditRow {
 }
 
 const isRecipientInProgress = (recipient: RecipientRow): boolean =>
-  recipient.responseStatus === "em_andamento";
+  recipient.operationalStatus === "em_andamento";
+
+const isRecipientAssumed = (recipient: RecipientRow): boolean =>
+  recipient.operationalStatus === "assumida";
 
 const isRecipientResolved = (recipient: RecipientRow): boolean =>
-  recipient.responseStatus === "resolvido";
+  recipient.operationalStatus === "resolvida";
 
 const isRecipientOperationallyPending = (recipient: RecipientRow): boolean =>
-  recipient.visualizedAt === null || isRecipientInProgress(recipient);
+  recipient.operationalStatus !== "resolvida";
 
 const toNullableString = (value: unknown): string | null => {
   if (typeof value !== "string") {
@@ -130,6 +133,8 @@ const parseMetadata = (json: string | null): Record<string, unknown> | null => {
     return null;
   }
 };
+
+const toRecipientVisualizedAtSql = `COALESCE(nr.visualized_at, nr.read_at)`;
 
 const isUniqueLoginConstraintError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
@@ -752,13 +757,15 @@ export const createAdminRouter = (
             user_id,
             delivered_at,
             read_at,
+            visualized_at,
+            operational_status,
             created_at
-          ) VALUES (?, ?, ?, NULL, ?)
+          ) VALUES (?, ?, ?, NULL, NULL, ?, ?)
         `
       );
 
       for (const recipientId of validRecipientIds) {
-        recipientStmt.run(notificationId, recipientId, createdAt, createdAt);
+        recipientStmt.run(notificationId, recipientId, createdAt, "recebida", createdAt);
       }
 
       return notificationId;
@@ -851,13 +858,13 @@ export const createAdminRouter = (
 
     if (status === "read") {
       conditions.push(
-        "NOT EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND nr3.read_at IS NULL)"
+        "NOT EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND COALESCE(nr3.visualized_at, nr3.read_at) IS NULL)"
       );
     }
 
     if (status === "unread") {
       conditions.push(
-        "EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND nr3.read_at IS NULL)"
+        "EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND COALESCE(nr3.visualized_at, nr3.read_at) IS NULL)"
       );
     }
 
@@ -901,9 +908,14 @@ export const createAdminRouter = (
           nr.user_id AS userId,
           u.name,
           u.login,
-          nr.read_at AS visualizedAt,
+          ${toRecipientVisualizedAtSql} AS visualizedAt,
           nr.delivered_at AS deliveredAt,
-          nr.response_status AS responseStatus,
+          COALESCE(nr.operational_status, CASE
+            WHEN nr.response_status = 'resolvido' THEN 'resolvida'
+            WHEN nr.response_status = 'em_andamento' THEN 'em_andamento'
+            WHEN ${toRecipientVisualizedAtSql} IS NOT NULL THEN 'visualizada'
+            ELSE 'recebida'
+          END) AS operationalStatus,
           nr.response_at AS responseAt,
           nr.response_message AS responseMessage
         FROM notification_recipients nr
@@ -921,8 +933,13 @@ export const createAdminRouter = (
           total: recipients.length,
           read: recipients.filter((recipient) => recipient.visualizedAt !== null).length,
           unread: recipients.filter((recipient) => recipient.visualizedAt === null).length,
-          responded: recipients.filter((recipient) => recipient.responseStatus !== null).length,
+          responded: recipients.filter((recipient) =>
+            ["em_andamento", "assumida", "resolvida"].includes(recipient.operationalStatus)
+          ).length,
+          received: recipients.filter((recipient) => recipient.operationalStatus === "recebida").length,
+          visualized: recipients.filter((recipient) => recipient.operationalStatus === "visualizada").length,
           inProgress: recipients.filter(isRecipientInProgress).length,
+          assumed: recipients.filter(isRecipientAssumed).length,
           resolved: recipients.filter(isRecipientResolved).length,
           operationalPending: recipients.filter(isRecipientOperationallyPending).length,
           operationalCompleted: recipients.filter(
@@ -963,5 +980,3 @@ export const createAdminRouter = (
 
   return router;
 };
-
-

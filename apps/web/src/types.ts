@@ -1,6 +1,12 @@
 ﻿export type UserRole = "admin" | "user";
 export type NotificationPriority = "low" | "normal" | "high" | "critical";
-export type NotificationResponseStatus = "em_andamento" | "resolvido";
+export type NotificationOperationalStatus =
+  | "recebida"
+  | "visualizada"
+  | "em_andamento"
+  | "assumida"
+  | "resolvida";
+export type NotificationResponseStatus = "em_andamento" | "assumida" | "resolvida";
 
 export interface PaginationInfo {
   page: number;
@@ -39,12 +45,13 @@ export interface NotificationItem {
   senderLogin: string;
   visualizedAt: string | null;
   deliveredAt: string;
-  responseStatus: NotificationResponseStatus | null;
+  operationalStatus: NotificationOperationalStatus;
   responseAt: string | null;
   responseMessage: string | null;
   isVisualized: boolean;
   isRead?: boolean;
   isOperationallyPending?: boolean;
+  responseStatus?: NotificationResponseStatus | null;
 }
 
 export interface NotificationHistoryItem {
@@ -65,16 +72,20 @@ export interface NotificationHistoryItem {
     login: string;
     visualizedAt: string | null;
     deliveredAt: string;
-    responseStatus: NotificationResponseStatus | null;
+    operationalStatus: NotificationOperationalStatus;
     responseAt: string | null;
     responseMessage: string | null;
+    responseStatus?: NotificationResponseStatus | null;
   }>;
   stats: {
     total: number;
     read: number;
     unread: number;
     responded: number;
+    received?: number;
+    visualized?: number;
     inProgress: number;
+    assumed?: number;
     resolved: number;
     operationalPending: number;
     operationalCompleted: number;

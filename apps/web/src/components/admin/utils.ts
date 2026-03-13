@@ -1,4 +1,4 @@
-import type { NotificationHistoryItem } from "../../types";
+import type { NotificationHistoryItem, NotificationOperationalStatus } from "../../types";
 import type { NotificationRecipient } from "./types";
 
 export const AUDIT_LIMIT_OPTIONS = [10, 20, 50, 100];
@@ -41,24 +41,34 @@ export const summarizeAuditMetadata = (metadata: Record<string, unknown> | null)
   return entries.map(([key, value]) => `${key}: ${formatAuditValue(value)}`).join(" | ");
 };
 
-export const responseStatusLabel = (status: "em_andamento" | "resolvido" | null): string => {
-  if (status === "em_andamento") {
-    return "Em andamento";
+export const operationalStatusLabel = (status: NotificationOperationalStatus): string => {
+  switch (status) {
+    case "recebida":
+      return "Recebida";
+    case "visualizada":
+      return "Visualizada";
+    case "em_andamento":
+      return "Em andamento";
+    case "assumida":
+      return "Assumida";
+    case "resolvida":
+      return "Resolvida";
+    default:
+      return status;
   }
-
-  if (status === "resolvido") {
-    return "Resolvido";
-  }
-
-  return "Sem resposta";
 };
 
 export const hasRecipientResponse = (recipient: NotificationRecipient): boolean => {
-  return recipient.responseStatus !== null || Boolean(recipient.responseMessage?.trim());
+  return (
+    recipient.operationalStatus === "em_andamento" ||
+    recipient.operationalStatus === "assumida" ||
+    recipient.operationalStatus === "resolvida" ||
+    Boolean(recipient.responseMessage?.trim())
+  );
 };
 
 export const isRecipientInProgress = (recipient: NotificationRecipient): boolean =>
-  recipient.responseStatus === "em_andamento";
+  recipient.operationalStatus === "em_andamento";
 
 export const isNotificationOperationallyActive = (item: NotificationHistoryItem): boolean =>
   item.stats.operationalPending > 0;

@@ -45,9 +45,23 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
     to: "",
     limit: 20
   });
+  const [appliedAuditFilters, setAppliedAuditFilters] = useState<AuditFilters>({
+    eventType: "",
+    from: "",
+    to: "",
+    limit: 20
+  });
   const [lastOnlineRefreshAt, setLastOnlineRefreshAt] = useState<string | null>(null);
   const [lastAuditRefreshAt, setLastAuditRefreshAt] = useState<string | null>(null);
   const [historyFilters, setHistoryFilters] = useState<HistoryFilters>({
+    status: "",
+    priority: "",
+    userId: "",
+    from: "",
+    to: "",
+    limit: 100
+  });
+  const [appliedHistoryFilters, setAppliedHistoryFilters] = useState<HistoryFilters>({
     status: "",
     priority: "",
     userId: "",
@@ -92,16 +106,16 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
     setLoadingAudit(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", String(auditFilters.limit));
+      params.set("limit", String(appliedAuditFilters.limit));
       params.set("page", String(auditPagination.page));
-      if (auditFilters.eventType.trim()) {
-        params.set("event_type", auditFilters.eventType.trim());
+      if (appliedAuditFilters.eventType.trim()) {
+        params.set("event_type", appliedAuditFilters.eventType.trim());
       }
-      if (auditFilters.from) {
-        params.set("from", new Date(`${auditFilters.from}T00:00:00`).toISOString());
+      if (appliedAuditFilters.from) {
+        params.set("from", new Date(`${appliedAuditFilters.from}T00:00:00`).toISOString());
       }
-      if (auditFilters.to) {
-        params.set("to", new Date(`${auditFilters.to}T23:59:59`).toISOString());
+      if (appliedAuditFilters.to) {
+        params.set("to", new Date(`${appliedAuditFilters.to}T23:59:59`).toISOString());
       }
 
       const response = await api.adminAudit(`?${params.toString()}`);
@@ -114,10 +128,10 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
       setLoadingAudit(false);
     }
   }, [
-    auditFilters.eventType,
-    auditFilters.from,
-    auditFilters.limit,
-    auditFilters.to,
+    appliedAuditFilters.eventType,
+    appliedAuditFilters.from,
+    appliedAuditFilters.limit,
+    appliedAuditFilters.to,
     auditPagination.page,
     onError
   ]);
@@ -138,22 +152,22 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
     setLoadingHistoryAll(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", String(historyFilters.limit));
+      params.set("limit", String(appliedHistoryFilters.limit));
       params.set("page", String(historyPagination.page));
-      if (historyFilters.status) {
-        params.set("status", historyFilters.status);
+      if (appliedHistoryFilters.status) {
+        params.set("status", appliedHistoryFilters.status);
       }
-      if (historyFilters.priority) {
-        params.set("priority", historyFilters.priority);
+      if (appliedHistoryFilters.priority) {
+        params.set("priority", appliedHistoryFilters.priority);
       }
-      if (historyFilters.userId) {
-        params.set("user_id", historyFilters.userId);
+      if (appliedHistoryFilters.userId) {
+        params.set("user_id", appliedHistoryFilters.userId);
       }
-      if (historyFilters.from) {
-        params.set("from", new Date(`${historyFilters.from}T00:00:00`).toISOString());
+      if (appliedHistoryFilters.from) {
+        params.set("from", new Date(`${appliedHistoryFilters.from}T00:00:00`).toISOString());
       }
-      if (historyFilters.to) {
-        params.set("to", new Date(`${historyFilters.to}T23:59:59`).toISOString());
+      if (appliedHistoryFilters.to) {
+        params.set("to", new Date(`${appliedHistoryFilters.to}T23:59:59`).toISOString());
       }
 
       const query = params.toString();
@@ -167,23 +181,35 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
       setLoadingHistoryAll(false);
     }
   }, [
-    historyFilters.from,
-    historyFilters.limit,
-    historyFilters.priority,
-    historyFilters.status,
-    historyFilters.to,
-    historyFilters.userId,
+    appliedHistoryFilters.from,
+    appliedHistoryFilters.limit,
+    appliedHistoryFilters.priority,
+    appliedHistoryFilters.status,
+    appliedHistoryFilters.to,
+    appliedHistoryFilters.userId,
     historyPagination.page,
     onError
   ]);
 
   useEffect(() => {
     loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
     loadOnlineUsers();
-    loadAudit();
+  }, [loadOnlineUsers]);
+
+  useEffect(() => {
     loadUnreadDashboard();
-    loadNotificationHistory();
-  }, [loadAudit, loadNotificationHistory, loadOnlineUsers, loadUnreadDashboard, loadUsers]);
+  }, [loadUnreadDashboard]);
+
+  useEffect(() => {
+    void loadAudit();
+  }, [loadAudit]);
+
+  useEffect(() => {
+    void loadNotificationHistory();
+  }, [loadNotificationHistory]);
 
   useEffect(() => {
     const socket = connectSocket();
@@ -264,38 +290,38 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
   }, [completedNotifications.length, onlineUsers.length, unreadNotifications]);
 
   const applyAuditFilters = () => {
+    setAppliedAuditFilters(auditFilters);
     setAuditPagination((prev) => ({ ...prev, page: 1, limit: auditFilters.limit }));
-    if (auditPagination.page === 1) {
-      void loadAudit();
-    }
   };
 
   const resetAuditFilters = () => {
-    setAuditFilters({
+    const nextFilters: AuditFilters = {
       eventType: "",
       from: "",
       to: "",
       limit: 20
-    });
+    };
+    setAuditFilters(nextFilters);
+    setAppliedAuditFilters(nextFilters);
     setAuditPagination((prev) => ({ ...prev, page: 1, limit: 20 }));
   };
 
   const applyHistoryFilters = () => {
+    setAppliedHistoryFilters(historyFilters);
     setHistoryPagination((prev) => ({ ...prev, page: 1, limit: historyFilters.limit }));
-    if (historyPagination.page === 1) {
-      void loadNotificationHistory();
-    }
   };
 
   const resetHistoryFilters = () => {
-    setHistoryFilters({
+    const nextFilters: HistoryFilters = {
       status: "",
       priority: "",
       userId: "",
       from: "",
       to: "",
       limit: 100
-    });
+    };
+    setHistoryFilters(nextFilters);
+    setAppliedHistoryFilters(nextFilters);
     setHistoryPagination((prev) => ({ ...prev, page: 1, limit: 100 }));
   };
 

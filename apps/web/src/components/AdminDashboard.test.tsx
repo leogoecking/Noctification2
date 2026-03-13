@@ -139,6 +139,7 @@ describe("AdminDashboard", () => {
     render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
 
     await waitFor(() => expect(mockedApi.adminAudit).toHaveBeenCalled());
+    const initialAuditCalls = mockedApi.adminAudit.mock.calls.length;
 
     fireEvent.click(screen.getByRole("button", { name: "Auditoria" }));
 
@@ -155,9 +156,11 @@ describe("AdminDashboard", () => {
       target: { value: "50" }
     });
 
+    expect(mockedApi.adminAudit).toHaveBeenCalledTimes(initialAuditCalls);
+
     fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
 
-    await waitFor(() => expect(mockedApi.adminAudit).toHaveBeenCalled());
+    await waitFor(() => expect(mockedApi.adminAudit.mock.calls.length).toBeGreaterThan(initialAuditCalls));
 
     const lastCall = mockedApi.adminAudit.mock.calls.at(-1)?.[0];
     expect(lastCall).toContain("?limit=50");
@@ -232,7 +235,7 @@ describe("AdminDashboard", () => {
                 login: "operador",
                 visualizedAt: new Date().toISOString(),
                 deliveredAt: new Date().toISOString(),
-                responseStatus: "em_andamento",
+                operationalStatus: "em_andamento",
                 responseAt: new Date().toISOString(),
                 responseMessage: "Analisando"
               }
@@ -277,7 +280,7 @@ describe("AdminDashboard", () => {
                 login: "operador",
                 visualizedAt: new Date().toISOString(),
                 deliveredAt: new Date().toISOString(),
-                responseStatus: "em_andamento",
+                operationalStatus: "em_andamento",
                 responseAt: new Date().toISOString(),
                 responseMessage: "Analisando"
               }
@@ -315,6 +318,7 @@ describe("AdminDashboard", () => {
     render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
 
     await waitFor(() => expect(mockedApi.adminNotifications).toHaveBeenCalled());
+    const initialNotificationCalls = mockedApi.adminNotifications.mock.calls.length;
 
     fireEvent.click(screen.getByRole("button", { name: "Historico notificacoes" }));
 
@@ -341,9 +345,13 @@ describe("AdminDashboard", () => {
       target: { value: "50" }
     });
 
+    expect(mockedApi.adminNotifications).toHaveBeenCalledTimes(initialNotificationCalls);
+
     fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
 
-    await waitFor(() => expect(mockedApi.adminNotifications).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockedApi.adminNotifications.mock.calls.length).toBeGreaterThan(initialNotificationCalls)
+    );
 
     const lastCall = mockedApi.adminNotifications.mock.calls.at(-1)?.[0];
     expect(lastCall).toContain("limit=50");

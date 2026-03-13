@@ -4,6 +4,7 @@ import { connectSocket } from "../lib/socket";
 import type {
   AuthUser,
   NotificationItem,
+  NotificationOperationalStatus,
   NotificationPriority,
   NotificationResponseStatus
 } from "../types";
@@ -36,11 +37,17 @@ interface IncomingReminder extends IncomingNotification {
 
 type FilterMode = "all" | "read" | "unread";
 
-const RESPONSE_OPTIONS: NotificationResponseStatus[] = ["em_andamento", "resolvido"];
+const RESPONSE_OPTIONS: NotificationResponseStatus[] = ["em_andamento", "assumida", "resolvida"];
 
-const RESPONSE_LABELS: Record<NotificationResponseStatus, string> = {
+const OPERATIONAL_STATUS_LABELS: Record<
+  NotificationOperationalStatus | NotificationResponseStatus,
+  string
+> = {
+  recebida: "Recebida",
+  visualizada: "Visualizada",
   em_andamento: "Em andamento",
-  resolvido: "Resolvido"
+  assumida: "Assumida",
+  resolvida: "Resolvida"
 };
 
 const formatDate = (value: string | null): string => {
@@ -91,7 +98,7 @@ const toLocalNotification = (payload: IncomingNotification): NotificationItem =>
   senderLogin: payload.sender.login,
   visualizedAt: null,
   deliveredAt: payload.createdAt,
-  responseStatus: null,
+  operationalStatus: "recebida",
   responseAt: null,
   responseMessage: null,
   isVisualized: false
@@ -168,7 +175,7 @@ export const UserDashboard = ({
           return [
             {
               ...toLocalNotification(payload),
-              responseStatus: "em_andamento",
+              operationalStatus: "em_andamento",
               responseAt: new Date().toISOString(),
               isVisualized: false
             },
@@ -180,7 +187,7 @@ export const UserDashboard = ({
           item.id === payload.id
             ? {
                 ...item,
-                responseStatus: "em_andamento"
+                operationalStatus: "em_andamento"
               }
             : item
         );
@@ -241,7 +248,7 @@ export const UserDashboard = ({
     patch: Partial<
       Pick<
         NotificationItem,
-        "visualizedAt" | "isVisualized" | "responseStatus" | "responseAt" | "responseMessage"
+        "visualizedAt" | "isVisualized" | "operationalStatus" | "responseAt" | "responseMessage"
       >
     >
   ) => {
@@ -264,7 +271,8 @@ export const UserDashboard = ({
       const response = await api.markRead(notificationId);
       updateItemState(notificationId, {
         visualizedAt: response.visualizedAt,
-        isVisualized: response.isVisualized
+        isVisualized: response.isVisualized,
+        operationalStatus: response.operationalStatus as NotificationOperationalStatus
       });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Falha ao marcar como lida";
@@ -288,7 +296,8 @@ export const UserDashboard = ({
             : {
                 ...item,
                 visualizedAt: response.visualizedAt,
-                isVisualized: true
+                isVisualized: true,
+                operationalStatus: "visualizada"
               }
         )
       );
@@ -312,11 +321,11 @@ export const UserDashboard = ({
       updateItemState(notificationId, {
         visualizedAt: response.visualizedAt,
         isVisualized: response.isVisualized,
-        responseStatus,
+        operationalStatus: response.operationalStatus as NotificationOperationalStatus,
         responseMessage: response.responseMessage,
         responseAt: response.responseAt
       });
-      onToast(`Resposta registrada: ${RESPONSE_LABELS[responseStatus]}`);
+      onToast(`Resposta registrada: ${OPERATIONAL_STATUS_LABELS[responseStatus]}`);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Falha ao registrar resposta";
       onError(message);
@@ -485,9 +494,9 @@ export const UserDashboard = ({
               </div>
               <p className="mt-1 text-sm text-textMuted">{item.message}</p>
               <p className="mt-2 text-xs text-textMuted">{formatDate(item.createdAt)}</p>
-              {item.responseStatus && (
+              {item.operationalStatus !== "recebida" && (
                 <p className="mt-1 text-xs text-accentWarm">
-                  Resposta: {RESPONSE_LABELS[item.responseStatus]} ({formatDate(item.responseAt)})
+                  Estado: {OPERATIONAL_STATUS_LABELS[item.operationalStatus]} ({formatDate(item.responseAt)})
                 </p>
               )}
               {item.responseMessage && (
@@ -507,7 +516,7 @@ export const UserDashboard = ({
               <p className="text-xs text-textMuted">Recebida: {formatDate(selected.deliveredAt)}</p>
               <p className="text-xs text-textMuted">Visualizada em: {formatDate(selected.visualizedAt)}</p>
               <p className="text-xs text-textMuted">
-                Status de resposta: {selected.responseStatus ? RESPONSE_LABELS[selected.responseStatus] : "-"}
+                Estado operacional: {OPERATIONAL_STATUS_LABELS[selected.operationalStatus]}
               </p>
               {selected.responseMessage && (
                 <p className="text-xs text-textMuted">Mensagem atual: {selected.responseMessage}</p>
@@ -539,7 +548,7 @@ export const UserDashboard = ({
                     className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
                     onClick={() => respondNotification(selected.id, status, responseMessageDraft)}
                   >
-                    {RESPONSE_LABELS[status]}
+                    {OPERATIONAL_STATUS_LABELS[status]}
                   </button>
                 ))}
               </div>
@@ -571,13 +580,13 @@ export const UserDashboard = ({
             <div className="mt-4 grid grid-cols-2 gap-2">
               {RESPONSE_OPTIONS.map((status) => (
                 <button
-                  key={status}
-                  className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
-                  onClick={() => respondNotification(criticalModal.id, status, responseMessageDraft)}
-                >
-                  {RESPONSE_LABELS[status]}
-                </button>
-              ))}
+                key={status}
+                className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
+                onClick={() => respondNotification(criticalModal.id, status, responseMessageDraft)}
+              >
+                {OPERATIONAL_STATUS_LABELS[status]}
+              </button>
+            ))}
             </div>
 
             <div className="mt-4 flex gap-2">

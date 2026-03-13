@@ -139,6 +139,8 @@ export const api = {
     request<{
       notificationId: number;
       visualizedAt: string | null;
+      operationalStatus: string;
+      responseStatus: string | null;
       isVisualized: boolean;
       isOperationallyPending: boolean;
     }>(
@@ -157,6 +159,7 @@ export const api = {
     request<{
       notificationId: number;
       visualizedAt: string | null;
+      operationalStatus: string;
       responseStatus: string;
       responseMessage: string | null;
       responseAt: string;
@@ -165,7 +168,7 @@ export const api = {
     }>(`/me/notifications/${id}/respond`, {
       method: "POST",
       bodyJson: {
-        response_status: responseStatus,
+        operational_status: responseStatus,
         response_message: responseMessage
       }
     })

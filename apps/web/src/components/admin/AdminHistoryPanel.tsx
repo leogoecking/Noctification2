@@ -5,7 +5,7 @@ import type {
   HistoryStatusFilter,
   StateSetter
 } from "./types";
-import { HISTORY_LIMIT_OPTIONS, formatDate, hasRecipientResponse, responseStatusLabel } from "./utils";
+import { HISTORY_LIMIT_OPTIONS, formatDate, hasRecipientResponse, operationalStatusLabel } from "./utils";
 import type { PaginationInfo } from "../../types";
 
 interface AdminHistoryPanelProps {
@@ -217,8 +217,17 @@ export const AdminHistoryPanel = ({
                 <span className="rounded-md bg-warning/20 px-2 py-1 text-warning">
                   Nao visualizadas: {item.stats.unread}
                 </span>
+                <span className="rounded-md bg-panel px-2 py-1 text-textMuted">
+                  Visualizadas: {item.stats.visualized ?? 0}
+                </span>
                 <span className="rounded-md bg-accent/20 px-2 py-1 text-xs text-accent">
                   Em andamento: {item.stats.inProgress}
+                </span>
+                <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
+                  Assumidas: {item.stats.assumed ?? 0}
+                </span>
+                <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
+                  Resolvidas: {item.stats.resolved}
                 </span>
                 <span className="rounded-md bg-panel px-2 py-1 text-textMuted">
                   Com resposta: {item.stats.responded}
@@ -234,7 +243,7 @@ export const AdminHistoryPanel = ({
                   <div key={recipient.userId} className="rounded-lg border border-slate-700 px-2 py-2">
                     <p className="text-xs text-textMain">
                       <span className="font-semibold">{recipient.name}</span> ({recipient.login}) -{" "}
-                      {responseStatusLabel(recipient.responseStatus)}
+                      {operationalStatusLabel(recipient.operationalStatus)}
                     </p>
                     <p className="text-[11px] text-textMuted">
                       Visualizada em: {formatDate(recipient.visualizedAt)}
@@ -242,7 +251,7 @@ export const AdminHistoryPanel = ({
                     <p className="text-[11px] text-textMuted">
                       Mensagem: {recipient.responseMessage?.trim() || "(sem mensagem)"}
                     </p>
-                    {recipient.responseStatus === "em_andamento" &&
+                    {recipient.operationalStatus === "em_andamento" &&
                       Boolean(recipient.responseMessage?.trim()) && (
                         <p className="text-[11px] font-semibold text-accent">
                           Retorno em andamento: {recipient.responseMessage?.trim()}

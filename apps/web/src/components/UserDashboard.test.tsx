@@ -41,7 +41,7 @@ const buildNotification = (id: number, isVisualized: boolean) => ({
   senderLogin: "admin",
   visualizedAt: isVisualized ? new Date().toISOString() : null,
   deliveredAt: new Date().toISOString(),
-  responseStatus: null,
+  operationalStatus: isVisualized ? "visualizada" : "recebida",
   responseAt: null,
   responseMessage: null,
   isVisualized

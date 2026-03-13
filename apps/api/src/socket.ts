@@ -101,8 +101,13 @@ const emitProgressReminders = (io: Server, db: Database.Database): void => {
         FROM notification_recipients nr
         INNER JOIN notifications n ON n.id = nr.notification_id
         INNER JOIN users sender ON sender.id = n.sender_id
-        WHERE nr.response_status = 'em_andamento'
-          AND COALESCE(nr.last_reminder_at, nr.response_at, nr.read_at, nr.created_at) <= ?
+        WHERE COALESCE(nr.operational_status, CASE
+          WHEN nr.response_status = 'resolvido' THEN 'resolvida'
+          WHEN nr.response_status = 'em_andamento' THEN 'em_andamento'
+          WHEN COALESCE(nr.visualized_at, nr.read_at) IS NOT NULL THEN 'visualizada'
+          ELSE 'recebida'
+        END) IN ('em_andamento', 'assumida')
+          AND COALESCE(nr.last_reminder_at, nr.response_at, nr.visualized_at, nr.read_at, nr.created_at) <= ?
       `
     )
     .all(cutoff) as ReminderRow[];
@@ -119,7 +124,12 @@ const emitProgressReminders = (io: Server, db: Database.Database): void => {
         reminder_count = COALESCE(reminder_count, 0) + 1
       WHERE notification_id = ?
         AND user_id = ?
-        AND response_status = 'em_andamento'
+        AND COALESCE(operational_status, CASE
+          WHEN response_status = 'resolvido' THEN 'resolvida'
+          WHEN response_status = 'em_andamento' THEN 'em_andamento'
+          WHEN COALESCE(visualized_at, read_at) IS NOT NULL THEN 'visualizada'
+          ELSE 'recebida'
+        END) IN ('em_andamento', 'assumida')
     `
   );
 
@@ -217,7 +227,7 @@ export const setupSocket = (
             SELECT COUNT(*) AS unreadCount
             FROM notification_recipients
             WHERE user_id = ?
-              AND read_at IS NULL
+              AND COALESCE(visualized_at, read_at) IS NULL
           `
         )
         .get(user.id) as { unreadCount: number };
@@ -263,5 +273,3 @@ export const emitReadUpdateToAdmins = (
 ): void => {
   io.to("admins").emit("notification:read_update", payload);
 };
-
-

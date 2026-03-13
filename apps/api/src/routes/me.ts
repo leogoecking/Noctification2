@@ -5,9 +5,9 @@ import type { AppConfig } from "../config";
 import { logAudit, nowIso } from "../db";
 import { authenticate } from "../middleware/auth";
 import { emitReadUpdateToAdmins } from "../socket";
-import type { NotificationResponseStatus } from "../types";
+import type { NotificationOperationalStatus, NotificationResponseStatus } from "../types";
 
-const RESPONSE_STATUSES: NotificationResponseStatus[] = ["em_andamento", "resolvido"];
+const RESPONSE_STATUSES: NotificationResponseStatus[] = ["em_andamento", "assumida", "resolvida"];
 
 interface NotificationRow {
   id: number;
@@ -20,17 +20,50 @@ interface NotificationRow {
   senderLogin: string;
   visualizedAt: string | null;
   deliveredAt: string;
-  responseStatus: NotificationResponseStatus | null;
+  operationalStatus: NotificationOperationalStatus;
   responseAt: string | null;
   responseMessage: string | null;
 }
 
 const isNotificationVisualized = (visualizedAt: string | null): boolean => visualizedAt !== null;
 
-const isNotificationOperationallyPending = (
-  visualizedAt: string | null,
-  responseStatus: NotificationResponseStatus | null
-): boolean => visualizedAt === null || responseStatus === "em_andamento";
+const isNotificationOperationallyPending = (operationalStatus: NotificationOperationalStatus): boolean =>
+  operationalStatus !== "resolvida";
+
+const toVisualizedAtSql = `COALESCE(nr.visualized_at, nr.read_at)`;
+const toCurrentVisualizedAtSql = `COALESCE(visualized_at, read_at)`;
+
+const toOperationalStatusSql = `
+  COALESCE(nr.operational_status, CASE
+    WHEN nr.response_status = 'resolvido' THEN 'resolvida'
+    WHEN nr.response_status = 'em_andamento' THEN 'em_andamento'
+    WHEN ${toVisualizedAtSql} IS NOT NULL THEN 'visualizada'
+    ELSE 'recebida'
+  END)
+`;
+
+const toCurrentOperationalStatusSql = `
+  COALESCE(operational_status, CASE
+    WHEN response_status = 'resolvido' THEN 'resolvida'
+    WHEN response_status = 'em_andamento' THEN 'em_andamento'
+    WHEN ${toCurrentVisualizedAtSql} IS NOT NULL THEN 'visualizada'
+    ELSE 'recebida'
+  END)
+`;
+
+const toResponseStatus = (
+  operationalStatus: NotificationOperationalStatus
+): NotificationResponseStatus | null => {
+  if (
+    operationalStatus === "em_andamento" ||
+    operationalStatus === "assumida" ||
+    operationalStatus === "resolvida"
+  ) {
+    return operationalStatus;
+  }
+
+  return null;
+};
 
 const toOptionalResponseMessage = (value: unknown): string | null => {
   if (typeof value !== "string") {
@@ -63,11 +96,11 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     const values: Array<number | string> = [req.authUser.id];
 
     if (status === "read") {
-      conditions.push("nr.read_at IS NOT NULL");
+      conditions.push(`${toVisualizedAtSql} IS NOT NULL`);
     }
 
     if (status === "unread") {
-      conditions.push("nr.read_at IS NULL");
+      conditions.push(`${toVisualizedAtSql} IS NULL`);
     }
 
     const notifications = db
@@ -82,9 +115,9 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
             n.sender_id AS senderId,
             sender.name AS senderName,
             sender.login AS senderLogin,
-            nr.read_at AS visualizedAt,
+            ${toVisualizedAtSql} AS visualizedAt,
             nr.delivered_at AS deliveredAt,
-            nr.response_status AS responseStatus,
+            ${toOperationalStatusSql} AS operationalStatus,
             nr.response_at AS responseAt,
             nr.response_message AS responseMessage
           FROM notification_recipients nr
@@ -100,11 +133,9 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     res.json({
       notifications: notifications.map((item) => ({
         ...item,
+        responseStatus: toResponseStatus(item.operationalStatus),
         isVisualized: isNotificationVisualized(item.visualizedAt),
-        isOperationallyPending: isNotificationOperationallyPending(
-          item.visualizedAt,
-          item.responseStatus
-        )
+        isOperationallyPending: isNotificationOperationallyPending(item.operationalStatus)
       }))
     });
   });
@@ -120,16 +151,16 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
         `
           SELECT
             notification_id AS notificationId,
-            response_status AS responseStatus,
+            ${toCurrentOperationalStatusSql} AS operationalStatus,
             response_at AS responseAt
           FROM notification_recipients
           WHERE user_id = ?
-            AND read_at IS NULL
+            AND ${toCurrentVisualizedAtSql} IS NULL
         `
       )
       .all(req.authUser.id) as Array<{
       notificationId: number;
-      responseStatus: NotificationResponseStatus | null;
+      operationalStatus: NotificationOperationalStatus;
       responseAt: string | null;
     }>;
 
@@ -144,19 +175,25 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       .prepare(
         `
           UPDATE notification_recipients
-          SET read_at = ?
+          SET
+            visualized_at = ?,
+            read_at = COALESCE(read_at, ?),
+            operational_status = CASE
+              WHEN ${toCurrentOperationalStatusSql} = 'recebida' THEN 'visualizada'
+              ELSE ${toCurrentOperationalStatusSql}
+            END
           WHERE user_id = ?
-            AND read_at IS NULL
+            AND ${toCurrentVisualizedAtSql} IS NULL
         `
       )
-      .run(timestamp, req.authUser.id);
+      .run(timestamp, timestamp, req.authUser.id);
 
     for (const row of unreadRows) {
       emitReadUpdateToAdmins(io, {
         notificationId: row.notificationId,
         userId: req.authUser.id,
         readAt: timestamp,
-        responseStatus: row.responseStatus,
+        responseStatus: toResponseStatus(row.operationalStatus),
         responseAt: row.responseAt
       });
     }
@@ -196,18 +233,24 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     db.prepare(
       `
         UPDATE notification_recipients
-        SET read_at = COALESCE(read_at, ?)
+        SET
+          visualized_at = COALESCE(visualized_at, read_at, ?),
+          read_at = COALESCE(read_at, visualized_at, ?),
+          operational_status = CASE
+            WHEN ${toCurrentOperationalStatusSql} = 'recebida' THEN 'visualizada'
+            ELSE ${toCurrentOperationalStatusSql}
+          END
         WHERE notification_id = ?
           AND user_id = ?
       `
-    ).run(timestamp, notificationId, req.authUser.id);
+    ).run(timestamp, timestamp, notificationId, req.authUser.id);
 
     const current = db
       .prepare(
         `
           SELECT
-            read_at AS visualizedAt,
-            response_status AS responseStatus,
+            ${toCurrentVisualizedAtSql} AS visualizedAt,
+            ${toCurrentOperationalStatusSql} AS operationalStatus,
             response_at AS responseAt,
             response_message AS responseMessage
           FROM notification_recipients
@@ -218,7 +261,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       .get(notificationId, req.authUser.id) as
       | {
           visualizedAt: string | null;
-          responseStatus: NotificationResponseStatus | null;
+          operationalStatus: NotificationOperationalStatus;
           responseAt: string | null;
           responseMessage: string | null;
         }
@@ -233,7 +276,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       notificationId,
       userId: req.authUser.id,
       readAt: current.visualizedAt,
-      responseStatus: current.responseStatus,
+      responseStatus: toResponseStatus(current.operationalStatus),
       responseAt: current.responseAt
     });
 
@@ -244,7 +287,8 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       targetId: notificationId,
       metadata: {
         visualizedAt: current.visualizedAt,
-        responseStatus: current.responseStatus,
+        operationalStatus: current.operationalStatus,
+        responseStatus: toResponseStatus(current.operationalStatus),
         responseMessage: current.responseMessage,
         isVisualized: true
       }
@@ -253,11 +297,10 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     res.json({
       notificationId,
       visualizedAt: current.visualizedAt,
+      operationalStatus: current.operationalStatus,
+      responseStatus: toResponseStatus(current.operationalStatus),
       isVisualized: true,
-      isOperationallyPending: isNotificationOperationallyPending(
-        current.visualizedAt,
-        current.responseStatus
-      )
+      isOperationallyPending: isNotificationOperationallyPending(current.operationalStatus)
     });
   });
 
@@ -268,7 +311,8 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     }
 
     const notificationId = Number(req.params.id);
-    const responseStatus = req.body?.response_status as NotificationResponseStatus;
+    const operationalStatus = (req.body?.operational_status ??
+      req.body?.response_status) as NotificationResponseStatus;
     const responseMessage = toOptionalResponseMessage(
       req.body?.response_message ?? req.body?.responseMessage ?? req.body?.message
     );
@@ -278,9 +322,9 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       return;
     }
 
-    if (!RESPONSE_STATUSES.includes(responseStatus)) {
+    if (!RESPONSE_STATUSES.includes(operationalStatus)) {
       res.status(400).json({
-        error: "response_status invalido. Use: em_andamento, resolvido"
+        error: "operational_status invalido. Use: em_andamento, assumida, resolvida"
       });
       return;
     }
@@ -290,7 +334,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     const existing = db
       .prepare(
         `
-          SELECT read_at AS visualizedAt
+          SELECT ${toCurrentVisualizedAtSql} AS visualizedAt
           FROM notification_recipients
           WHERE notification_id = ?
             AND user_id = ?
@@ -307,16 +351,33 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       `
         UPDATE notification_recipients
         SET
-          response_status = ?,
+          operational_status = ?,
+          response_status = CASE
+            WHEN ? = 'resolvida' THEN 'resolvido'
+            WHEN ? = 'assumida' THEN NULL
+            ELSE ?
+          END,
           response_at = ?,
           response_message = ?,
-          read_at = COALESCE(read_at, ?),
+          visualized_at = COALESCE(visualized_at, read_at, ?),
+          read_at = COALESCE(read_at, visualized_at, ?),
           last_reminder_at = NULL,
           reminder_count = 0
         WHERE notification_id = ?
           AND user_id = ?
       `
-    ).run(responseStatus, timestamp, responseMessage, timestamp, notificationId, req.authUser.id);
+    ).run(
+      operationalStatus,
+      operationalStatus,
+      operationalStatus,
+      operationalStatus,
+      timestamp,
+      responseMessage,
+      timestamp,
+      timestamp,
+      notificationId,
+      req.authUser.id
+    );
 
     const visualizedAt = existing.visualizedAt ?? timestamp;
 
@@ -324,7 +385,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       notificationId,
       userId: req.authUser.id,
       readAt: visualizedAt,
-      responseStatus,
+      responseStatus: operationalStatus,
       responseAt: timestamp
     });
 
@@ -334,7 +395,8 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       targetType: "notification",
       targetId: notificationId,
       metadata: {
-        responseStatus,
+        operationalStatus,
+        responseStatus: operationalStatus,
         responseMessage,
         responseAt: timestamp,
         visualizedAt,
@@ -345,11 +407,12 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     res.json({
       notificationId,
       visualizedAt,
-      responseStatus,
+      operationalStatus,
+      responseStatus: operationalStatus,
       responseMessage,
       responseAt: timestamp,
       isVisualized: true,
-      isOperationallyPending: isNotificationOperationallyPending(visualizedAt, responseStatus)
+      isOperationallyPending: isNotificationOperationallyPending(operationalStatus)
     });
   });
 
