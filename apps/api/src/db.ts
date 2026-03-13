@@ -1,6 +1,7 @@
 ﻿import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { apiRootDir } from "./paths";
 
 export const nowIso = (): string => new Date().toISOString();
 
@@ -9,7 +10,7 @@ export const resolveDbPath = (rawPath: string): string => {
     return rawPath;
   }
 
-  return path.isAbsolute(rawPath) ? rawPath : path.resolve(process.cwd(), rawPath);
+  return path.isAbsolute(rawPath) ? rawPath : path.resolve(apiRootDir, rawPath);
 };
 
 export const connectDatabase = (dbPath: string): Database.Database => {

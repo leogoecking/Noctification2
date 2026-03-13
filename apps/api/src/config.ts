@@ -43,7 +43,11 @@ export interface AppConfig {
 }
 
 const defaultCorsOrigin = "http://localhost:5173";
-const corsOrigin = process.env.CORS_ORIGIN ?? defaultCorsOrigin;
+const configuredCorsOrigin = process.env.CORS_ORIGIN?.trim();
+const corsOrigin = configuredCorsOrigin || defaultCorsOrigin;
+const allowAnyDevOrigin =
+  (process.env.NODE_ENV ?? "development") !== "production" &&
+  (!configuredCorsOrigin || configuredCorsOrigin === defaultCorsOrigin);
 
 export const config: AppConfig = {
   nodeEnv: process.env.NODE_ENV ?? "development",
@@ -52,7 +56,7 @@ export const config: AppConfig = {
   jwtSecret: process.env.JWT_SECRET ?? DEV_JWT_FALLBACK,
   jwtExpiresHours: toNumber(process.env.JWT_EXPIRES_HOURS, 8),
   corsOrigin,
-  corsOrigins: parseCsv(corsOrigin, [defaultCorsOrigin]),
+  corsOrigins: allowAnyDevOrigin ? ["*"] : parseCsv(corsOrigin, [defaultCorsOrigin]),
   cookieName: "nc_access",
   adminSeed: {
     login: FIXED_ADMIN_LOGIN,

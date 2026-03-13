@@ -1,139 +1,121 @@
-# Noctification2 - Sistema Interno de Notificacoes
+# Noctification2
 
-Monorepo TypeScript com:
+Sistema interno de notificações com:
 
-- `apps/api`: Express + Socket.IO + SQLite (`better-sqlite3`)
-- `apps/web`: React + Tailwind
+- `apps/api`: Express + Socket.IO + SQLite
+- `apps/web`: React + Vite
 
-## Fluxo classico implementado
+## Subir com um comando
 
-### Usuarios
-- Cadastro + login em `/login`
-- Notificacoes em tempo real via WebSocket (Socket.IO)
-- Sino com badge de nao lidas
-- Dropdown com as ultimas 10 notificacoes (geral)
-- CTA `Ver todas as notificacoes`
-- Pagina completa de notificacoes (`/notifications`)
-- Filtro por leitura: `todas`, `nao lidas`, `lidas`
-- Marcar individualmente como lida
-- Marcar todas como lidas
+Na raiz do projeto:
 
-### Administrador
-- Login fixo em `/admin/login`
-- Credenciais fixas: `admin` / `admin`
-- Listagem de usuarios cadastrados
-- Envio de notificacoes para multipla selecao de usuarios
+```bash
+./run.sh
+```
 
-## Modelo de status (dual)
+O script faz o necessário para desenvolvimento local:
 
-O sistema separa dois eixos:
+- instala dependências
+- cria `apps/api/.env` e `apps/web/.env` se não existirem
+- aplica migrações do banco
+- garante o admin fixo
+- sobe API e frontend juntos
 
-- Leitura:
-  - `readAt`
-  - `isRead` (`readAt !== null`)
-- Resposta operacional:
-  - `responseStatus` (`em_andamento` | `resolvido`)
-  - `responseAt`
-  - `responseMessage`
+## Endereços
 
-Leitura e resposta sao independentes.
+- frontend: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:4000`
 
-## Estrutura
+Se você abrir de fora da VM, use o IP da máquina:
 
-- `apps/api/migrations`: schema SQL do banco
-- `apps/api/src`: API, auth, rotas e realtime
-- `apps/web/src`: UI login/admin/usuario
-- `docs/bug-audit`: relatorios de auditoria/refatoracao
-- `ops/systemd`: exemplos de servico/env para deploy
+- frontend: `http://IP_DA_VM:5173`
+- API: `http://IP_DA_VM:4000`
 
-## Requisitos
+O frontend já resolve a API e o Socket.IO usando o mesmo host da página, na porta `4000`, quando `VITE_API_BASE` e `VITE_SOCKET_URL` não são definidos.
 
-- Node.js 20+
-- npm 10+
+## Login inicial
 
-## Setup rapido
+Admin fixo:
+
+- login: `admin`
+- senha: `admin`
+
+Usuários comuns podem ser criados pela tela de cadastro em `/login`.
+
+## Fluxo disponível
+
+Usuário:
+
+- cadastro e login
+- notificações em tempo real
+- badge de não lidas
+- dropdown com últimas notificações
+- página completa de notificações
+- filtro por lidas e não lidas
+- marcar individualmente como lida
+- marcar todas como lidas
+- responder notificação com status operacional
+
+Administrador:
+
+- login em `/admin/login`
+- listagem de usuários
+- envio de notificações para múltiplos usuários
+- acompanhamento de leitura e auditoria
+
+## Comandos úteis
+
+Instalação:
 
 ```bash
 npm install
+```
+
+Bootstrap manual:
+
+```bash
 npm run setup
+```
+
+Subir em desenvolvimento:
+
+```bash
 npm run dev
 ```
 
-API: `http://localhost:4000`
-Web: `http://localhost:5173`
-
-Sem `VITE_API_BASE`/`VITE_SOCKET_URL`, o frontend usa o mesmo host da pagina na porta `4000`.
-
-## Como usar (roteiro)
-
-1. Criar usuarios de teste
-- Acesse `http://localhost:5173/login`
-- Clique em `Criar conta`
-- Crie 2-3 usuarios (ex.: `user1`, `user2`, `user3`)
-
-2. Login admin
-- Acesse `http://localhost:5173/admin/login`
-- Usuario: `admin`
-- Senha: `admin`
-
-3. Enviar notificacao
-- No painel admin, preencha titulo/mensagem
-- Selecione usuarios destinatarios
-- Clique em `Enviar notificacao`
-
-4. Receber notificacoes
-- Em outra aba, acesse `http://localhost:5173/login`
-- Fa�a login com usuario comum
-- Veja badge no sino atualizar em tempo real
-- Abra o dropdown (ultimas 10)
-- Clique em `Ver todas as notificacoes`
-
-5. Operar notificacoes na pagina completa
-- Filtre por `lidas`/`nao lidas`
-- Marque individualmente
-- Use `Marcar todas como lidas`
-
-## Endpoints principais
-
-- Auth
-  - `POST /api/v1/auth/register`
-  - `POST /api/v1/auth/login`
-  - `GET /api/v1/auth/me`
-  - `POST /api/v1/auth/logout`
-
-- Usuario
-  - `GET /api/v1/me/notifications?status=read|unread`
-  - `POST /api/v1/me/notifications/:id/read`
-  - `POST /api/v1/me/notifications/read-all`
-  - `POST /api/v1/me/notifications/:id/respond`
-
-- Admin
-  - `GET /api/v1/admin/users`
-  - `GET /api/v1/admin/online-users`
-  - `POST /api/v1/admin/notifications`
-  - `GET /api/v1/admin/notifications?status=read|unread&user_id=&from=&to=`
-  - `GET /api/v1/admin/audit?limit=`
-
-## Eventos Socket.IO
-
-- Servidor -> usuario: `notification:new`
-- Servidor -> usuario: `notification:reminder`
-- Servidor -> admin: `notification:read_update`
-- Servidor -> admin: `online_users:update`
-- Cliente -> servidor: `notifications:subscribe`
-
-## Checks
+Checks:
 
 ```bash
-npm run lint
 npm run typecheck
 npm run test
 npm run test:web
 npm run build
 ```
 
-## Observacoes de seguranca
+## Debian
 
-- Credencial admin fixa `admin/admin` e um requisito deste ciclo de refatoracao.
-- Em ambientes reais, recomenda-se substituir esse requisito por segredos fortes e politicas de acesso apropriadas.
-- RabbitMQ nao foi implementado neste ciclo; realtime permanece via Socket.IO direto.
+Requisitos:
+
+- Node.js 20+
+- npm 10+
+
+O fluxo validado no Debian para desenvolvimento é:
+
+```bash
+./run.sh
+```
+
+Para serviço de sistema, os exemplos estão em [`ops/systemd`](/home/leo/Noctification2/ops/systemd).
+
+## Estrutura
+
+- [`apps/api/migrations`](/home/leo/Noctification2/apps/api/migrations): migrações SQL
+- [`apps/api/src`](/home/leo/Noctification2/apps/api/src): API, auth, realtime e scripts
+- [`apps/web/src`](/home/leo/Noctification2/apps/web/src): frontend React
+- [`ops/systemd`](/home/leo/Noctification2/ops/systemd): exemplos de serviço
+
+## Observações
+
+- o admin fixo `admin/admin` é intencional neste ciclo do projeto
+- o banco SQLite fica no contexto da API, respeitando a configuração de `DB_PATH`
+- os scripts de migração e bootstrap agora funcionam independentemente do diretório em que forem executados

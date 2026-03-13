@@ -1,11 +1,11 @@
-import path from "node:path";
 import bcrypt from "bcryptjs";
 import { config } from "../config";
 import { connectDatabase, nowIso, runMigrations } from "../db";
+import { apiMigrationsDir } from "../paths";
 
 const run = async () => {
   const db = connectDatabase(config.dbPath);
-  runMigrations(db, path.resolve(process.cwd(), "migrations"));
+  runMigrations(db, apiMigrationsDir);
 
   const login = config.adminSeed.login.trim();
   const password = config.adminSeed.password;
@@ -59,4 +59,3 @@ run().catch((error) => {
   console.error(error);
   process.exit(1);
 });
-

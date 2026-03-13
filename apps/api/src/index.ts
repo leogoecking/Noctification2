@@ -1,13 +1,13 @@
-﻿import path from "node:path";
 import { createServer } from "node:http";
 import { config } from "./config";
 import { connectDatabase, runMigrations } from "./db";
+import { apiMigrationsDir } from "./paths";
 import { setupSocket } from "./socket";
 import { createApp } from "./app";
 
 const boot = () => {
   const db = connectDatabase(config.dbPath);
-  runMigrations(db, path.resolve(process.cwd(), "migrations"));
+  runMigrations(db, apiMigrationsDir);
 
   const httpServer = createServer();
   const io = setupSocket(httpServer, db, config);
