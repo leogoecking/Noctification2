@@ -1,9 +1,24 @@
 const RECENT_PLAYBACK_MS = 5000;
+const GLOBAL_PLAYBACK_GAP_MS = 1200;
 const recentPlaybacks = new Map<number, number>();
+let lastGlobalPlaybackAt = 0;
+
+const canPlayForOccurrence = (occurrenceId: number, now: number): boolean => {
+  const lastPlayedAt = recentPlaybacks.get(occurrenceId);
+  if (lastPlayedAt !== undefined && now - lastPlayedAt < RECENT_PLAYBACK_MS) {
+    return false;
+  }
+
+  if (lastGlobalPlaybackAt === 0) {
+    return true;
+  }
+
+  return now - lastGlobalPlaybackAt >= GLOBAL_PLAYBACK_GAP_MS;
+};
 
 export const playReminderAlert = (occurrenceId: number): boolean => {
-  const lastPlayedAt = recentPlaybacks.get(occurrenceId) ?? 0;
-  if (Date.now() - lastPlayedAt < RECENT_PLAYBACK_MS) {
+  const now = Date.now();
+  if (!canPlayForOccurrence(occurrenceId, now)) {
     return true;
   }
 
@@ -32,9 +47,15 @@ export const playReminderAlert = (occurrenceId: number): boolean => {
       void context.close();
     };
 
-    recentPlaybacks.set(occurrenceId, Date.now());
+    recentPlaybacks.set(occurrenceId, now);
+    lastGlobalPlaybackAt = now;
     return true;
   } catch {
     return false;
   }
+};
+
+export const resetReminderAudioStateForTests = () => {
+  recentPlaybacks.clear();
+  lastGlobalPlaybackAt = 0;
 };
