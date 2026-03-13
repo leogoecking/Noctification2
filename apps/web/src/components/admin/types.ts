@@ -38,6 +38,14 @@ export type HistoryFilters = {
   limit: number;
 };
 
+export type QueuePriorityFilter = "" | NotificationPriority;
+
+export type QueueFilters = {
+  priority: QueuePriorityFilter;
+  userId: string;
+  limit: number;
+};
+
 export type NotificationFormState = {
   title: string;
   message: string;

@@ -15,13 +15,23 @@ Objetivo: reduzir risco operacional sem quebrar o fluxo atual de desenvolvimento
 Objetivo: fazer o sistema crescer sem degradar consulta, realtime e manutencao.
 
 - Concluido: paginar historico administrativo.
-- Reduzir recargas integrais do dashboard admin a cada evento em tempo real.
+- Concluido parcialmente: reduzir recargas integrais do dashboard admin a cada evento em tempo real.
 - Concluido: corrigir o acoplamento atual entre filtros/paginacao e recargas integrais no hook de realtime.
-- Melhorar modelagem de consultas do historico para evitar custo por notificacao.
+- Concluido parcialmente: melhorar modelagem de consultas do historico para evitar custo por notificacao.
 - Fortalecer a suite de testes da API sem dependencia de porta real.
 - Adicionar indicadores de saude operacional, logs estruturados e cobertura de fluxos criticos.
 - Concluido: refatorar filtros e efeitos do admin para evitar recarga automatica e desnecessaria durante digitacao.
 - Concluido: alinhar a persistencia principal com a nomenclatura de visualizacao e reduzir dependencia de `read_at`.
+
+Entregue parcialmente nesta fase:
+- payload de `online_users:update` passou a atualizar o dashboard sem recarga de auditoria/historico
+- `notification:read_update` passou a atualizar historico e fila operacional localmente quando o payload do socket e suficiente
+- `notification:created` passou a inserir a nova notificacao localmente na fila e no historico quando a pagina/filtro atual comportam o item
+- historico admin de notificacoes deixou de carregar destinatarios com uma query por notificacao, usando lote por pagina
+- fila operacional ganhou escopo dedicado no backend, com paginação e filtros proprios no admin
+- criacao, edicao e ativacao/desativacao de usuarios no admin passaram a atualizar a lista localmente, sem recarga completa
+- paineis de lembretes no usuario e no admin deixaram de depender de recarga total apos create/update/toggle/delete mais comuns
+- eventos `reminder:due` e `reminder:updated` no admin passaram a refletir ocorrencias, logs e saude localmente quando o payload permite
 
 ## Fase 3: Produto Operacional
 
@@ -29,7 +39,7 @@ Objetivo: transformar o sistema em um painel operacional de fato.
 
 - Concluido: exibir usuarios online e auditoria no frontend admin.
 - Concluido: adicionar filtros e paginacao para auditoria e historico administrativo.
-- Pendente: expandir filtros para fila operacional e demais visoes do admin.
+- Concluido: expandir filtros e paginacao para a fila operacional do admin.
 - Concluido: explicitar no admin a diferenca entre visualizacao e andamento operacional.
 - Concluido: tornar a superficie de API/frontend explicita com `isVisualized` e `visualizedAt`.
 - Concluido: refatorar o `AdminDashboard` em componentes menores e hooks dedicados.
@@ -62,7 +72,7 @@ Mudancas entregues nesta rodada:
 ## Proximos focos recomendados
 
 1. Melhorar modelagem de consultas do historico para reduzir custo e permitir evolucao da fila operacional.
-2. Expandir filtros operacionais do admin para a fila e demais visoes que ainda nao usam o novo estado.
+2. Reduzir ainda mais recargas do admin para outros eventos administrativos que ainda exigem refresh manual ou carga ampla.
 3. Fortalecer a suite de testes da API sem dependencia de porta real para cobrir a nova maquina de estados.
 
 ## Feature: Aba de Lembretes
@@ -156,9 +166,12 @@ Entregue parcialmente:
 - fallback para autoplay bloqueado
 - debounce de reproducao
 
-Entregue parcialmente:
+Concluido:
+- som de alerta no frontend implementado
 - fallback visual explicito quando o navegador bloqueia autoplay
 - acao de retentativa manual do som no painel do usuario
+- protecao contra disparos sonoros em rajada por cooldown por ocorrencia e cooldown global curto
+- cobertura automatizada do helper de audio e do fluxo de fallback
 
 #### Fase 5
 

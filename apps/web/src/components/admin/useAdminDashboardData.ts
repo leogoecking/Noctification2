@@ -18,9 +18,9 @@ export const useAdminDashboardData = ({
     onError,
     onToast,
     setMenu,
-    reloadUsers: realtime.loadUsers,
-    reloadUnreadDashboard: realtime.loadUnreadDashboard,
-    reloadNotificationHistory: realtime.loadNotificationHistory
+    insertCreatedNotification: realtime.insertCreatedNotification,
+    upsertUser: realtime.upsertUser,
+    updateUserActiveState: realtime.updateUserActiveState
   });
 
   return {

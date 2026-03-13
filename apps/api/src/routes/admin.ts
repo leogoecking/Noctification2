@@ -4,7 +4,11 @@ import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
 import { logAudit, nowIso } from "../db";
 import { authenticate, requireRole } from "../middleware/auth";
-import { emitNotificationToUser, getOnlineUserIds } from "../socket";
+import {
+  emitNotificationCreatedToAdmins,
+  emitNotificationToUser,
+  getOnlineUserIds
+} from "../socket";
 import { FIXED_ADMIN_LOGIN, type AppConfig } from "../config";
 import type {
   NotificationOperationalStatus,
@@ -36,6 +40,12 @@ interface SenderRow {
   login: string;
 }
 
+interface RecipientUserRow {
+  id: number;
+  name: string;
+  login: string;
+}
+
 interface NotificationRow {
   id: number;
   title: string;
@@ -49,6 +59,7 @@ interface NotificationRow {
 }
 
 interface RecipientRow {
+  notificationId?: number;
   userId: number;
   name: string;
   login: string;
@@ -134,7 +145,19 @@ const parseMetadata = (json: string | null): Record<string, unknown> | null => {
   }
 };
 
-const toRecipientVisualizedAtSql = `COALESCE(nr.visualized_at, nr.read_at)`;
+const toRecipientVisualizedAtSql = (alias: string): string =>
+  `COALESCE(${alias}.visualized_at, ${alias}.read_at)`;
+
+const toRecipientOperationalStatusSql = (alias: string): string => {
+  const visualizedAtSql = toRecipientVisualizedAtSql(alias);
+  return `COALESCE(${alias}.operational_status, CASE
+    WHEN ${alias}.response_status = 'resolvido' THEN 'resolvida'
+    WHEN ${alias}.response_status = 'assumida' THEN 'assumida'
+    WHEN ${alias}.response_status = 'em_andamento' THEN 'em_andamento'
+    WHEN ${visualizedAtSql} IS NOT NULL THEN 'visualizada'
+    ELSE 'recebida'
+  END)`;
+};
 
 const isUniqueLoginConstraintError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
@@ -772,6 +795,58 @@ export const createAdminRouter = (
     });
 
     const notificationId = transaction();
+    const recipientUsers: RecipientUserRow[] = [];
+
+    for (let index = 0; index < validRecipientIds.length; index += SQLITE_MAX_VARIABLES) {
+      const chunk = validRecipientIds.slice(index, index + SQLITE_MAX_VARIABLES);
+      const placeholders = chunk.map(() => "?").join(",");
+      const rows = db
+        .prepare(
+          `
+            SELECT id, name, login
+            FROM users
+            WHERE id IN (${placeholders})
+            ORDER BY name ASC
+          `
+        )
+        .all(...chunk) as RecipientUserRow[];
+      recipientUsers.push(...rows);
+    }
+
+    const recipients = recipientUsers.map((recipient) => ({
+      userId: recipient.id,
+      name: recipient.name,
+      login: recipient.login,
+      visualizedAt: null,
+      deliveredAt: createdAt,
+      operationalStatus: "recebida" as const,
+      responseAt: null,
+      responseMessage: null
+    }));
+
+    const notificationPayload = {
+      id: notificationId,
+      title,
+      message,
+      priority,
+      recipient_mode: recipientMode,
+      created_at: createdAt,
+      sender,
+      recipients,
+      stats: {
+        total: recipients.length,
+        read: 0,
+        unread: recipients.length,
+        responded: 0,
+        received: recipients.length,
+        visualized: 0,
+        inProgress: 0,
+        assumed: 0,
+        resolved: 0,
+        operationalPending: recipients.length,
+        operationalCompleted: 0
+      }
+    };
 
     for (const recipientId of validRecipientIds) {
       emitNotificationToUser(io, recipientId, {
@@ -783,6 +858,8 @@ export const createAdminRouter = (
         sender
       });
     }
+
+    emitNotificationCreatedToAdmins(io, notificationPayload);
 
     logAudit(db, {
       actorUserId: req.authUser.id,
@@ -800,19 +877,15 @@ export const createAdminRouter = (
 
     res.status(201).json({
       notification: {
-        id: notificationId,
-        title,
-        message,
-        priority,
-        recipient_mode: recipientMode,
-        recipient_count: validRecipientIds.length,
-        created_at: createdAt
+        ...notificationPayload,
+        recipient_count: validRecipientIds.length
       }
     });
   });
 
   router.get("/notifications", (req, res) => {
     const status = typeof req.query.status === "string" ? req.query.status : "";
+    const scope = typeof req.query.scope === "string" ? req.query.scope : "";
     const userId = typeof req.query.user_id === "string" ? Number(req.query.user_id) : null;
     const from = typeof req.query.from === "string" ? req.query.from : null;
     const to = typeof req.query.to === "string" ? req.query.to : null;
@@ -856,15 +929,59 @@ export const createAdminRouter = (
       return;
     }
 
+    if (scope !== "" && scope !== "operational_active" && scope !== "operational_completed") {
+      res.status(400).json({ error: "scope deve ser operational_active ou operational_completed" });
+      return;
+    }
+
     if (status === "read") {
       conditions.push(
-        "NOT EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND COALESCE(nr3.visualized_at, nr3.read_at) IS NULL)"
+        `NOT EXISTS (
+          SELECT 1
+          FROM notification_recipients nr3
+          WHERE nr3.notification_id = n.id
+            AND ${toRecipientVisualizedAtSql("nr3")} IS NULL
+        )`
       );
     }
 
     if (status === "unread") {
       conditions.push(
-        "EXISTS (SELECT 1 FROM notification_recipients nr3 WHERE nr3.notification_id = n.id AND COALESCE(nr3.visualized_at, nr3.read_at) IS NULL)"
+        `EXISTS (
+          SELECT 1
+          FROM notification_recipients nr3
+          WHERE nr3.notification_id = n.id
+            AND ${toRecipientVisualizedAtSql("nr3")} IS NULL
+        )`
+      );
+    }
+
+    if (scope === "operational_active") {
+      conditions.push(
+        `EXISTS (
+          SELECT 1
+          FROM notification_recipients nr4
+          WHERE nr4.notification_id = n.id
+            AND ${toRecipientOperationalStatusSql("nr4")} != 'resolvida'
+        )`
+      );
+    }
+
+    if (scope === "operational_completed") {
+      conditions.push(
+        `EXISTS (
+          SELECT 1
+          FROM notification_recipients nr4
+          WHERE nr4.notification_id = n.id
+        )`
+      );
+      conditions.push(
+        `NOT EXISTS (
+          SELECT 1
+          FROM notification_recipients nr5
+          WHERE nr5.notification_id = n.id
+            AND ${toRecipientOperationalStatusSql("nr5")} != 'resolvida'
+        )`
       );
     }
 
@@ -902,32 +1019,56 @@ export const createAdminRouter = (
       )
       .all(...values, limit, offset) as NotificationRow[];
 
-    const recipientStmt = db.prepare(
-      `
-        SELECT
-          nr.user_id AS userId,
-          u.name,
-          u.login,
-          ${toRecipientVisualizedAtSql} AS visualizedAt,
-          nr.delivered_at AS deliveredAt,
-          COALESCE(nr.operational_status, CASE
-            WHEN nr.response_status = 'resolvido' THEN 'resolvida'
-            WHEN nr.response_status = 'em_andamento' THEN 'em_andamento'
-            WHEN ${toRecipientVisualizedAtSql} IS NOT NULL THEN 'visualizada'
-            ELSE 'recebida'
-          END) AS operationalStatus,
-          nr.response_at AS responseAt,
-          nr.response_message AS responseMessage
-        FROM notification_recipients nr
-        INNER JOIN users u ON u.id = nr.user_id
-        WHERE nr.notification_id = ?
-        ORDER BY u.name ASC
-      `
-    );
+    const notificationIds = notifications.map((notification) => notification.id);
+    const recipientsByNotificationId = new Map<number, RecipientRow[]>();
+
+    if (notificationIds.length > 0) {
+      const placeholders = notificationIds.map(() => "?").join(",");
+      const recipientRows = db
+        .prepare(
+          `
+            SELECT
+              nr.notification_id AS notificationId,
+              nr.user_id AS userId,
+              u.name,
+              u.login,
+              ${toRecipientVisualizedAtSql("nr")} AS visualizedAt,
+              nr.delivered_at AS deliveredAt,
+              ${toRecipientOperationalStatusSql("nr")} AS operationalStatus,
+              nr.response_at AS responseAt,
+              nr.response_message AS responseMessage
+            FROM notification_recipients nr
+            INNER JOIN users u ON u.id = nr.user_id
+            WHERE nr.notification_id IN (${placeholders})
+            ORDER BY nr.notification_id ASC, u.name ASC
+          `
+        )
+        .all(...notificationIds) as RecipientRow[];
+
+      for (const recipient of recipientRows) {
+        const notificationId = recipient.notificationId;
+        if (!notificationId) {
+          continue;
+        }
+
+        const current = recipientsByNotificationId.get(notificationId) ?? [];
+        current.push({
+          userId: recipient.userId,
+          name: recipient.name,
+          login: recipient.login,
+          visualizedAt: recipient.visualizedAt,
+          deliveredAt: recipient.deliveredAt,
+          operationalStatus: recipient.operationalStatus,
+          responseAt: recipient.responseAt,
+          responseMessage: recipient.responseMessage
+        });
+        recipientsByNotificationId.set(notificationId, current);
+      }
+    }
 
     const enriched = notifications
       .map((notification) => {
-        const recipients = recipientStmt.all(notification.id) as RecipientRow[];
+        const recipients = recipientsByNotificationId.get(notification.id) ?? [];
 
         const stats = {
           total: recipients.length,

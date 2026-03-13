@@ -1,12 +1,18 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminRemindersPanel } from "./AdminRemindersPanel";
 import { api } from "../../lib/api";
 
+const socketHandlers = new Map<string, (payload: unknown) => void>();
+
 vi.mock("../../lib/socket", () => ({
   connectSocket: () => ({
-    on: vi.fn(),
-    off: vi.fn(),
+    on: vi.fn((event: string, handler: (payload: unknown) => void) => {
+      socketHandlers.set(event, handler);
+    }),
+    off: vi.fn((event: string) => {
+      socketHandlers.delete(event);
+    }),
     disconnect: vi.fn()
   })
 }));
@@ -33,6 +39,7 @@ const mockedApi = vi.mocked(api);
 describe("AdminRemindersPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    socketHandlers.clear();
     mockedApi.adminReminderHealth.mockResolvedValue({
       health: {
         totalReminders: 1,
@@ -103,6 +110,7 @@ describe("AdminRemindersPanel", () => {
         }
       ]
     });
+    mockedApi.toggleAdminReminder.mockResolvedValue({ ok: true });
   });
 
   it("carrega resumo e listas de lembretes", async () => {
@@ -157,6 +165,77 @@ describe("AdminRemindersPanel", () => {
       expect(mockedApi.adminReminderLogs).toHaveBeenLastCalledWith(
         "?user_search=maria&event_type=reminder.occurrence.retried"
       )
+    );
+  });
+
+  it("altera status do lembrete sem recarregar tudo", async () => {
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
+    await waitFor(() => expect(mockedApi.adminReminders).toHaveBeenCalledTimes(1));
+    const reminderCalls = mockedApi.adminReminders.mock.calls.length;
+    const occurrenceCalls = mockedApi.adminReminderOccurrences.mock.calls.length;
+    const logCalls = mockedApi.adminReminderLogs.mock.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: "Desativar" }));
+
+    await waitFor(() => expect(mockedApi.toggleAdminReminder).toHaveBeenCalledWith(1, false));
+    expect(screen.getByRole("button", { name: "Ativar" })).toBeInTheDocument();
+    expect(mockedApi.adminReminders).toHaveBeenCalledTimes(reminderCalls);
+    expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledTimes(occurrenceCalls);
+    expect(mockedApi.adminReminderLogs).toHaveBeenCalledTimes(logCalls);
+  });
+
+  it("aplica evento realtime de lembrete sem recarregar tudo", async () => {
+    const onToast = vi.fn();
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={onToast} />);
+
+    await waitFor(() => expect(socketHandlers.has("reminder:due")).toBe(true));
+    const reminderCalls = mockedApi.adminReminders.mock.calls.length;
+    const occurrenceCalls = mockedApi.adminReminderOccurrences.mock.calls.length;
+    const logCalls = mockedApi.adminReminderLogs.mock.calls.length;
+
+    await act(async () => {
+      socketHandlers.get("reminder:due")?.({
+        occurrenceId: 55,
+        reminderId: 1,
+        userId: 7,
+        title: "Checklist",
+        description: "",
+        scheduledFor: new Date().toISOString(),
+        retryCount: 1
+      });
+    });
+
+    expect(onToast).toHaveBeenCalledWith("Lembrete reenviado para usuario #7: Checklist");
+    expect(screen.getByText("reminder.occurrence.retried")).toBeInTheDocument();
+    expect(mockedApi.adminReminders).toHaveBeenCalledTimes(reminderCalls);
+    expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledTimes(occurrenceCalls);
+    expect(mockedApi.adminReminderLogs).toHaveBeenCalledTimes(logCalls);
+  });
+
+  it("remove ocorrencia da lista filtrada quando o status deixa de atender o filtro", async () => {
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(socketHandlers.has("reminder:updated")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Pendentes" }));
+    const occurrencesPanel = screen.getByText("Ocorrencias recentes").closest("article");
+    expect(occurrencesPanel).not.toBeNull();
+    await waitFor(() =>
+      expect(within(occurrencesPanel!).getByText("Checklist")).toBeInTheDocument()
+    );
+
+    await act(async () => {
+      socketHandlers.get("reminder:updated")?.({
+        occurrenceId: 10,
+        reminderId: 1,
+        userId: 7,
+        status: "completed",
+        retryCount: 1,
+        completedAt: new Date().toISOString()
+      });
+    });
+
+    await waitFor(() =>
+      expect(within(occurrencesPanel!).queryByText("Checklist")).not.toBeInTheDocument()
     );
   });
 });

@@ -1,5 +1,5 @@
 import type { AuditEventItem, NotificationHistoryItem, OnlineUserItem } from "../../types";
-import type { AdminMetrics, OnlineSummary } from "./types";
+import type { AdminMetrics, OnlineSummary, QueueFilters, StateSetter } from "./types";
 import {
   formatDate,
   operationalStatusLabel,
@@ -19,9 +19,31 @@ interface AdminOverviewPanelProps {
   lastAuditRefreshAt: string | null;
   loadingAudit: boolean;
   onRefreshAudit: () => void;
+  selectableUserTargets: Array<{
+    id: number;
+    name: string;
+    login: string;
+  }>;
+  queueFilters: QueueFilters;
+  setQueueFilters: StateSetter<QueueFilters>;
+  queuePagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  setQueuePagination: StateSetter<{
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  }>;
+  lastQueueRefreshAt: string | null;
   unreadNotifications: NotificationHistoryItem[];
   loadingHistory: boolean;
   onRefreshQueue: () => void;
+  onApplyQueueFilters: () => void;
+  onResetQueueFilters: () => void;
   completedNotifications: NotificationHistoryItem[];
   loadingHistoryAll: boolean;
   onRefreshCompleted: () => void;
@@ -40,9 +62,17 @@ export const AdminOverviewPanel = ({
   lastAuditRefreshAt,
   loadingAudit,
   onRefreshAudit,
+  selectableUserTargets,
+  queueFilters,
+  setQueueFilters,
+  queuePagination,
+  setQueuePagination,
+  lastQueueRefreshAt,
   unreadNotifications,
   loadingHistory,
   onRefreshQueue,
+  onApplyQueueFilters,
+  onResetQueueFilters,
   completedNotifications,
   loadingHistoryAll,
   onRefreshCompleted
@@ -189,10 +219,85 @@ export const AdminOverviewPanel = ({
           <button
             className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
             onClick={onRefreshQueue}
-          >
-            Atualizar
-          </button>
-        </div>
+            >
+              Atualizar
+            </button>
+          </div>
+
+          <div className="mb-3 grid gap-3 md:grid-cols-4">
+            <label className="text-sm text-textMuted">
+              Usuario
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-panelAlt px-3 py-2 text-sm text-textMain"
+                value={queueFilters.userId}
+                onChange={(event) =>
+                  setQueueFilters((prev) => ({ ...prev, userId: event.target.value }))
+                }
+              >
+                <option value="">Todos</option>
+                {selectableUserTargets.map((user) => (
+                  <option key={user.id} value={String(user.id)}>
+                    {user.name} ({user.login})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm text-textMuted">
+              Prioridade
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-panelAlt px-3 py-2 text-sm text-textMain"
+                value={queueFilters.priority}
+                onChange={(event) =>
+                  setQueueFilters((prev) => ({ ...prev, priority: event.target.value as QueueFilters["priority"] }))
+                }
+              >
+                <option value="">Todas</option>
+                <option value="low">Baixa</option>
+                <option value="normal">Normal</option>
+                <option value="high">Alta</option>
+                <option value="critical">Critica</option>
+              </select>
+            </label>
+
+            <label className="text-sm text-textMuted">
+              Limite
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-panelAlt px-3 py-2 text-sm text-textMain"
+                value={queueFilters.limit}
+                onChange={(event) =>
+                  setQueueFilters((prev) => ({ ...prev, limit: Number(event.target.value) }))
+                }
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+
+            <div className="flex items-end gap-2">
+              <button
+                className="rounded-xl border border-accent px-4 py-2 text-sm text-accent"
+                onClick={onApplyQueueFilters}
+                type="button"
+              >
+                Aplicar filtros
+              </button>
+              <button
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-textMuted"
+                onClick={onResetQueueFilters}
+                type="button"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+
+          <p className="mb-3 text-xs text-textMuted">
+            Atualizado: {formatDate(lastQueueRefreshAt)} | pagina {queuePagination.page} de{" "}
+            {queuePagination.totalPages} | total {queuePagination.total}
+          </p>
 
         {loadingHistory && <p className="text-sm text-textMuted">Carregando...</p>}
         {!loadingHistory && unreadNotifications.length === 0 && (
@@ -278,6 +383,37 @@ export const AdminOverviewPanel = ({
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between text-xs text-textMuted">
+          <span>
+            Pagina {queuePagination.page} de {queuePagination.totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              className="rounded-md border border-slate-600 px-3 py-1 disabled:opacity-50"
+              disabled={queuePagination.page <= 1}
+              onClick={() =>
+                setQueuePagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))
+              }
+              type="button"
+            >
+              Pagina anterior
+            </button>
+            <button
+              className="rounded-md border border-slate-600 px-3 py-1 disabled:opacity-50"
+              disabled={queuePagination.page >= queuePagination.totalPages}
+              onClick={() =>
+                setQueuePagination((prev) => ({
+                  ...prev,
+                  page: Math.min(prev.totalPages, prev.page + 1)
+                }))
+              }
+              type="button"
+            >
+              Proxima pagina
+            </button>
+          </div>
         </div>
       </article>
 

@@ -12,10 +12,47 @@ interface UseAdminActionsOptions {
   onError: (message: string) => void;
   onToast: (message: string) => void;
   setMenu: (menu: AdminMenu) => void;
-  reloadUsers: () => Promise<void>;
-  reloadUnreadDashboard: () => Promise<void>;
-  reloadNotificationHistory: () => Promise<void>;
+  insertCreatedNotification: (item: UserNotificationResponseItem) => void;
+  upsertUser: (user: UserItem) => void;
+  updateUserActiveState: (userId: number, isActive: boolean) => void;
 }
+
+type UserNotificationResponseItem = {
+  id: number;
+  title: string;
+  message: string;
+  priority: "low" | "normal" | "high" | "critical";
+  recipient_mode: "all" | "users";
+  created_at: string;
+  sender: {
+    id: number;
+    name: string;
+    login: string;
+  };
+  recipients: Array<{
+    userId: number;
+    name: string;
+    login: string;
+    visualizedAt: string | null;
+    deliveredAt: string;
+    operationalStatus: "recebida" | "visualizada" | "em_andamento" | "assumida" | "resolvida";
+    responseAt: string | null;
+    responseMessage: string | null;
+  }>;
+  stats: {
+    total: number;
+    read: number;
+    unread: number;
+    responded: number;
+    received: number;
+    visualized: number;
+    inProgress: number;
+    assumed: number;
+    resolved: number;
+    operationalPending: number;
+    operationalCompleted: number;
+  };
+};
 
 const toErrorMessage = (error: unknown, fallback: string): string => {
   return error instanceof ApiError ? error.message : fallback;
@@ -25,9 +62,9 @@ export const useAdminActions = ({
   onError,
   onToast,
   setMenu,
-  reloadUsers,
-  reloadUnreadDashboard,
-  reloadNotificationHistory
+  insertCreatedNotification,
+  upsertUser,
+  updateUserActiveState
 }: UseAdminActionsOptions) => {
   const [notificationForm, setNotificationForm] = useState<NotificationFormState>({
     title: "",
@@ -66,7 +103,11 @@ export const useAdminActions = ({
     }
 
     try {
-      await api.sendNotification(notificationForm);
+      const response = (await api.sendNotification(notificationForm)) as
+        | {
+            notification?: UserNotificationResponseItem;
+          }
+        | undefined;
       setNotificationForm({
         title: "",
         message: "",
@@ -74,9 +115,10 @@ export const useAdminActions = ({
         recipient_mode: "all",
         recipient_ids: []
       });
+      if (response?.notification) {
+        insertCreatedNotification(response.notification);
+      }
       onToast("Notificacao enviada");
-      await reloadUnreadDashboard();
-      await reloadNotificationHistory();
       setMenu("dashboard");
     } catch (error) {
       onError(toErrorMessage(error, "Falha ao enviar notificacao"));
@@ -90,8 +132,11 @@ export const useAdminActions = ({
     }
 
     try {
-      await api.createUser(newUserForm);
+      const response = (await api.createUser(newUserForm)) as { user?: UserItem } | undefined;
       onToast("Usuario criado com sucesso");
+      if (response?.user) {
+        upsertUser(response.user);
+      }
       setNewUserForm({
         name: "",
         login: "",
@@ -100,7 +145,6 @@ export const useAdminActions = ({
         job_title: "",
         role: "user"
       });
-      await reloadUsers();
     } catch (error) {
       onError(toErrorMessage(error, "Falha ao criar usuario"));
     }
@@ -113,18 +157,20 @@ export const useAdminActions = ({
     }
 
     try {
-      await api.updateUser(editForm.id, {
+      const response = (await api.updateUser(editForm.id, {
         name: editForm.name,
         login: editForm.login,
         department: editForm.department,
         job_title: editForm.job_title,
         role: editForm.role,
         password: editForm.password || undefined
-      });
+      })) as { user?: UserItem } | undefined;
 
       onToast("Usuario atualizado");
+      if (response?.user) {
+        upsertUser(response.user);
+      }
       setEditForm((prev) => ({ ...prev, password: "" }));
-      await reloadUsers();
     } catch (error) {
       onError(toErrorMessage(error, "Falha ao atualizar usuario"));
     }
@@ -134,7 +180,7 @@ export const useAdminActions = ({
     try {
       await api.toggleUserStatus(user.id, !user.isActive);
       onToast(`Usuario ${user.isActive ? "desativado" : "ativado"}`);
-      await reloadUsers();
+      updateUserActiveState(user.id, !user.isActive);
     } catch (error) {
       onError(toErrorMessage(error, "Falha ao alterar status"));
     }

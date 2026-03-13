@@ -36,6 +36,11 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     historyPagination,
     setHistoryPagination,
     lastHistoryRefreshAt,
+    queueFilters,
+    setQueueFilters,
+    queuePagination,
+    setQueuePagination,
+    lastQueueRefreshAt,
     notificationForm,
     setNotificationForm,
     newUserForm,
@@ -61,7 +66,9 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     applyAuditFilters,
     resetAuditFilters,
     applyHistoryFilters,
-    resetHistoryFilters
+    resetHistoryFilters,
+    applyQueueFilters,
+    resetQueueFilters
   } = useAdminDashboardData({ onError, onToast });
 
   return (
@@ -84,9 +91,17 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
               lastAuditRefreshAt={lastAuditRefreshAt}
               loadingAudit={loadingAudit}
               onRefreshAudit={loadAudit}
+              selectableUserTargets={selectableUserTargets}
+              queueFilters={queueFilters}
+              setQueueFilters={setQueueFilters}
+              queuePagination={queuePagination}
+              setQueuePagination={setQueuePagination}
+              lastQueueRefreshAt={lastQueueRefreshAt}
               unreadNotifications={unreadNotifications}
               loadingHistory={loadingHistory}
               onRefreshQueue={loadUnreadDashboard}
+              onApplyQueueFilters={applyQueueFilters}
+              onResetQueueFilters={resetQueueFilters}
               completedNotifications={completedNotifications}
               loadingHistoryAll={loadingHistoryAll}
               onRefreshCompleted={loadNotificationHistory}

@@ -16,6 +16,76 @@ interface AdminRemindersPanelProps {
 type ReminderAdminFilterMode = "all" | "active" | "inactive";
 type OccurrenceAdminFilterMode = "all" | "today" | ReminderOccurrenceItem["status"];
 
+const matchesReminderAdminFilter = (
+  item: ReminderItem,
+  filter: ReminderAdminFilterMode,
+  userFilter: string
+): boolean => {
+  const trimmedUserFilter = userFilter.trim().toLowerCase();
+  if (trimmedUserFilter) {
+    const matchesText = `${item.userName ?? ""} ${item.userLogin ?? ""}`.toLowerCase();
+    const matchesId = String(item.userId) === trimmedUserFilter;
+    if (!matchesId && !matchesText.includes(trimmedUserFilter)) {
+      return false;
+    }
+  }
+
+  if (filter === "active") {
+    return item.isActive;
+  }
+
+  if (filter === "inactive") {
+    return !item.isActive;
+  }
+
+  return true;
+};
+
+const matchesOccurrenceAdminFilter = (
+  item: ReminderOccurrenceItem,
+  filter: OccurrenceAdminFilterMode,
+  userFilter: string
+): boolean => {
+  const trimmedUserFilter = userFilter.trim().toLowerCase();
+  if (trimmedUserFilter) {
+    const matchesText = `${item.userName ?? ""} ${item.userLogin ?? ""}`.toLowerCase();
+    const matchesId = String(item.userId) === trimmedUserFilter;
+    if (!matchesId && !matchesText.includes(trimmedUserFilter)) {
+      return false;
+    }
+  }
+
+  if (filter === "today") {
+    return (
+      new Date(item.scheduledFor).toLocaleDateString("sv-SE") ===
+      new Date().toLocaleDateString("sv-SE")
+    );
+  }
+
+  if (filter !== "all") {
+    return item.status === filter;
+  }
+
+  return true;
+};
+
+const matchesLogAdminFilter = (
+  item: ReminderLogItem,
+  eventFilter: string,
+  userFilter: string
+): boolean => {
+  const trimmedUserFilter = userFilter.trim().toLowerCase();
+  if (trimmedUserFilter) {
+    const matchesText = `${item.userName ?? ""} ${item.userLogin ?? ""}`.toLowerCase();
+    const matchesId = String(item.userId ?? "") === trimmedUserFilter;
+    if (!matchesId && !matchesText.includes(trimmedUserFilter)) {
+      return false;
+    }
+  }
+
+  return eventFilter === "all" || item.eventType === eventFilter;
+};
+
 export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelProps) => {
   const [health, setHealth] = useState<ReminderHealthItem | null>(null);
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
@@ -91,21 +161,157 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
   useEffect(() => {
     const socket = connectSocket();
 
-    const refreshFromRealtime = () => {
-      void loadData();
-    };
-
-    const onReminderDue = (payload: { title: string; userId: number; retryCount: number }) => {
+    const onReminderDue = (payload: {
+      occurrenceId: number;
+      reminderId: number;
+      userId: number;
+      title: string;
+      description: string;
+      scheduledFor: string;
+      retryCount: number;
+    }) => {
       onToast(
         payload.retryCount > 0
           ? `Lembrete reenviado para usuario #${payload.userId}: ${payload.title}`
           : `Lembrete disparado para usuario #${payload.userId}: ${payload.title}`
       );
-      refreshFromRealtime();
+
+      const contextReminder = reminders.find((item) => item.id === payload.reminderId);
+      const existingOccurrence = occurrences.find((item) => item.id === payload.occurrenceId);
+      const nextOccurrence: ReminderOccurrenceItem = {
+        id: payload.occurrenceId,
+        reminderId: payload.reminderId,
+        userId: payload.userId,
+        userName: contextReminder?.userName ?? existingOccurrence?.userName,
+        userLogin: contextReminder?.userLogin ?? existingOccurrence?.userLogin,
+        scheduledFor: payload.scheduledFor,
+        triggeredAt: new Date().toISOString(),
+        status: "pending",
+        retryCount: payload.retryCount,
+        nextRetryAt: null,
+        completedAt: null,
+        expiredAt: null,
+        triggerSource: "socket",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        title: payload.title,
+        description: payload.description
+      };
+
+      if (matchesOccurrenceAdminFilter(nextOccurrence, occurrenceFilter, userFilter)) {
+        setOccurrences((prev) => {
+          const exists = prev.some((item) => item.id === nextOccurrence.id);
+          if (exists) {
+            return prev.map((item) => (item.id === nextOccurrence.id ? nextOccurrence : item));
+          }
+
+          return [nextOccurrence, ...prev].slice(0, 300);
+        });
+      }
+
+      const nextLog: ReminderLogItem = {
+        id: -Date.now(),
+        reminderId: payload.reminderId,
+        occurrenceId: payload.occurrenceId,
+        userId: payload.userId,
+        userName: contextReminder?.userName ?? existingOccurrence?.userName ?? null,
+        userLogin: contextReminder?.userLogin ?? existingOccurrence?.userLogin ?? null,
+        eventType:
+          payload.retryCount > 0
+            ? "reminder.occurrence.retried"
+            : "reminder.occurrence.delivered",
+        metadata: { retryCount: payload.retryCount, source: "socket" },
+        createdAt: new Date().toISOString()
+      };
+
+      if (matchesLogAdminFilter(nextLog, logEventFilter, userFilter)) {
+        setLogs((prev) => [nextLog, ...prev].slice(0, 100));
+      }
+
+      setHealth((prev) =>
+        prev
+          ? {
+              ...prev,
+              pendingOccurrences: prev.pendingOccurrences + (payload.retryCount === 0 ? 1 : 0),
+              deliveriesToday: prev.deliveriesToday + 1,
+              retriesToday: prev.retriesToday + (payload.retryCount > 0 ? 1 : 0)
+            }
+          : prev
+      );
     };
 
-    const onReminderUpdated = () => {
-      refreshFromRealtime();
+    const onReminderUpdated = (payload: {
+      occurrenceId: number;
+      userId: number;
+      status: ReminderOccurrenceItem["status"];
+      retryCount: number;
+      completedAt?: string | null;
+      expiredAt?: string | null;
+    }) => {
+      setOccurrences((prev) =>
+        prev.flatMap((item) => {
+          if (item.id !== payload.occurrenceId) {
+            return [item];
+          }
+
+          const nextItem = {
+            ...item,
+            status: payload.status,
+            retryCount: payload.retryCount,
+            completedAt: payload.completedAt ?? item.completedAt,
+            expiredAt: payload.expiredAt ?? item.expiredAt,
+            updatedAt: new Date().toISOString()
+          };
+
+          return matchesOccurrenceAdminFilter(nextItem, occurrenceFilter, userFilter)
+            ? [nextItem]
+            : [];
+        })
+      );
+
+      setHealth((prev) => {
+        if (!prev) {
+          return prev;
+        }
+
+        const affected = occurrences.find((item) => item.id === payload.occurrenceId);
+        const wasPending = affected?.status === "pending";
+
+        return {
+          ...prev,
+          pendingOccurrences: Math.max(
+            0,
+            prev.pendingOccurrences - (wasPending && payload.status !== "pending" ? 1 : 0)
+          ),
+          completedToday:
+            prev.completedToday + (payload.status === "completed" && wasPending ? 1 : 0),
+          expiredToday: prev.expiredToday + (payload.status === "expired" && wasPending ? 1 : 0)
+        };
+      });
+
+      const affected = occurrences.find((item) => item.id === payload.occurrenceId);
+      if (affected) {
+        const nextLog: ReminderLogItem = {
+          id: -Date.now(),
+          reminderId: affected.reminderId,
+          occurrenceId: payload.occurrenceId,
+          userId: payload.userId,
+          userName: affected.userName ?? null,
+          userLogin: affected.userLogin ?? null,
+          eventType:
+            payload.status === "completed"
+              ? "reminder.occurrence.completed"
+              : payload.status === "expired"
+                ? "reminder.occurrence.expired"
+                : "reminder.occurrence.updated",
+          metadata: { retryCount: payload.retryCount, source: "socket" },
+          createdAt: new Date().toISOString()
+        };
+
+        if (matchesLogAdminFilter(nextLog, logEventFilter, userFilter)) {
+          setLogs((prev) => [nextLog, ...prev].slice(0, 100));
+        }
+      }
     };
 
     socket.on("reminder:due", onReminderDue);
@@ -116,13 +322,32 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
       socket.off("reminder:updated", onReminderUpdated);
       socket.disconnect();
     };
-  }, [loadData, onToast]);
+  }, [logEventFilter, occurrenceFilter, occurrences, onToast, reminders, userFilter]);
 
   const toggleReminder = async (item: ReminderItem) => {
     try {
       await api.toggleAdminReminder(item.id, !item.isActive);
+      const nextItem = {
+        ...item,
+        isActive: !item.isActive,
+        updatedAt: new Date().toISOString()
+      };
+      if (matchesReminderAdminFilter(nextItem, reminderFilter, userFilter)) {
+        setReminders((prev) =>
+          prev.map((entry) => (entry.id === item.id ? nextItem : entry))
+        );
+      } else {
+        setReminders((prev) => prev.filter((entry) => entry.id !== item.id));
+      }
+      setHealth((prev) =>
+        prev
+          ? {
+              ...prev,
+              activeReminders: prev.activeReminders + (item.isActive ? -1 : 1)
+            }
+          : prev
+      );
       onToast(item.isActive ? "Lembrete desativado" : "Lembrete ativado");
-      await loadData();
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao alterar lembrete");
     }

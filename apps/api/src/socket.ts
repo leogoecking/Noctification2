@@ -41,6 +41,43 @@ export interface NotificationPushPayload {
   };
 }
 
+export interface NotificationAdminPayload {
+  id: number;
+  title: string;
+  message: string;
+  priority: NotificationPriority;
+  recipient_mode: "all" | "users";
+  created_at: string;
+  sender: {
+    id: number;
+    name: string;
+    login: string;
+  };
+  recipients: Array<{
+    userId: number;
+    name: string;
+    login: string;
+    visualizedAt: string | null;
+    deliveredAt: string;
+    operationalStatus: "recebida" | "visualizada" | "em_andamento" | "assumida" | "resolvida";
+    responseAt: string | null;
+    responseMessage: string | null;
+  }>;
+  stats: {
+    total: number;
+    read: number;
+    unread: number;
+    responded: number;
+    received: number;
+    visualized: number;
+    inProgress: number;
+    assumed: number;
+    resolved: number;
+    operationalPending: number;
+    operationalCompleted: number;
+  };
+}
+
 export interface ReminderDuePayload {
   occurrenceId: number;
   reminderId: number;
@@ -302,4 +339,11 @@ export const emitReadUpdateToAdmins = (
   }
 ): void => {
   io.to("admins").emit("notification:read_update", payload);
+};
+
+export const emitNotificationCreatedToAdmins = (
+  io: Server,
+  payload: NotificationAdminPayload
+): void => {
+  io.to("admins").emit("notification:created", payload);
 };

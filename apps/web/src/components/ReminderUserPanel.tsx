@@ -43,6 +43,45 @@ interface IncomingReminderUpdated {
   expiredAt?: string | null;
 }
 
+const matchesReminderFilter = (item: ReminderItem, filter: ReminderFilterMode): boolean => {
+  if (filter === "active") {
+    return item.isActive;
+  }
+
+  if (filter === "inactive") {
+    return !item.isActive;
+  }
+
+  return true;
+};
+
+const sortReminders = (items: ReminderItem[]): ReminderItem[] =>
+  [...items].sort((left, right) => {
+    if (left.isActive !== right.isActive) {
+      return left.isActive ? -1 : 1;
+    }
+
+    return right.createdAt.localeCompare(left.createdAt);
+  });
+
+const matchesOccurrenceFilter = (
+  item: ReminderOccurrenceItem,
+  filter: OccurrenceFilterMode
+): boolean => {
+  if (filter === "today") {
+    return (
+      new Date(item.scheduledFor).toLocaleDateString("sv-SE") ===
+      new Date().toLocaleDateString("sv-SE")
+    );
+  }
+
+  if (filter !== "all") {
+    return item.status === filter;
+  }
+
+  return true;
+};
+
 export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) => {
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [occurrences, setOccurrences] = useState<ReminderOccurrenceItem[]>([]);
@@ -122,6 +161,10 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
 
       setOccurrences((prev) => {
         const existingIndex = prev.findIndex((item) => item.id === payload.occurrenceId);
+        if (!matchesOccurrenceFilter(occurrence, occurrenceFilter)) {
+          return prev;
+        }
+
         if (existingIndex === -1) {
           return [occurrence, ...prev];
         }
@@ -150,18 +193,22 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
 
     const onReminderUpdated = (payload: IncomingReminderUpdated) => {
       setOccurrences((prev) =>
-        prev.map((item) =>
-          item.id === payload.occurrenceId
-            ? {
-                ...item,
-                status: payload.status,
-                retryCount: payload.retryCount,
-                completedAt: payload.completedAt ?? item.completedAt,
-                expiredAt: payload.expiredAt ?? item.expiredAt,
-                updatedAt: new Date().toISOString()
-              }
-            : item
-        )
+        prev.flatMap((item) => {
+          if (item.id !== payload.occurrenceId) {
+            return [item];
+          }
+
+          const nextItem = {
+            ...item,
+            status: payload.status,
+            retryCount: payload.retryCount,
+            completedAt: payload.completedAt ?? item.completedAt,
+            expiredAt: payload.expiredAt ?? item.expiredAt,
+            updatedAt: new Date().toISOString()
+          };
+
+          return matchesOccurrenceFilter(nextItem, occurrenceFilter) ? [nextItem] : [];
+        })
       );
 
       setActiveAlert((prev) => {
@@ -187,7 +234,7 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
       socket.off("connect_error", onConnectError);
       socket.disconnect();
     };
-  }, [onError, onToast]);
+  }, [occurrenceFilter, onError, onToast]);
 
   const retryAlertSound = () => {
     if (!activeAlert) {
@@ -212,15 +259,30 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
 
     try {
       if (form.id) {
-        await api.updateMyReminder(form.id, form);
+        const response = (await api.updateMyReminder(form.id, form)) as
+          | { reminder?: ReminderItem }
+          | undefined;
+        if (response?.reminder && matchesReminderFilter(response.reminder, reminderFilter)) {
+          setReminders((prev) =>
+            sortReminders(
+              prev.map((item) => (item.id === response.reminder!.id ? response.reminder! : item))
+            )
+          );
+        } else if (response?.reminder) {
+          setReminders((prev) => prev.filter((item) => item.id !== response.reminder!.id));
+        }
         onToast("Lembrete atualizado");
       } else {
-        await api.createMyReminder(form);
+        const response = (await api.createMyReminder(form)) as
+          | { reminder?: ReminderItem }
+          | undefined;
+        if (response?.reminder && matchesReminderFilter(response.reminder, reminderFilter)) {
+          setReminders((prev) => sortReminders([response.reminder!, ...prev]));
+        }
         onToast("Lembrete criado");
       }
 
       setForm(EMPTY_FORM);
-      await loadData();
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao salvar lembrete");
     }
@@ -229,8 +291,19 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
   const toggleReminder = async (item: ReminderItem) => {
     try {
       await api.toggleMyReminder(item.id, !item.isActive);
+      const nextItem = {
+        ...item,
+        isActive: !item.isActive,
+        updatedAt: new Date().toISOString()
+      };
+      if (matchesReminderFilter(nextItem, reminderFilter)) {
+        setReminders((prev) =>
+          sortReminders(prev.map((entry) => (entry.id === item.id ? nextItem : entry)))
+        );
+      } else {
+        setReminders((prev) => prev.filter((entry) => entry.id !== item.id));
+      }
       onToast(item.isActive ? "Lembrete desativado" : "Lembrete ativado");
-      await loadData();
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao alterar lembrete");
     }
@@ -239,8 +312,8 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
   const deleteReminder = async (id: number) => {
     try {
       await api.deleteMyReminder(id);
+      setReminders((prev) => prev.filter((item) => item.id !== id));
       onToast("Lembrete removido");
-      await loadData();
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao remover lembrete");
     }
