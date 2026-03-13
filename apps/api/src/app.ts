@@ -7,6 +7,8 @@ import type { AppConfig } from "./config";
 import { createAuthRouter } from "./routes/auth";
 import { createAdminRouter } from "./routes/admin";
 import { createMeRouter } from "./routes/me";
+import { createReminderAdminRouter } from "./routes/reminders-admin";
+import { createReminderMeRouter } from "./routes/reminders-me";
 
 const isCorsOriginAllowed = (allowedOrigins: Set<string>, origin?: string): boolean => {
   if (!origin) {
@@ -45,7 +47,9 @@ export const createApp = (db: Database.Database, io: Server, config: AppConfig) 
 
   app.use("/api/v1/auth", createAuthRouter(db, config));
   app.use("/api/v1/admin", createAdminRouter(db, io, config));
+  app.use("/api/v1/admin", createReminderAdminRouter(db, io, config));
   app.use("/api/v1/me", createMeRouter(db, io, config));
+  app.use("/api/v1/me", createReminderMeRouter(db, io, config));
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Rota nao encontrada" });
@@ -58,4 +62,3 @@ export const createApp = (db: Database.Database, io: Server, config: AppConfig) 
 
   return app;
 };
-

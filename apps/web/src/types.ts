@@ -7,6 +7,8 @@ export type NotificationOperationalStatus =
   | "assumida"
   | "resolvida";
 export type NotificationResponseStatus = "em_andamento" | "assumida" | "resolvida";
+export type ReminderRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
+export type ReminderOccurrenceStatus = "pending" | "completed" | "expired" | "cancelled";
 
 export interface PaginationInfo {
   page: number;
@@ -113,4 +115,64 @@ export interface AuditEventItem {
     login: string;
   } | null;
   metadata: Record<string, unknown> | null;
+}
+
+export interface ReminderItem {
+  id: number;
+  userId: number;
+  userName?: string;
+  userLogin?: string;
+  title: string;
+  description: string;
+  startDate: string;
+  timeOfDay: string;
+  timezone: string;
+  repeatType: ReminderRepeatType;
+  weekdays: number[];
+  isActive: boolean;
+  lastScheduledFor: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReminderOccurrenceItem {
+  id: number;
+  reminderId: number;
+  userId: number;
+  userName?: string;
+  userLogin?: string;
+  scheduledFor: string;
+  triggeredAt: string | null;
+  status: ReminderOccurrenceStatus;
+  retryCount: number;
+  nextRetryAt: string | null;
+  completedAt: string | null;
+  expiredAt: string | null;
+  triggerSource: string;
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  description: string;
+}
+
+export interface ReminderLogItem {
+  id: number;
+  reminderId: number | null;
+  occurrenceId: number | null;
+  userId: number | null;
+  userName?: string | null;
+  userLogin?: string | null;
+  eventType: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface ReminderHealthItem {
+  totalReminders: number;
+  activeReminders: number;
+  pendingOccurrences: number;
+  completedToday: number;
+  expiredToday: number;
+  deliveriesToday: number;
+  retriesToday: number;
 }

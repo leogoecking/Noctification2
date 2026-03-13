@@ -11,7 +11,13 @@ import type {
 export type NotificationRecipient = NotificationHistoryItem["recipients"][number];
 
 export type RecipientMode = "all" | "users";
-export type AdminMenu = "dashboard" | "send" | "users" | "history_notifications" | "audit";
+export type AdminMenu =
+  | "dashboard"
+  | "send"
+  | "users"
+  | "history_notifications"
+  | "audit"
+  | "reminders";
 
 export type AuditFilters = {
   eventType: string;

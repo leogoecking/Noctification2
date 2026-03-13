@@ -53,6 +53,13 @@ const IconPulse = () => (
   </svg>
 );
 
+const IconClock = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 3" />
+  </svg>
+);
+
 export const AdminSidebar = ({ menu, onSelect }: AdminSidebarProps) => {
   return (
     <aside className="rounded-2xl border border-slate-700 bg-panel p-3 shadow-glow lg:sticky lg:top-4 lg:h-fit">
@@ -86,6 +93,11 @@ export const AdminSidebar = ({ menu, onSelect }: AdminSidebarProps) => {
         <button className={menuButtonClass(menu === "audit")} onClick={() => onSelect("audit")}>
           <IconPulse />
           Auditoria
+        </button>
+
+        <button className={menuButtonClass(menu === "reminders")} onClick={() => onSelect("reminders")}>
+          <IconClock />
+          Lembretes
         </button>
       </nav>
     </aside>

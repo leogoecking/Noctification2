@@ -4,6 +4,7 @@ import { AdminOverviewPanel } from "./admin/AdminOverviewPanel";
 import { AdminSendPanel } from "./admin/AdminSendPanel";
 import { AdminSidebar } from "./admin/AdminSidebar";
 import { AdminUsersPanel } from "./admin/AdminUsersPanel";
+import { AdminRemindersPanel } from "./admin/AdminRemindersPanel";
 import { useAdminDashboardData } from "./admin/useAdminDashboardData";
 
 interface AdminDashboardProps {
@@ -145,6 +146,10 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
               onUpdateUser={updateUser}
               onToggleStatus={toggleStatus}
             />
+          )}
+
+          {menu === "reminders" && (
+            <AdminRemindersPanel onError={onError} onToast={onToast} />
           )}
         </div>
       </div>

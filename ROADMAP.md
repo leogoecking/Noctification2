@@ -64,3 +64,175 @@ Mudancas entregues nesta rodada:
 1. Melhorar modelagem de consultas do historico para reduzir custo e permitir evolucao da fila operacional.
 2. Expandir filtros operacionais do admin para a fila e demais visoes que ainda nao usam o novo estado.
 3. Fortalecer a suite de testes da API sem dependencia de porta real para cobrir a nova maquina de estados.
+
+## Feature: Aba de Lembretes
+
+Status: em andamento
+Prioridade: alta
+Tipo: evolucao incremental compativel com producao
+
+### Objetivo
+
+Adicionar uma nova aba de Lembretes ao painel do usuario e ao painel administrativo, permitindo cadastro de lembretes pessoais com data, hora, recorrencia, dias da semana, confirmacao manual de conclusao, relembrar apos 10 minutos, alerta visual, som no frontend e historico por ocorrencia.
+
+### Impacto esperado
+
+- aumento de utilidade diaria do sistema
+- expansao do uso do painel do usuario
+- reutilizacao da infraestrutura existente de tempo real
+- rastreabilidade operacional por ocorrencia
+- baixo impacto sobre features ja existentes
+
+### Escopo funcional
+
+- cadastro de lembretes
+- recorrencia: `none`, `daily`, `weekly`, `monthly`, `weekdays`
+- geracao de ocorrencia por disparo
+- conclusao manual por ocorrencia
+- retry apos 10 minutos quando nao concluido
+- historico de ocorrencia
+- visualizacao no painel admin
+- som de alerta no frontend com fallback visual
+
+### Dependencias
+
+- autenticacao ja existente
+- infraestrutura `Socket.IO` ja existente
+- padrao de rotas e middleware atual
+- banco `SQLite` atual
+- menu/paginas `user/admin` ja existentes
+
+### Fases de entrega
+
+#### Fase 1
+
+- modelagem do banco
+- migration de `reminders`
+- migration de `reminder_occurrences`
+- migration de `reminder_logs`
+- repositories/services base
+- endpoints user CRUD
+- scheduler inicial
+- conclusao manual de ocorrencia
+
+Entregue parcialmente:
+- migrations base criadas
+- tipos e services base adicionados
+- endpoints `user/admin` iniciais adicionados
+- aba inicial de lembretes adicionada em `user/admin`
+- scheduler inicial adicionado com `flag` de habilitacao segura por ambiente
+- conclusao manual de ocorrencia conectada ao backend e ao fluxo realtime
+- ciclo do scheduler extraido para validacao automatizada sem depender de porta real
+
+#### Fase 2
+
+- recorrencia completa
+- retries a cada 10 minutos
+- expiracao controlada
+- historico do usuario
+- logs de auditoria
+
+Entregue parcialmente:
+- recorrencia base validada para lembrete unico e semanal sem duplicidade
+- expiracao no fim do dia local do sistema validada no scheduler
+- cobertura inicial de teste backend para geracao, duplicidade e expiracao
+- cobertura de rotas de lembretes adicionada sem dependencia de porta real
+
+#### Fase 3
+
+- frontend user: aba, formulario, lista, filtros, historico
+- alerta visual em tempo real
+- card/toast de ocorrencia pendente
+
+Entregue parcialmente:
+- aba inicial do usuario com formulario, lista e historico
+- alerta visual realtime para ocorrencias pendentes
+- atualizacao realtime ao concluir/expirar ocorrencia
+- filtros de produto no painel do usuario para ativos, inativos, hoje, pendentes, concluidas e expiradas
+
+#### Fase 4
+
+- som de alerta no frontend
+- fallback para autoplay bloqueado
+- debounce de reproducao
+
+Entregue parcialmente:
+- fallback visual explicito quando o navegador bloqueia autoplay
+- acao de retentativa manual do som no painel do usuario
+
+#### Fase 5
+
+- painel admin de lembretes
+- filtros por usuario
+- visualizacao de ocorrencias
+- ativar/desativar lembretes
+
+Entregue parcialmente:
+- aba inicial admin com listagem de lembretes e ocorrencias
+- recarga realtime do painel admin ao disparar/concluir ocorrencias
+- filtros administrativos por usuario, ativos/inativos e status das ocorrencias
+- contexto administrativo de usuario melhorado com nome/login no painel de lembretes
+- indicadores de saude operacional para lembretes no painel admin
+- logs operacionais de lembretes com filtro por usuario e tipo de evento
+
+#### Fase 6
+
+- hardening
+- testes
+- checklist final de rollout
+- documentacao operacional
+
+Entregue parcialmente:
+- testes deterministas de scheduler e rotas de lembretes sem dependencia de `listen`
+- suite HTTP de integracao mantida como opt-in para ambientes que suportem bind de porta
+- observabilidade minima de lembretes exposta no admin para rollout mais seguro
+- validacoes de payload endurecidas para titulo, descricao, data, hora, timezone e recorrencia
+- documentacao de ativacao controlada do scheduler por ambiente
+- cobertura do scheduler ativo por timer local, sem depender do servidor HTTP
+
+### Riscos
+
+- duplicidade de ocorrencia por scheduler
+- ruido excessivo por retries
+- autoplay bloqueado no navegador
+- inconsistencia entre tabs simultaneas
+- regressao em fluxo de notificacoes existente se houver acoplamento excessivo
+
+### Mitigacoes
+
+- indice unico por `reminder_id + scheduled_for`
+- scheduler com lock em memoria
+- retries limitados
+- expiracao no mesmo dia
+- fallback visual sem depender de audio
+- modulo isolado e rollout por etapas
+
+### Checklist de rollout
+
+- [ ] migrations validadas em ambiente de teste
+- [ ] scheduler habilitado apenas apos CRUD basico validado
+- [ ] criacao de lembrete unico validada
+- [ ] recorrencia validada
+- [ ] retry apos 10 minutos validado
+- [ ] conclusao manual validada
+- [ ] protecao contra duplicidade validada
+- [ ] fallback sem audio validado
+- [ ] painel admin validado
+- [ ] logs minimos observaveis validados
+- [ ] plano de rollback documentado
+
+Status atual desta checklist:
+- scheduler segue protegido por flag de ambiente
+- fluxo de ativacao controlada do scheduler documentado
+- criacao de lembrete unico validada
+- recorrencia base validada
+- conclusao manual validada
+- protecao contra duplicidade validada
+- testes de scheduler e rotas de lembretes validados sem dependencia de porta real
+- painel admin com saude operacional e logs minimos observaveis validado
+
+### Plano de rollback
+
+- ocultar menus/rotas da feature
+- desabilitar inicializacao do scheduler de reminders
+- preservar tabelas sem impacto no restante do sistema

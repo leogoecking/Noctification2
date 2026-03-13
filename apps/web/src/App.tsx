@@ -3,6 +3,7 @@ import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { UserDashboard } from "./components/UserDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
+import { ReminderUserPanel } from "./components/ReminderUserPanel";
 import type { AuthUser } from "./types";
 
 interface Toast {
@@ -11,7 +12,7 @@ interface Toast {
   tone: "ok" | "error";
 }
 
-type AppPath = "/" | "/login" | "/admin/login" | "/notifications";
+type AppPath = "/" | "/login" | "/admin/login" | "/notifications" | "/reminders";
 
 const normalizePath = (rawPath: string): AppPath => {
   if (rawPath === "/login") {
@@ -24,6 +25,10 @@ const normalizePath = (rawPath: string): AppPath => {
 
   if (rawPath === "/notifications") {
     return "/notifications";
+  }
+
+  if (rawPath === "/reminders") {
+    return "/reminders";
   }
 
   return "/";
@@ -186,7 +191,15 @@ export default function App() {
       return "Console Administrativo";
     }
 
-    return currentPath === "/notifications" ? "Todas as Notificacoes" : "Painel Operacional";
+    if (currentPath === "/notifications") {
+      return "Todas as Notificacoes";
+    }
+
+    if (currentPath === "/reminders") {
+      return "Lembretes";
+    }
+
+    return "Painel Operacional";
   }, [currentPath, currentUser]);
 
   return (
@@ -247,14 +260,38 @@ export default function App() {
         )}
 
         {!loadingSession && currentUser?.role === "user" && (
-          <UserDashboard
-            user={currentUser}
-            isNotificationsPage={currentPath === "/notifications"}
-            onOpenAllNotifications={() => navigate("/notifications")}
-            onBackToDashboard={() => navigate("/")}
-            onError={handleErrorToast}
-            onToast={handleOkToast}
-          />
+          <>
+            {currentPath === "/reminders" ? (
+              <ReminderUserPanel onError={handleErrorToast} onToast={handleOkToast} />
+            ) : (
+              <UserDashboard
+                user={currentUser}
+                isNotificationsPage={currentPath === "/notifications"}
+                onOpenAllNotifications={() => navigate("/notifications")}
+                onBackToDashboard={() => navigate("/")}
+                onError={handleErrorToast}
+                onToast={handleOkToast}
+              />
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {currentPath !== "/reminders" ? (
+                <button
+                  className="rounded-xl border border-slate-600 px-3 py-2 text-sm text-textMain"
+                  onClick={() => navigate("/reminders")}
+                >
+                  Ir para lembretes
+                </button>
+              ) : (
+                <button
+                  className="rounded-xl border border-slate-600 px-3 py-2 text-sm text-textMain"
+                  onClick={() => navigate("/")}
+                >
+                  Voltar ao painel
+                </button>
+              )}
+            </div>
+          </>
         )}
 
         {!loadingSession && currentUser?.role === "admin" && (

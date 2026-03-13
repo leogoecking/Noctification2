@@ -41,6 +41,26 @@ export interface NotificationPushPayload {
   };
 }
 
+export interface ReminderDuePayload {
+  occurrenceId: number;
+  reminderId: number;
+  userId: number;
+  title: string;
+  description: string;
+  scheduledFor: string;
+  retryCount: number;
+}
+
+export interface ReminderUpdatedPayload {
+  occurrenceId: number;
+  reminderId: number;
+  userId: number;
+  status: "pending" | "completed" | "expired" | "cancelled";
+  retryCount: number;
+  completedAt?: string | null;
+  expiredAt?: string | null;
+}
+
 const REMINDER_INTERVAL_MS = 30 * 60 * 1000;
 
 const nowIso = (): string => new Date().toISOString();
@@ -259,6 +279,16 @@ export const emitNotificationToUser = (
   payload: NotificationPushPayload
 ): void => {
   io.to(`user:${userId}`).emit("notification:new", payload);
+};
+
+export const emitReminderDue = (io: Server, payload: ReminderDuePayload): void => {
+  io.to(`user:${payload.userId}`).emit("reminder:due", payload);
+  io.to("admins").emit("reminder:due", payload);
+};
+
+export const emitReminderUpdated = (io: Server, payload: ReminderUpdatedPayload): void => {
+  io.to(`user:${payload.userId}`).emit("reminder:updated", payload);
+  io.to("admins").emit("reminder:updated", payload);
 };
 
 export const emitReadUpdateToAdmins = (

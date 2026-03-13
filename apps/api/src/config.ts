@@ -53,6 +53,7 @@ export interface AppConfig {
   corsOrigins: string[];
   cookieName: string;
   allowInsecureFixedAdmin: boolean;
+  enableReminderScheduler: boolean;
   adminSeed: {
     login: string;
     password: string;
@@ -67,7 +68,7 @@ const nodeEnv = process.env.NODE_ENV ?? "development";
 const allowAnyDevOrigin =
   nodeEnv !== "production" &&
   (!configuredCorsOrigin || configuredCorsOrigin === defaultCorsOrigin);
-const defaultAllowInsecureFixedAdmin = nodeEnv === "development";
+const defaultAllowInsecureFixedAdmin = nodeEnv !== "production";
 const allowInsecureFixedAdmin = toBoolean(
   process.env.ALLOW_INSECURE_FIXED_ADMIN,
   defaultAllowInsecureFixedAdmin
@@ -92,6 +93,10 @@ export const config: AppConfig = {
   corsOrigins: allowAnyDevOrigin ? ["*"] : parseCsv(corsOrigin, [defaultCorsOrigin]),
   cookieName: "nc_access",
   allowInsecureFixedAdmin,
+  enableReminderScheduler: toBoolean(
+    process.env.ENABLE_REMINDER_SCHEDULER,
+    nodeEnv !== "production"
+  ),
   adminSeed
 };
 

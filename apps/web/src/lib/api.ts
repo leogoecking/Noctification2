@@ -171,5 +171,55 @@ export const api = {
         operational_status: responseStatus,
         response_message: responseMessage
       }
+    }),
+
+  myReminders: (query = "") => request<{ reminders: unknown[] }>(`/me/reminders${query}`),
+
+  createMyReminder: (payload: unknown) =>
+    request<{ reminder: unknown }>("/me/reminders", {
+      method: "POST",
+      bodyJson: payload
+    }),
+
+  updateMyReminder: (id: number, payload: unknown) =>
+    request<{ reminder: unknown }>(`/me/reminders/${id}`, {
+      method: "PATCH",
+      bodyJson: payload
+    }),
+
+  toggleMyReminder: (id: number, isActive: boolean) =>
+    request<{ ok: boolean }>(`/me/reminders/${id}/toggle`, {
+      method: "PATCH",
+      bodyJson: { is_active: isActive }
+    }),
+
+  deleteMyReminder: (id: number) =>
+    request<void>(`/me/reminders/${id}`, {
+      method: "DELETE"
+    }),
+
+  myReminderOccurrences: (query = "") =>
+    request<{ occurrences: unknown[] }>(`/me/reminder-occurrences${query}`),
+
+  completeReminderOccurrence: (id: number) =>
+    request<{ ok: boolean; completedAt: string }>(`/me/reminder-occurrences/${id}/complete`, {
+      method: "POST"
+    }),
+
+  adminReminders: (query = "") => request<{ reminders: unknown[] }>(`/admin/reminders${query}`),
+
+  adminReminderOccurrences: (query = "") =>
+    request<{ occurrences: unknown[] }>(`/admin/reminder-occurrences${query}`),
+
+  adminReminderHealth: () =>
+    request<{ health: unknown }>("/admin/reminders/health"),
+
+  adminReminderLogs: (query = "") =>
+    request<{ logs: unknown[] }>(`/admin/reminder-logs${query}`),
+
+  toggleAdminReminder: (id: number, isActive: boolean) =>
+    request<{ ok: boolean }>(`/admin/reminders/${id}/toggle`, {
+      method: "PATCH",
+      bodyJson: { is_active: isActive }
     })
 };

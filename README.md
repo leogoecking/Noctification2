@@ -46,6 +46,7 @@ Para ambientes fora de desenvolvimento, ajuste [`apps/api/.env.example`](/home/l
 
 - defina `ADMIN_LOGIN`, `ADMIN_PASSWORD` e `ADMIN_NAME`
 - use `ALLOW_INSECURE_FIXED_ADMIN=false`
+- controle a ativacao de lembretes com `ENABLE_REMINDER_SCHEDULER`
 
 ## Fluxo disponível
 
@@ -97,6 +98,26 @@ npm run test
 npm run test:web
 npm run build
 ```
+
+## Rollout seguro de lembretes
+
+Para subir lembretes em producao com baixo risco:
+
+1. aplique as migrations novas com o scheduler desligado
+2. suba a API com `ENABLE_REMINDER_SCHEDULER=false`
+3. valide:
+   - CRUD de lembretes
+   - painel do usuario
+   - painel admin
+   - logs e saude operacional de lembretes
+4. depois habilite `ENABLE_REMINDER_SCHEDULER=true`
+5. monitore expiracoes, retries e disparos no painel admin
+
+Isso permite rollback simples:
+
+- ocultar a feature no frontend se necessario
+- voltar `ENABLE_REMINDER_SCHEDULER=false`
+- preservar tabelas e historico sem afetar notificacoes existentes
 
 ## Debian
 

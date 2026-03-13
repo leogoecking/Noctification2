@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { config } from "./config";
 import { connectDatabase, runMigrations } from "./db";
 import { apiMigrationsDir } from "./paths";
+import { startReminderScheduler } from "./reminders/scheduler";
 import { setupSocket } from "./socket";
 import { createApp } from "./app";
 
@@ -12,6 +13,9 @@ const boot = () => {
   const httpServer = createServer();
   const io = setupSocket(httpServer, db, config);
   const app = createApp(db, io, config);
+  const stopReminderScheduler = config.enableReminderScheduler
+    ? startReminderScheduler(db, io)
+    : () => undefined;
 
   httpServer.on("request", app);
 
@@ -20,6 +24,7 @@ const boot = () => {
   });
 
   const shutdown = () => {
+    stopReminderScheduler();
     io.close(() => {
       httpServer.close(() => {
         db.close();
