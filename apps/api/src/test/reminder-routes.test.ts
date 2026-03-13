@@ -47,8 +47,8 @@ type RouteHandle = (req: MockRequest, res: MockResponse, next?: () => void) => v
 type RouteLayer = {
   route?: {
     path?: string;
+    methods?: Record<string, boolean>;
     stack: Array<{
-      method?: string;
       handle: unknown;
     }>;
   };
@@ -135,13 +135,15 @@ const createMockResponse = (): MockResponse => {
 
 const getRouteHandler = (router: Router, pathName: string, method: string): RouteHandle => {
   const routerWithStack = router as unknown as { stack: RouteLayer[] };
-  const layer = routerWithStack.stack.find((entry) => entry.route?.path === pathName);
+  const layer = routerWithStack.stack.find(
+    (entry) => entry.route?.path === pathName && entry.route.methods?.[method] === true
+  );
 
   if (!layer?.route) {
     throw new Error(`Rota nao encontrada: ${method.toUpperCase()} ${pathName}`);
   }
 
-  const routeLayer = layer.route.stack.find((entry) => entry.method === method);
+  const routeLayer = layer.route.stack[layer.route.stack.length - 1];
   if (!routeLayer) {
     throw new Error(`Metodo nao encontrado: ${method.toUpperCase()} ${pathName}`);
   }
