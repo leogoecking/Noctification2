@@ -2,7 +2,6 @@ import type { AuditEventItem, NotificationHistoryItem, OnlineUserItem } from "..
 import type { AdminMetrics, OnlineSummary } from "./types";
 import {
   formatDate,
-  isRecipientInProgress,
   operationalStatusLabel,
   summarizeAuditMetadata
 } from "./utils";

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { connectSocket } from "../../lib/socket";
 import type {
@@ -27,62 +27,51 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
   const [occurrenceFilter, setOccurrenceFilter] = useState<OccurrenceAdminFilterMode>("all");
   const [logEventFilter, setLogEventFilter] = useState("all");
 
-  const buildRemindersQuery = () => {
-    const params = new URLSearchParams();
-    if (userFilter.trim()) {
-      if (/^\d+$/.test(userFilter.trim())) {
-        params.set("user_id", userFilter.trim());
-      } else {
-        params.set("user_search", userFilter.trim());
-      }
-    }
-    if (reminderFilter === "active") {
-      params.set("active", "true");
-    } else if (reminderFilter === "inactive") {
-      params.set("active", "false");
-    }
-    const query = params.toString();
-    return query ? `?${query}` : "";
-  };
-
-  const buildOccurrencesQuery = () => {
-    const params = new URLSearchParams();
-    if (userFilter.trim()) {
-      if (/^\d+$/.test(userFilter.trim())) {
-        params.set("user_id", userFilter.trim());
-      } else {
-        params.set("user_search", userFilter.trim());
-      }
-    }
-    if (occurrenceFilter === "today") {
-      params.set("filter", "today");
-    } else if (occurrenceFilter !== "all") {
-      params.set("status", occurrenceFilter);
-    }
-    const query = params.toString();
-    return query ? `?${query}` : "";
-  };
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const remindersParams = new URLSearchParams();
+      const occurrencesParams = new URLSearchParams();
       const logParams = new URLSearchParams();
-      if (userFilter.trim()) {
-        if (/^\d+$/.test(userFilter.trim())) {
-          logParams.set("user_id", userFilter.trim());
+      const trimmedUserFilter = userFilter.trim();
+
+      if (trimmedUserFilter) {
+        if (/^\d+$/.test(trimmedUserFilter)) {
+          remindersParams.set("user_id", trimmedUserFilter);
+          occurrencesParams.set("user_id", trimmedUserFilter);
+          logParams.set("user_id", trimmedUserFilter);
         } else {
-          logParams.set("user_search", userFilter.trim());
+          remindersParams.set("user_search", trimmedUserFilter);
+          occurrencesParams.set("user_search", trimmedUserFilter);
+          logParams.set("user_search", trimmedUserFilter);
         }
       }
+
+      if (reminderFilter === "active") {
+        remindersParams.set("active", "true");
+      } else if (reminderFilter === "inactive") {
+        remindersParams.set("active", "false");
+      }
+
+      if (occurrenceFilter === "today") {
+        occurrencesParams.set("filter", "today");
+      } else if (occurrenceFilter !== "all") {
+        occurrencesParams.set("status", occurrenceFilter);
+      }
+
       if (logEventFilter !== "all") {
         logParams.set("event_type", logEventFilter);
       }
 
+      const remindersQuery = remindersParams.toString();
+      const occurrencesQuery = occurrencesParams.toString();
+      const logsQuery = logParams.toString();
+
       const [healthResponse, remindersResponse, occurrencesResponse, logsResponse] = await Promise.all([
         api.adminReminderHealth(),
-        api.adminReminders(buildRemindersQuery()),
-        api.adminReminderOccurrences(buildOccurrencesQuery()),
-        api.adminReminderLogs(logParams.toString() ? `?${logParams.toString()}` : "")
+        api.adminReminders(remindersQuery ? `?${remindersQuery}` : ""),
+        api.adminReminderOccurrences(occurrencesQuery ? `?${occurrencesQuery}` : ""),
+        api.adminReminderLogs(logsQuery ? `?${logsQuery}` : "")
       ]);
       setHealth(healthResponse.health as ReminderHealthItem);
       setReminders(remindersResponse.reminders as ReminderItem[]);
@@ -93,11 +82,11 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
     } finally {
       setLoading(false);
     }
-  };
+  }, [logEventFilter, occurrenceFilter, onError, reminderFilter, userFilter]);
 
   useEffect(() => {
     void loadData();
-  }, [userFilter, reminderFilter, occurrenceFilter, logEventFilter]);
+  }, [loadData]);
 
   useEffect(() => {
     const socket = connectSocket();
@@ -127,7 +116,7 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
       socket.off("reminder:updated", onReminderUpdated);
       socket.disconnect();
     };
-  }, [onToast]);
+  }, [loadData, onToast]);
 
   const toggleReminder = async (item: ReminderItem) => {
     try {

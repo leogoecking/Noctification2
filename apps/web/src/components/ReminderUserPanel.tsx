@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { playReminderAlert } from "../lib/reminderAudio";
 import { connectSocket } from "../lib/socket";
@@ -78,7 +78,7 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
     return query ? `?${query}` : "";
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [remindersResponse, occurrencesResponse] = await Promise.all([
@@ -92,11 +92,11 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [occurrenceFilter, onError, reminderFilter]);
 
   useEffect(() => {
     void loadData();
-  }, [reminderFilter, occurrenceFilter]);
+  }, [loadData]);
 
   useEffect(() => {
     const socket = connectSocket();

@@ -1,6 +1,8 @@
 import path from "node:path";
 import bcrypt from "bcryptjs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { Router } from "express";
+import type { Server } from "socket.io";
 import { connectDatabase, nowIso, runMigrations } from "../db";
 import type { AppConfig } from "../config";
 import { createReminderMeRouter } from "../routes/reminders-me";
@@ -33,11 +35,78 @@ type TestUser = {
 
 type MockResponse = {
   statusCode: number;
-  body: any;
+  body: unknown;
   sent: boolean;
   status: (code: number) => MockResponse;
   json: (payload: unknown) => MockResponse;
   send: (payload?: unknown) => MockResponse;
+};
+
+type RouteHandle = (req: MockRequest, res: MockResponse, next?: () => void) => void;
+
+type RouteLayer = {
+  route?: {
+    path?: string;
+    stack: Array<{
+      method?: string;
+      handle: unknown;
+    }>;
+  };
+};
+
+type MockRequest = {
+  authUser?: TestUser;
+  body?: Record<string, unknown>;
+  params?: Record<string, string>;
+  query?: Record<string, string>;
+};
+
+type ReminderResponseBody = {
+  reminder: {
+    id: number;
+    title: string;
+    weekdays: number[];
+    repeatType: string;
+  };
+};
+
+type ReminderListResponseBody = {
+  reminders: Array<{
+    title: string;
+    isActive: boolean;
+    userName?: string;
+    userLogin?: string;
+  }>;
+};
+
+type OccurrenceListResponseBody = {
+  occurrences: Array<{
+    title: string;
+    userName?: string;
+    userLogin?: string;
+  }>;
+};
+
+type LogsResponseBody = {
+  logs: Array<{
+    userName?: string;
+    eventType: string;
+    metadata: { retryCount?: number } | null;
+  }>;
+};
+
+type HealthResponseBody = {
+  health: {
+    totalReminders: number;
+    activeReminders: number;
+    pendingOccurrences: number;
+    deliveriesToday: number;
+    retriesToday: number;
+  };
+};
+
+type ErrorResponseBody = {
+  error: string;
 };
 
 const createMockResponse = (): MockResponse => {
@@ -64,19 +133,20 @@ const createMockResponse = (): MockResponse => {
   return response;
 };
 
-const getRouteHandler = (router: any, pathName: string, method: string) => {
-  const layer = router.stack.find(
-    (entry: any) => entry.route?.path === pathName && entry.route.methods?.[method]
-  );
+const getRouteHandler = (router: Router, pathName: string, method: string): RouteHandle => {
+  const routerWithStack = router as unknown as { stack: RouteLayer[] };
+  const layer = routerWithStack.stack.find((entry) => entry.route?.path === pathName);
 
-  if (!layer) {
+  if (!layer?.route) {
     throw new Error(`Rota nao encontrada: ${method.toUpperCase()} ${pathName}`);
   }
 
-  return layer.route.stack[layer.route.stack.length - 1].handle as (
-    req: any,
-    res: MockResponse
-  ) => void;
+  const routeLayer = layer.route.stack.find((entry) => entry.method === method);
+  if (!routeLayer) {
+    throw new Error(`Metodo nao encontrado: ${method.toUpperCase()} ${pathName}`);
+  }
+
+  return routeLayer.handle as RouteHandle;
 };
 
 describe("reminder routes", () => {
@@ -124,8 +194,8 @@ describe("reminder routes", () => {
     runMigrations(db, path.resolve(process.cwd(), "migrations"));
     emittedEvents = [];
     await seedUsers();
-    meRouter = createReminderMeRouter(db, ioStub as any, testConfig);
-    adminRouter = createReminderAdminRouter(db, ioStub as any, testConfig);
+    meRouter = createReminderMeRouter(db, ioStub as unknown as Server, testConfig);
+    adminRouter = createReminderAdminRouter(db, ioStub as unknown as Server, testConfig);
   });
 
   afterEach(() => {
@@ -155,11 +225,12 @@ describe("reminder routes", () => {
       createRes
     );
 
+    const createBody = createRes.body as ReminderResponseBody;
     expect(createRes.statusCode).toBe(201);
-    expect(createRes.body.reminder.title).toBe("Tomar agua");
-    expect(createRes.body.reminder.weekdays).toEqual([1, 3, 5]);
+    expect(createBody.reminder.title).toBe("Tomar agua");
+    expect(createBody.reminder.weekdays).toEqual([1, 3, 5]);
 
-    const reminderId = createRes.body.reminder.id as number;
+    const reminderId = createBody.reminder.id;
 
     const updateRes = createMockResponse();
     updateHandler(
@@ -171,9 +242,10 @@ describe("reminder routes", () => {
       updateRes
     );
 
+    const updateBody = updateRes.body as ReminderResponseBody;
     expect(updateRes.statusCode).toBe(200);
-    expect(updateRes.body.reminder.title).toBe("Tomar agua cedo");
-    expect(updateRes.body.reminder.repeatType).toBe("daily");
+    expect(updateBody.reminder.title).toBe("Tomar agua cedo");
+    expect(updateBody.reminder.repeatType).toBe("daily");
 
     const toggleRes = createMockResponse();
     toggleHandler(
@@ -196,10 +268,11 @@ describe("reminder routes", () => {
       listRes
     );
 
+    const listBody = listRes.body as ReminderListResponseBody;
     expect(listRes.statusCode).toBe(200);
-    expect(listRes.body.reminders).toHaveLength(1);
-    expect(listRes.body.reminders[0].title).toBe("Tomar agua cedo");
-    expect(listRes.body.reminders[0].isActive).toBe(false);
+    expect(listBody.reminders).toHaveLength(1);
+    expect(listBody.reminders[0].title).toBe("Tomar agua cedo");
+    expect(listBody.reminders[0].isActive).toBe(false);
   });
 
   it("rejeita payload invalido de lembrete com mensagens claras", () => {
@@ -225,7 +298,7 @@ describe("reminder routes", () => {
     );
 
     expect(invalidCreateRes.statusCode).toBe(400);
-    expect(invalidCreateRes.body.error).toMatch(/title deve ter no maximo/i);
+    expect((invalidCreateRes.body as ErrorResponseBody).error).toMatch(/title deve ter no maximo/i);
 
     const reminderResult = db
       .prepare(
@@ -249,7 +322,7 @@ describe("reminder routes", () => {
     );
 
     expect(invalidUpdateRes.statusCode).toBe(400);
-    expect(invalidUpdateRes.body.error).toMatch(/weekdays e obrigatorio/i);
+    expect((invalidUpdateRes.body as ErrorResponseBody).error).toMatch(/weekdays e obrigatorio/i);
   });
 
   it("conclui ocorrencia pendente e emite atualizacao realtime", () => {
@@ -290,9 +363,10 @@ describe("reminder routes", () => {
       listRes
     );
 
+    const listBody = listRes.body as OccurrenceListResponseBody;
     expect(listRes.statusCode).toBe(200);
-    expect(listRes.body.occurrences).toHaveLength(1);
-    expect(listRes.body.occurrences[0].title).toBe("Medicacao");
+    expect(listBody.occurrences).toHaveLength(1);
+    expect(listBody.occurrences[0].title).toBe("Medicacao");
 
     const completeRes = createMockResponse();
     completeHandler(
@@ -304,7 +378,7 @@ describe("reminder routes", () => {
     );
 
     expect(completeRes.statusCode).toBe(200);
-    expect(completeRes.body.ok).toBe(true);
+    expect((completeRes.body as { ok: boolean }).ok).toBe(true);
 
     const completedRow = db
       .prepare(
@@ -372,10 +446,11 @@ describe("reminder routes", () => {
       remindersRes
     );
 
+    const remindersBody = remindersRes.body as ReminderListResponseBody;
     expect(remindersRes.statusCode).toBe(200);
-    expect(remindersRes.body.reminders).toHaveLength(1);
-    expect(remindersRes.body.reminders[0].userName).toBe("Usuario Teste");
-    expect(remindersRes.body.reminders[0].userLogin).toBe("user");
+    expect(remindersBody.reminders).toHaveLength(1);
+    expect(remindersBody.reminders[0].userName).toBe("Usuario Teste");
+    expect(remindersBody.reminders[0].userLogin).toBe("user");
 
     const occurrencesRes = createMockResponse();
     listOccurrencesHandler(
@@ -386,11 +461,12 @@ describe("reminder routes", () => {
       occurrencesRes
     );
 
+    const occurrencesBody = occurrencesRes.body as OccurrenceListResponseBody;
     expect(occurrencesRes.statusCode).toBe(200);
-    expect(occurrencesRes.body.occurrences).toHaveLength(1);
-    expect(occurrencesRes.body.occurrences[0].userName).toBe("Usuario Teste");
-    expect(occurrencesRes.body.occurrences[0].userLogin).toBe("user");
-    expect(occurrencesRes.body.occurrences[0].title).toBe("Checklist diario");
+    expect(occurrencesBody.occurrences).toHaveLength(1);
+    expect(occurrencesBody.occurrences[0].userName).toBe("Usuario Teste");
+    expect(occurrencesBody.occurrences[0].userLogin).toBe("user");
+    expect(occurrencesBody.occurrences[0].title).toBe("Checklist diario");
 
     const logsRes = createMockResponse();
     listLogsHandler(
@@ -401,20 +477,22 @@ describe("reminder routes", () => {
       logsRes
     );
 
+    const logsBody = logsRes.body as LogsResponseBody;
     expect(logsRes.statusCode).toBe(200);
-    expect(logsRes.body.logs).toHaveLength(1);
-    expect(logsRes.body.logs[0].userName).toBe("Usuario Teste");
-    expect(logsRes.body.logs[0].eventType).toBe("reminder.occurrence.retried");
-    expect(logsRes.body.logs[0].metadata.retryCount).toBe(1);
+    expect(logsBody.logs).toHaveLength(1);
+    expect(logsBody.logs[0].userName).toBe("Usuario Teste");
+    expect(logsBody.logs[0].eventType).toBe("reminder.occurrence.retried");
+    expect(logsBody.logs[0].metadata?.retryCount).toBe(1);
 
     const healthRes = createMockResponse();
     healthHandler({ authUser: adminUser, query: {} }, healthRes);
 
+    const healthBody = healthRes.body as HealthResponseBody;
     expect(healthRes.statusCode).toBe(200);
-    expect(healthRes.body.health.totalReminders).toBe(1);
-    expect(healthRes.body.health.activeReminders).toBe(1);
-    expect(healthRes.body.health.pendingOccurrences).toBe(1);
-    expect(healthRes.body.health.deliveriesToday).toBe(1);
-    expect(healthRes.body.health.retriesToday).toBe(1);
+    expect(healthBody.health.totalReminders).toBe(1);
+    expect(healthBody.health.activeReminders).toBe(1);
+    expect(healthBody.health.pendingOccurrences).toBe(1);
+    expect(healthBody.health.deliveriesToday).toBe(1);
+    expect(healthBody.health.retriesToday).toBe(1);
   });
 });
