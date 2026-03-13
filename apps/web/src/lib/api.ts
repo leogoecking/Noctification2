@@ -97,7 +97,11 @@ export const api = {
 
   adminOnlineUsers: () => request<{ users: unknown[]; count: number }>("/admin/online-users"),
 
-  adminAudit: (query = "") => request<{ events: unknown[] }>(`/admin/audit${query}`),
+  adminAudit: (query = "") =>
+    request<{
+      events: unknown[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/admin/audit${query}`),
 
   createUser: (payload: unknown) =>
     request<{ user: unknown }>("/admin/users", {
@@ -124,12 +128,20 @@ export const api = {
     }),
 
   adminNotifications: (query = "") =>
-    request<{ notifications: unknown[] }>(`/admin/notifications${query}`),
+    request<{
+      notifications: unknown[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/admin/notifications${query}`),
 
   myNotifications: (query = "") => request<{ notifications: unknown[] }>(`/me/notifications${query}`),
 
   markRead: (id: number) =>
-    request<{ notificationId: number; readAt: string | null; isRead: boolean }>(
+    request<{
+      notificationId: number;
+      visualizedAt: string | null;
+      isVisualized: boolean;
+      isOperationallyPending: boolean;
+    }>(
       `/me/notifications/${id}/read`,
       {
         method: "POST"
@@ -137,18 +149,19 @@ export const api = {
     ),
 
   markAllRead: () =>
-    request<{ updatedCount: number; readAt: string | null }>("/me/notifications/read-all", {
+    request<{ updatedCount: number; visualizedAt: string | null }>("/me/notifications/read-all", {
       method: "POST"
     }),
 
   respondNotification: (id: number, responseStatus: string, responseMessage?: string) =>
     request<{
       notificationId: number;
-      readAt: string | null;
+      visualizedAt: string | null;
       responseStatus: string;
       responseMessage: string | null;
       responseAt: string;
-      isRead: boolean;
+      isVisualized: boolean;
+      isOperationallyPending: boolean;
     }>(`/me/notifications/${id}/respond`, {
       method: "POST",
       bodyJson: {

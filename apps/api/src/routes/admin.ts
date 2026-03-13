@@ -52,7 +52,7 @@ interface RecipientRow {
   userId: number;
   name: string;
   login: string;
-  readAt: string | null;
+  visualizedAt: string | null;
   deliveredAt: string;
   responseStatus: NotificationResponseStatus | null;
   responseAt: string | null;
@@ -70,6 +70,15 @@ interface AuditRow {
   actorName: string | null;
   actorLogin: string | null;
 }
+
+const isRecipientInProgress = (recipient: RecipientRow): boolean =>
+  recipient.responseStatus === "em_andamento";
+
+const isRecipientResolved = (recipient: RecipientRow): boolean =>
+  recipient.responseStatus === "resolvido";
+
+const isRecipientOperationallyPending = (recipient: RecipientRow): boolean =>
+  recipient.visualizedAt === null || isRecipientInProgress(recipient);
 
 const toNullableString = (value: unknown): string | null => {
   if (typeof value !== "string") {
@@ -99,6 +108,15 @@ const parseLimit = (value: unknown, fallback: number, max: number): number => {
   }
 
   return Math.min(parsed, max);
+};
+
+const parsePage = (value: unknown, fallback = 1): number => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
 };
 
 const parseMetadata = (json: string | null): Record<string, unknown> | null => {
@@ -230,7 +248,11 @@ export const createAdminRouter = (
 
   router.get("/audit", (req, res) => {
     const limit = parseLimit(req.query.limit, 100, 500);
+    const page = parsePage(req.query.page, 1);
+    const offset = (page - 1) * limit;
     const eventType = toNullableString(req.query.event_type);
+    const from = toNullableString(req.query.from);
+    const to = toNullableString(req.query.to);
 
     const conditions: string[] = [];
     const values: Array<string | number> = [];
@@ -240,7 +262,26 @@ export const createAdminRouter = (
       values.push(eventType);
     }
 
+    if (from) {
+      conditions.push("a.created_at >= ?");
+      values.push(from);
+    }
+
+    if (to) {
+      conditions.push("a.created_at <= ?");
+      values.push(to);
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const totalRow = db
+      .prepare(
+        `
+          SELECT COUNT(*) AS total
+          FROM audit_log a
+          ${whereClause}
+        `
+      )
+      .get(...values) as { total: number };
 
     const rows = db
       .prepare(
@@ -260,9 +301,13 @@ export const createAdminRouter = (
           ${whereClause}
           ORDER BY a.created_at DESC
           LIMIT ?
+          OFFSET ?
         `
       )
-      .all(...values, limit) as AuditRow[];
+      .all(...values, limit, offset) as AuditRow[];
+
+    const total = totalRow.total;
+    const totalPages = total === 0 ? 1 : Math.ceil(total / limit);
 
     res.json({
       events: rows.map((row) => ({
@@ -279,7 +324,13 @@ export const createAdminRouter = (
             }
           : null,
         metadata: parseMetadata(row.metadataJson)
-      }))
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
     });
   });
 
@@ -641,7 +692,14 @@ export const createAdminRouter = (
 
     if (recipientMode === "all") {
       const rows = db
-        .prepare("SELECT id FROM users WHERE is_active = 1")
+        .prepare(
+          `
+            SELECT id
+            FROM users
+            WHERE is_active = 1
+              AND role = 'user'
+          `
+        )
         .all() as Array<{ id: number }>;
       recipientIds = rows.map((row) => row.id);
     } else {
@@ -751,6 +809,10 @@ export const createAdminRouter = (
     const userId = typeof req.query.user_id === "string" ? Number(req.query.user_id) : null;
     const from = typeof req.query.from === "string" ? req.query.from : null;
     const to = typeof req.query.to === "string" ? req.query.to : null;
+    const priority = typeof req.query.priority === "string" ? req.query.priority : "";
+    const limit = parseLimit(req.query.limit, 200, 500);
+    const page = parsePage(req.query.page, 1);
+    const offset = (page - 1) * limit;
 
     const conditions: string[] = [];
     const values: Array<string | number> = [];
@@ -772,6 +834,16 @@ export const createAdminRouter = (
       values.push(to);
     }
 
+    if (priority !== "") {
+      if (!PRIORITIES.includes(priority as NotificationPriority)) {
+        res.status(400).json({ error: "priority deve ser low, normal, high ou critical" });
+        return;
+      }
+
+      conditions.push("n.priority = ?");
+      values.push(priority);
+    }
+
     if (status !== "" && status !== "read" && status !== "unread") {
       res.status(400).json({ error: "status deve ser read ou unread" });
       return;
@@ -790,6 +862,15 @@ export const createAdminRouter = (
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const totalRow = db
+      .prepare(
+        `
+          SELECT COUNT(*) AS total
+          FROM notifications n
+          ${whereClause}
+        `
+      )
+      .get(...values) as { total: number };
 
     const notifications = db
       .prepare(
@@ -808,10 +889,11 @@ export const createAdminRouter = (
           INNER JOIN users sender ON sender.id = n.sender_id
           ${whereClause}
           ORDER BY n.created_at DESC
-          LIMIT 200
+          LIMIT ?
+          OFFSET ?
         `
       )
-      .all(...values) as NotificationRow[];
+      .all(...values, limit, offset) as NotificationRow[];
 
     const recipientStmt = db.prepare(
       `
@@ -819,7 +901,7 @@ export const createAdminRouter = (
           nr.user_id AS userId,
           u.name,
           u.login,
-          nr.read_at AS readAt,
+          nr.read_at AS visualizedAt,
           nr.delivered_at AS deliveredAt,
           nr.response_status AS responseStatus,
           nr.response_at AS responseAt,
@@ -837,9 +919,15 @@ export const createAdminRouter = (
 
         const stats = {
           total: recipients.length,
-          read: recipients.filter((recipient) => recipient.readAt !== null).length,
-          unread: recipients.filter((recipient) => recipient.readAt === null).length,
-          responded: recipients.filter((recipient) => recipient.responseStatus !== null).length
+          read: recipients.filter((recipient) => recipient.visualizedAt !== null).length,
+          unread: recipients.filter((recipient) => recipient.visualizedAt === null).length,
+          responded: recipients.filter((recipient) => recipient.responseStatus !== null).length,
+          inProgress: recipients.filter(isRecipientInProgress).length,
+          resolved: recipients.filter(isRecipientResolved).length,
+          operationalPending: recipients.filter(isRecipientOperationallyPending).length,
+          operationalCompleted: recipients.filter(
+            (recipient) => !isRecipientOperationallyPending(recipient)
+          ).length
         };
 
         return {
@@ -859,17 +947,21 @@ export const createAdminRouter = (
         };
       });
 
-    res.json({ notifications: enriched });
+    const total = totalRow.total;
+    const totalPages = total === 0 ? 1 : Math.ceil(total / limit);
+
+    res.json({
+      notifications: enriched,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    });
   });
 
   return router;
 };
-
-
-
-
-
-
-
 
 

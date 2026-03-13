@@ -17,6 +17,7 @@ const testConfig: AppConfig = {
   corsOrigin: "http://localhost:5173",
   corsOrigins: ["http://localhost:5173"],
   cookieName: "nc_access",
+  allowInsecureFixedAdmin: true,
   adminSeed: {
     login: "admin",
     password: "admin",
@@ -156,6 +157,35 @@ describe("API notification flow", () => {
     expect(response.body.error).toMatch(/admin fixo/i);
   });
 
+  it("envia para all apenas usuarios comuns ativos", async () => {
+    const adminAgent = request.agent(server);
+    await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "admin" });
+
+    const response = await adminAgent.post("/api/v1/admin/notifications").send({
+      title: "Broadcast",
+      message: "Mensagem geral",
+      priority: "normal",
+      recipient_mode: "all",
+      recipient_ids: []
+    });
+
+    expect(response.status).toBe(201);
+
+    const recipients = db
+      .prepare(
+        `
+          SELECT u.login
+          FROM notification_recipients nr
+          INNER JOIN users u ON u.id = nr.user_id
+          WHERE nr.notification_id = ?
+          ORDER BY u.login ASC
+        `
+      )
+      .all(response.body.notification.id) as Array<{ login: string }>;
+
+    expect(recipients.map((item) => item.login)).toEqual(["user"]);
+  });
+
   it("retorna 400 para filtro de status invalido no historico admin", async () => {
     const adminAgent = request.agent(server);
     await adminAgent.post("/api/v1/auth/login").send({ login: "admin", password: "admin" });
@@ -264,7 +294,7 @@ describe("API notification flow", () => {
 
     expect(respond.status).toBe(200);
     expect(respond.body.responseStatus).toBe("em_andamento");
-    expect(respond.body.isRead).toBe(true);
+    expect(respond.body.isVisualized).toBe(true);
 
     const unreadAfterRespond = await userAgent.get("/api/v1/me/notifications?status=unread");
     expect(unreadAfterRespond.status).toBe(200);
@@ -280,7 +310,11 @@ describe("API notification flow", () => {
 
     const allNotifications = await userAgent.get("/api/v1/me/notifications");
     expect(allNotifications.status).toBe(200);
-    expect(allNotifications.body.notifications.every((item: { isRead: boolean }) => item.isRead)).toBe(true);
+    expect(
+      allNotifications.body.notifications.every(
+        (item: { isVisualized: boolean }) => item.isVisualized
+      )
+    ).toBe(true);
 
     const inProgressNotification = allNotifications.body.notifications.find(
       (item: { id: number }) => item.id === firstId

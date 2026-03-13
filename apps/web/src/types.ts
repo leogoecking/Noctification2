@@ -2,6 +2,13 @@
 export type NotificationPriority = "low" | "normal" | "high" | "critical";
 export type NotificationResponseStatus = "em_andamento" | "resolvido";
 
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface AuthUser {
   id: number;
   login: string;
@@ -30,12 +37,14 @@ export interface NotificationItem {
   senderId: number;
   senderName: string;
   senderLogin: string;
-  readAt: string | null;
+  visualizedAt: string | null;
   deliveredAt: string;
   responseStatus: NotificationResponseStatus | null;
   responseAt: string | null;
   responseMessage: string | null;
-  isRead: boolean;
+  isVisualized: boolean;
+  isRead?: boolean;
+  isOperationallyPending?: boolean;
 }
 
 export interface NotificationHistoryItem {
@@ -54,7 +63,7 @@ export interface NotificationHistoryItem {
     userId: number;
     name: string;
     login: string;
-    readAt: string | null;
+    visualizedAt: string | null;
     deliveredAt: string;
     responseStatus: NotificationResponseStatus | null;
     responseAt: string | null;
@@ -65,6 +74,10 @@ export interface NotificationHistoryItem {
     read: number;
     unread: number;
     responded: number;
+    inProgress: number;
+    resolved: number;
+    operationalPending: number;
+    operationalCompleted: number;
   };
 }
 

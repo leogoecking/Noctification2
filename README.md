@@ -35,12 +35,17 @@ O frontend já resolve a API e o Socket.IO usando o mesmo host da página, na po
 
 ## Login inicial
 
-Admin fixo:
+Admin local de desenvolvimento:
 
 - login: `admin`
 - senha: `admin`
 
 Usuários comuns podem ser criados pela tela de cadastro em `/login`.
+
+Para ambientes fora de desenvolvimento, ajuste [`apps/api/.env.example`](/home/leo/Noctification2/apps/api/.env.example) como base:
+
+- defina `ADMIN_LOGIN`, `ADMIN_PASSWORD` e `ADMIN_NAME`
+- use `ALLOW_INSECURE_FIXED_ADMIN=false`
 
 ## Fluxo disponível
 
@@ -61,6 +66,7 @@ Administrador:
 - login em `/admin/login`
 - listagem de usuários
 - envio de notificações para múltiplos usuários
+- envio para `all` restrito a usuários comuns ativos
 - acompanhamento de leitura e auditoria
 
 ## Comandos úteis
@@ -116,6 +122,6 @@ Para serviço de sistema, os exemplos estão em [`ops/systemd`](/home/leo/Noctif
 
 ## Observações
 
-- o admin fixo `admin/admin` é intencional neste ciclo do projeto
+- o admin fixo `admin/admin` continua disponível para desenvolvimento local, mas agora deve ser tratado como configuração insegura explícita
 - o banco SQLite fica no contexto da API, respeitando a configuração de `DB_PATH`
 - os scripts de migração e bootstrap agora funcionam independentemente do diretório em que forem executados

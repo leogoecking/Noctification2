@@ -30,7 +30,7 @@ vi.mock("../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
-const buildNotification = (id: number, isRead: boolean) => ({
+const buildNotification = (id: number, isVisualized: boolean) => ({
   id,
   title: `Notificacao ${id}`,
   message: `Mensagem ${id}`,
@@ -39,12 +39,12 @@ const buildNotification = (id: number, isRead: boolean) => ({
   senderId: 1,
   senderName: "Admin",
   senderLogin: "admin",
-  readAt: isRead ? new Date().toISOString() : null,
+  visualizedAt: isVisualized ? new Date().toISOString() : null,
   deliveredAt: new Date().toISOString(),
   responseStatus: null,
   responseAt: null,
   responseMessage: null,
-  isRead
+  isVisualized
 });
 
 describe("UserDashboard", () => {
@@ -87,7 +87,7 @@ describe("UserDashboard", () => {
     });
     mockedApi.markAllRead.mockResolvedValue({
       updatedCount: 1,
-      readAt: new Date().toISOString()
+      visualizedAt: new Date().toISOString()
     });
 
     render(
@@ -110,5 +110,3 @@ describe("UserDashboard", () => {
     expect(screen.getByTestId("unread-counter")).toHaveTextContent("Nao lidas: 0");
   });
 });
-
-

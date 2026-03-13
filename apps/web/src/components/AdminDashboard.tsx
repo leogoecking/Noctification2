@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { connectSocket } from "../lib/socket";
-import type { NotificationHistoryItem, NotificationPriority, UserItem } from "../types";
+import type {
+  AuditEventItem,
+  NotificationHistoryItem,
+  NotificationPriority,
+  OnlineUserItem,
+  PaginationInfo,
+  UserItem
+} from "../types";
 
 interface AdminDashboardProps {
   onError: (message: string) => void;
@@ -11,7 +18,26 @@ interface AdminDashboardProps {
 type NotificationRecipient = NotificationHistoryItem["recipients"][number];
 
 type RecipientMode = "all" | "users";
-type AdminMenu = "dashboard" | "send" | "users" | "history_notifications";
+type AdminMenu = "dashboard" | "send" | "users" | "history_notifications" | "audit";
+type AuditFilters = {
+  eventType: string;
+  from: string;
+  to: string;
+  limit: number;
+};
+type HistoryStatusFilter = "" | "read" | "unread";
+type HistoryPriorityFilter = "" | NotificationPriority;
+type HistoryFilters = {
+  status: HistoryStatusFilter;
+  priority: HistoryPriorityFilter;
+  userId: string;
+  from: string;
+  to: string;
+  limit: number;
+};
+
+const AUDIT_LIMIT_OPTIONS = [10, 20, 50, 100];
+const HISTORY_LIMIT_OPTIONS = [20, 50, 100, 200];
 
 const formatDate = (value: string | null): string => {
   if (!value) {
@@ -19,6 +45,35 @@ const formatDate = (value: string | null): string => {
   }
 
   return new Date(value).toLocaleString("pt-BR");
+};
+
+const formatAuditValue = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[valor nao serializavel]";
+  }
+};
+
+const summarizeAuditMetadata = (metadata: Record<string, unknown> | null): string => {
+  if (!metadata) {
+    return "Sem metadados";
+  }
+
+  const entries = Object.entries(metadata).slice(0, 3);
+  if (entries.length === 0) {
+    return "Sem metadados";
+  }
+
+  return entries.map(([key, value]) => `${key}: ${formatAuditValue(value)}`).join(" | ");
 };
 
 const responseStatusLabel = (status: "em_andamento" | "resolvido" | null): string => {
@@ -49,6 +104,15 @@ const toErrorMessage = (error: unknown, fallback: string): string => {
 const hasRecipientResponse = (recipient: NotificationRecipient): boolean => {
   return recipient.responseStatus !== null || Boolean(recipient.responseMessage?.trim());
 };
+
+const isRecipientInProgress = (recipient: NotificationRecipient): boolean =>
+  recipient.responseStatus === "em_andamento";
+
+const isNotificationOperationallyActive = (item: NotificationHistoryItem): boolean =>
+  item.stats.operationalPending > 0;
+
+const isNotificationOperationallyCompleted = (item: NotificationHistoryItem): boolean =>
+  item.stats.total > 0 && item.stats.operationalPending === 0;
 
 const IconDashboard = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -83,15 +147,54 @@ const IconArchive = () => (
   </svg>
 );
 
+const IconPulse = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M3 12h4l2-5 4 10 2-5h6" />
+  </svg>
+);
+
 
 export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
   const [menu, setMenu] = useState<AdminMenu>("dashboard");
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUserItem[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEventItem[]>([]);
   const [history, setHistory] = useState<NotificationHistoryItem[]>([]);
   const [historyAll, setHistoryAll] = useState<NotificationHistoryItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingOnlineUsers, setLoadingOnlineUsers] = useState(false);
+  const [loadingAudit, setLoadingAudit] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingHistoryAll, setLoadingHistoryAll] = useState(false);
+  const [auditPagination, setAuditPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1
+  });
+  const [auditFilters, setAuditFilters] = useState<AuditFilters>({
+    eventType: "",
+    from: "",
+    to: "",
+    limit: 20
+  });
+  const [lastOnlineRefreshAt, setLastOnlineRefreshAt] = useState<string | null>(null);
+  const [lastAuditRefreshAt, setLastAuditRefreshAt] = useState<string | null>(null);
+  const [historyFilters, setHistoryFilters] = useState<HistoryFilters>({
+    status: "",
+    priority: "",
+    userId: "",
+    from: "",
+    to: "",
+    limit: 100
+  });
+  const [historyPagination, setHistoryPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 100,
+    total: 0,
+    totalPages: 1
+  });
+  const [lastHistoryRefreshAt, setLastHistoryRefreshAt] = useState<string | null>(null);
 
   const [notificationForm, setNotificationForm] = useState({
     title: "",
@@ -132,10 +235,57 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     }
   }, [onError]);
 
+  const loadOnlineUsers = useCallback(async () => {
+    setLoadingOnlineUsers(true);
+    try {
+      const response = await api.adminOnlineUsers();
+      setOnlineUsers(response.users as OnlineUserItem[]);
+      setLastOnlineRefreshAt(new Date().toISOString());
+    } catch (error) {
+      onError(toErrorMessage(error, "Falha ao carregar usuarios online"));
+    } finally {
+      setLoadingOnlineUsers(false);
+    }
+  }, [onError]);
+
+  const loadAudit = useCallback(async () => {
+    setLoadingAudit(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", String(auditFilters.limit));
+      params.set("page", String(auditPagination.page));
+      if (auditFilters.eventType.trim()) {
+        params.set("event_type", auditFilters.eventType.trim());
+      }
+      if (auditFilters.from) {
+        params.set("from", new Date(`${auditFilters.from}T00:00:00`).toISOString());
+      }
+      if (auditFilters.to) {
+        params.set("to", new Date(`${auditFilters.to}T23:59:59`).toISOString());
+      }
+
+      const response = await api.adminAudit(`?${params.toString()}`);
+      setAuditEvents(response.events as AuditEventItem[]);
+      setAuditPagination(response.pagination as PaginationInfo);
+      setLastAuditRefreshAt(new Date().toISOString());
+    } catch (error) {
+      onError(toErrorMessage(error, "Falha ao carregar auditoria"));
+    } finally {
+      setLoadingAudit(false);
+    }
+  }, [
+    auditFilters.eventType,
+    auditFilters.from,
+    auditFilters.limit,
+    auditFilters.to,
+    auditPagination.page,
+    onError
+  ]);
+
   const loadUnreadDashboard = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      const response = await api.adminNotifications("?status=unread");
+      const response = await api.adminNotifications("?limit=200");
       setHistory(response.notifications as NotificationHistoryItem[]);
     } catch (error) {
       onError(toErrorMessage(error, "Falha ao carregar dashboard"));
@@ -147,20 +297,53 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
   const loadNotificationHistory = useCallback(async () => {
     setLoadingHistoryAll(true);
     try {
-      const response = await api.adminNotifications();
+      const params = new URLSearchParams();
+      params.set("limit", String(historyFilters.limit));
+      params.set("page", String(historyPagination.page));
+      if (historyFilters.status) {
+        params.set("status", historyFilters.status);
+      }
+      if (historyFilters.priority) {
+        params.set("priority", historyFilters.priority);
+      }
+      if (historyFilters.userId) {
+        params.set("user_id", historyFilters.userId);
+      }
+      if (historyFilters.from) {
+        params.set("from", new Date(`${historyFilters.from}T00:00:00`).toISOString());
+      }
+      if (historyFilters.to) {
+        params.set("to", new Date(`${historyFilters.to}T23:59:59`).toISOString());
+      }
+
+      const query = params.toString();
+      const response = await api.adminNotifications(query ? `?${query}` : "");
       setHistoryAll(response.notifications as NotificationHistoryItem[]);
+      setHistoryPagination(response.pagination as PaginationInfo);
+      setLastHistoryRefreshAt(new Date().toISOString());
     } catch (error) {
       onError(toErrorMessage(error, "Falha ao carregar historico"));
     } finally {
       setLoadingHistoryAll(false);
     }
-  }, [onError]);
+  }, [
+    historyFilters.from,
+    historyFilters.limit,
+    historyFilters.priority,
+    historyFilters.status,
+    historyFilters.to,
+    historyFilters.userId,
+    historyPagination.page,
+    onError
+  ]);
 
   useEffect(() => {
     loadUsers();
+    loadOnlineUsers();
+    loadAudit();
     loadUnreadDashboard();
     loadNotificationHistory();
-  }, [loadUsers, loadUnreadDashboard, loadNotificationHistory]);
+  }, [loadAudit, loadNotificationHistory, loadOnlineUsers, loadUnreadDashboard, loadUsers]);
 
   useEffect(() => {
     const socket = connectSocket();
@@ -168,6 +351,11 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     const onReadUpdate = () => {
       loadUnreadDashboard();
       loadNotificationHistory();
+      loadAudit();
+    };
+
+    const onOnlineUsersUpdate = () => {
+      loadOnlineUsers();
     };
 
     const onConnectError = () => {
@@ -175,36 +363,69 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     };
 
     socket.on("notification:read_update", onReadUpdate);
+    socket.on("online_users:update", onOnlineUsersUpdate);
     socket.on("connect_error", onConnectError);
 
     return () => {
       socket.off("notification:read_update", onReadUpdate);
+      socket.off("online_users:update", onOnlineUsersUpdate);
       socket.off("connect_error", onConnectError);
       socket.disconnect();
     };
-  }, [loadUnreadDashboard, loadNotificationHistory, onError]);
+  }, [loadAudit, loadNotificationHistory, loadOnlineUsers, loadUnreadDashboard, onError]);
 
-  const unreadNotifications = useMemo(() => history.filter((item) => item.stats.unread > 0), [history]);
+  const unreadNotifications = useMemo(
+    () => history.filter((item) => isNotificationOperationallyActive(item)),
+    [history]
+  );
   const completedNotifications = useMemo(
-    () => historyAll.filter((item) => item.stats.total > 0 && item.stats.unread === 0),
+    () =>
+      historyAll.filter(
+        (item) =>
+          item.stats.total > 0 &&
+          item.stats.unread === 0 &&
+          isNotificationOperationallyCompleted(item)
+      ),
     [historyAll]
   );
 
   const metrics = useMemo(() => {
-    const pendingRecipients = unreadNotifications.reduce((acc, item) => acc + item.stats.unread, 0);
+    const pendingRecipients = unreadNotifications.reduce(
+      (acc, item) => acc + item.stats.operationalPending,
+      0
+    );
     const criticalOpen = unreadNotifications.filter(
-      (item) => item.priority === "critical" && item.stats.unread > 0
+      (item) => item.priority === "critical" && isNotificationOperationallyActive(item)
     ).length;
+    const inProgressNotifications = unreadNotifications.filter((item) => item.stats.inProgress > 0).length;
 
     return {
       pendingNotifications: unreadNotifications.length,
       pendingRecipients,
       criticalOpen,
-      completedNotifications: completedNotifications.length
+      inProgressNotifications,
+      completedNotifications: completedNotifications.length,
+      onlineUsers: onlineUsers.length
     };
-  }, [completedNotifications.length, unreadNotifications]);
+  }, [completedNotifications.length, onlineUsers.length, unreadNotifications]);
 
   const activeUsers = useMemo(() => users.filter((item) => item.isActive), [users]);
+  const selectableUserTargets = useMemo(() => users.filter((item) => item.role === "user"), [users]);
+  const recentAuditEvents = useMemo(() => auditEvents.slice(0, 8), [auditEvents]);
+  const onlineSummary = useMemo(() => {
+    const admins = onlineUsers.filter((item) => item.role === "admin").length;
+    const operators = onlineUsers.filter((item) => item.role === "user").length;
+
+    return {
+      admins,
+      operators
+    };
+  }, [onlineUsers]);
+  const auditEventTypes = useMemo(() => {
+    return Array.from(new Set(auditEvents.map((event) => event.event_type))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [auditEvents]);
 
 
   const sendNotification = async () => {
@@ -293,6 +514,42 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     }
   };
 
+  const applyAuditFilters = () => {
+    setAuditPagination((prev) => ({ ...prev, page: 1, limit: auditFilters.limit }));
+    if (auditPagination.page === 1) {
+      void loadAudit();
+    }
+  };
+
+  const resetAuditFilters = () => {
+    setAuditFilters({
+      eventType: "",
+      from: "",
+      to: "",
+      limit: 20
+    });
+    setAuditPagination((prev) => ({ ...prev, page: 1, limit: 20 }));
+  };
+
+  const applyHistoryFilters = () => {
+    setHistoryPagination((prev) => ({ ...prev, page: 1, limit: historyFilters.limit }));
+    if (historyPagination.page === 1) {
+      void loadNotificationHistory();
+    }
+  };
+
+  const resetHistoryFilters = () => {
+    setHistoryFilters({
+      status: "",
+      priority: "",
+      userId: "",
+      from: "",
+      to: "",
+      limit: 100
+    });
+    setHistoryPagination((prev) => ({ ...prev, page: 1, limit: 100 }));
+  };
+
   return (
     <section className="animate-fade-in">
       <div className="grid gap-4 lg:grid-cols-[250px,1fr]">
@@ -332,6 +589,14 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
               <IconArchive />
               Historico notificacoes
             </button>
+
+            <button
+              className={menuButtonClass(menu === "audit")}
+              onClick={() => setMenu("audit")}
+            >
+              <IconPulse />
+              Auditoria
+            </button>
           </nav>
         </aside>
 
@@ -343,14 +608,14 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                 <p className="text-sm text-textMuted">Visao rapida das pendencias de leitura</p>
               </header>
 
-              <div className="grid gap-3 md:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-5">
                 <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-                  <p className="text-xs uppercase tracking-wide text-textMuted">Nao lidas</p>
+                  <p className="text-xs uppercase tracking-wide text-textMuted">Nao visualizadas</p>
                   <p className="mt-1 font-display text-2xl text-textMain">{metrics.pendingNotifications}</p>
                 </article>
 
                 <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-                  <p className="text-xs uppercase tracking-wide text-textMuted">Leituras pendentes</p>
+                  <p className="text-xs uppercase tracking-wide text-textMuted">Pendencias operacionais</p>
                   <p className="mt-1 font-display text-2xl text-warning">{metrics.pendingRecipients}</p>
                 </article>
 
@@ -360,14 +625,123 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                 </article>
 
                 <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-                  <p className="text-xs uppercase tracking-wide text-textMuted">Lidas</p>
-                  <p className="mt-1 font-display text-2xl text-success">{metrics.completedNotifications}</p>
+                  <p className="text-xs uppercase tracking-wide text-textMuted">Em andamento</p>
+                  <p className="mt-1 font-display text-2xl text-accent">{metrics.inProgressNotifications}</p>
+                </article>
+
+                <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+                  <p className="text-xs uppercase tracking-wide text-textMuted">Online agora</p>
+                  <p className="mt-1 font-display text-2xl text-accent">{metrics.onlineUsers}</p>
+                </article>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-[1.1fr,0.9fr]">
+                <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-display text-lg text-textMain">Usuarios online agora</h4>
+                      <p className="text-sm text-textMuted">Presenca em tempo real da operacao</p>
+                    </div>
+                    <button
+                      className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+                      onClick={loadOnlineUsers}
+                    >
+                      Atualizar
+                    </button>
+                  </div>
+
+                  <div className="mb-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-md bg-success/20 px-2 py-1 text-success">
+                      Total online: {onlineUsers.length}
+                    </span>
+                    <span className="rounded-md bg-accent/20 px-2 py-1 text-accent">
+                      Usuarios: {onlineSummary.operators}
+                    </span>
+                    <span className="rounded-md bg-panelAlt px-2 py-1 text-textMuted">
+                      Admins: {onlineSummary.admins}
+                    </span>
+                    <span className="rounded-md bg-panelAlt px-2 py-1 text-textMuted">
+                      Atualizado: {formatDate(lastOnlineRefreshAt)}
+                    </span>
+                  </div>
+
+                  {loadingOnlineUsers && <p className="text-sm text-textMuted">Carregando...</p>}
+                  {!loadingOnlineUsers && onlineUsers.length === 0 && (
+                    <p className="text-sm text-textMuted">Nenhum usuario online no momento.</p>
+                  )}
+
+                  <div className="space-y-2">
+                    {onlineUsers.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between rounded-xl border border-slate-700 bg-panelAlt p-3"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-textMain">{item.name}</p>
+                          <p className="text-xs text-textMuted">
+                            {item.login} | {item.department || "Sem setor"} | {item.jobTitle || "Sem funcao"}
+                          </p>
+                        </div>
+                        <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
+                          {item.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-display text-lg text-textMain">Auditoria recente</h4>
+                      <p className="text-sm text-textMuted">Eventos mais novos do sistema</p>
+                    </div>
+                    <button
+                      className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+                      onClick={loadAudit}
+                    >
+                      Atualizar
+                    </button>
+                  </div>
+
+                  <p className="mb-3 text-xs text-textMuted">
+                    Filtro atual: {auditFilters.eventType || "todos"} | limite {auditFilters.limit} | atualizado{" "}
+                    {formatDate(lastAuditRefreshAt)}
+                  </p>
+
+                  {loadingAudit && <p className="text-sm text-textMuted">Carregando...</p>}
+                  {!loadingAudit && recentAuditEvents.length === 0 && (
+                    <p className="text-sm text-textMuted">Nenhum evento de auditoria.</p>
+                  )}
+
+                  <div className="space-y-2">
+                    {recentAuditEvents.map((event) => (
+                      <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-textMain">{event.event_type}</p>
+                          <span className="text-[11px] text-textMuted">{formatDate(event.created_at)}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-textMuted">
+                          Ator: {event.actor ? `${event.actor.name} (${event.actor.login})` : "sistema"}
+                        </p>
+                        <p className="mt-1 text-xs text-textMuted">
+                          Alvo: {event.target_type} {event.target_id ?? "-"}
+                        </p>
+                        <p className="mt-1 text-xs text-textMuted">
+                          {summarizeAuditMetadata(event.metadata)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </article>
               </div>
 
               <article className="rounded-2xl border border-slate-700 bg-panel p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-display text-lg text-textMain">Fila de nao lidas</h4>
+                  <div>
+                    <h4 className="font-display text-lg text-textMain">Fila operacional</h4>
+                    <p className="text-xs text-textMuted">Inclui nao visualizadas e itens em andamento</p>
+                  </div>
                   <button
                     className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
                     onClick={loadUnreadDashboard}
@@ -383,10 +757,13 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
                 <div className="space-y-3">
                   {unreadNotifications.map((item) => {
-                    const unreadRecipients = item.recipients.filter((recipient) => recipient.readAt === null);
-                    const inProgressCount = unreadRecipients.filter(
-                      (recipient) => recipient.responseStatus === "em_andamento"
+                    const activeRecipients = item.recipients.filter(
+                      (recipient) => recipient.visualizedAt === null || isRecipientInProgress(recipient)
+                    );
+                    const pendingCount = item.recipients.filter(
+                      (recipient) => recipient.visualizedAt === null
                     ).length;
+                    const inProgressCount = item.stats.inProgress;
 
                     return (
                       <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
@@ -395,14 +772,21 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                             <p className="font-semibold text-textMain">{item.title}</p>
                             <p className="text-xs text-textMuted">{formatDate(item.created_at)}</p>
                           </div>
-                          <span className="rounded-md bg-warning/20 px-2 py-1 text-xs text-warning">
-                            Pendentes: {item.stats.unread}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-md bg-warning/20 px-2 py-1 text-xs text-warning">
+                              Nao visualizadas: {pendingCount}
+                            </span>
+                            {inProgressCount > 0 && (
+                              <span className="rounded-md bg-accent/20 px-2 py-1 text-xs text-accent">
+                                Em andamento: {inProgressCount}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <p className="mt-2 text-sm text-textMuted">{item.message}</p>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                           <span className="rounded-md bg-warning/20 px-2 py-1 text-warning">
-                            Pendente: {item.stats.unread}
+                            Nao visualizadas: {pendingCount}
                           </span>
                           <span className="rounded-md bg-accent/20 px-2 py-1 text-accent">
                             Em andamento: {inProgressCount}
@@ -410,15 +794,18 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                         </div>
 
                         <div className="mt-2 space-y-2">
-                          {unreadRecipients.length === 0 && (
-                            <p className="text-xs text-textMuted">Sem usuarios pendentes.</p>
+                          {activeRecipients.length === 0 && (
+                            <p className="text-xs text-textMuted">Sem usuarios pendentes ou em andamento.</p>
                           )}
 
-                          {unreadRecipients.map((recipient) => (
+                          {activeRecipients.map((recipient) => (
                             <div key={recipient.userId} className="rounded-lg border border-slate-700 px-2 py-2">
                               <p className="text-xs text-textMain">
                                 <span className="font-semibold">{recipient.name}</span> ({recipient.login}) -{" "}
                                 {responseStatusLabel(recipient.responseStatus)}
+                              </p>
+                              <p className="text-[11px] text-textMuted">
+                                Visualizada em: {formatDate(recipient.visualizedAt)}
                               </p>
                               <p className="text-[11px] text-textMuted">
                                 Mensagem do usuario: {recipient.responseMessage?.trim() || "-"}
@@ -442,7 +829,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
               <article className="rounded-2xl border border-slate-700 bg-panel p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-display text-lg text-textMain">Lidas recentes</h4>
+                  <h4 className="font-display text-lg text-textMain">Concluidas recentes</h4>
                   <button
                     className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
                     onClick={loadNotificationHistory}
@@ -453,7 +840,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
 
                 {loadingHistoryAll && <p className="text-sm text-textMuted">Carregando...</p>}
                 {!loadingHistoryAll && completedNotifications.length === 0 && (
-                  <p className="text-sm text-textMuted">Nenhuma notificacao concluida.</p>
+                  <p className="text-sm text-textMuted">Nenhuma notificacao operacionalmente concluida.</p>
                 )}
 
                 <div className="space-y-3">
@@ -492,6 +879,150 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                 </button>
               </div>
 
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Status</span>
+                  <select
+                    className="input"
+                    value={historyFilters.status}
+                    onChange={(event) =>
+                      setHistoryFilters((prev) => ({
+                        ...prev,
+                        status: event.target.value as HistoryStatusFilter
+                      }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    <option value="unread">Pendentes</option>
+                    <option value="read">Lidas</option>
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Prioridade</span>
+                  <select
+                    className="input"
+                    value={historyFilters.priority}
+                    onChange={(event) =>
+                      setHistoryFilters((prev) => ({
+                        ...prev,
+                        priority: event.target.value as HistoryPriorityFilter
+                      }))
+                    }
+                  >
+                    <option value="">Todas</option>
+                    <option value="low">Baixa</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">Alta</option>
+                    <option value="critical">Critica</option>
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Usuario</span>
+                  <select
+                    className="input"
+                    value={historyFilters.userId}
+                    onChange={(event) =>
+                      setHistoryFilters((prev) => ({ ...prev, userId: event.target.value }))
+                    }
+                  >
+                    <option value="">Todos</option>
+                    {selectableUserTargets.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} ({item.login})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">De</span>
+                  <input
+                    className="input"
+                    type="date"
+                    value={historyFilters.from}
+                    onChange={(event) =>
+                      setHistoryFilters((prev) => ({ ...prev, from: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Ate</span>
+                  <input
+                    className="input"
+                    type="date"
+                    value={historyFilters.to}
+                    onChange={(event) =>
+                      setHistoryFilters((prev) => ({ ...prev, to: event.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Limite</span>
+                  <select
+                    className="input"
+                    value={historyFilters.limit}
+                    onChange={(event) =>
+                      setHistoryFilters((prev) => ({ ...prev, limit: Number(event.target.value) }))
+                    }
+                  >
+                    {HISTORY_LIMIT_OPTIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button className="btn-primary" onClick={applyHistoryFilters}>
+                  Aplicar filtros
+                </button>
+
+                <button
+                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                  onClick={resetHistoryFilters}
+                >
+                  Limpar filtros
+                </button>
+
+                <span className="rounded-md bg-panelAlt px-3 py-2 text-xs text-textMuted">
+                  Ultima atualizacao: {formatDate(lastHistoryRefreshAt)}
+                </span>
+
+                <span className="rounded-md bg-panelAlt px-3 py-2 text-xs text-textMuted">
+                  Pagina {historyPagination.page} de {historyPagination.totalPages} | Total {historyPagination.total}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+                  onClick={() =>
+                    setHistoryPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))
+                  }
+                  disabled={historyPagination.page <= 1}
+                >
+                  Pagina anterior
+                </button>
+                <button
+                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+                  onClick={() =>
+                    setHistoryPagination((prev) => ({
+                      ...prev,
+                      page: Math.min(prev.totalPages, prev.page + 1)
+                    }))
+                  }
+                  disabled={historyPagination.page >= historyPagination.totalPages}
+                >
+                  Proxima pagina
+                </button>
+              </div>
+
               {loadingHistoryAll && <p className="text-sm text-textMuted">Carregando...</p>}
               {!loadingHistoryAll && historyAll.length === 0 && (
                 <p className="text-sm text-textMuted">Nenhuma notificacao no historico.</p>
@@ -515,8 +1046,15 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                       <p className="mt-2 text-sm text-textMuted">{item.message}</p>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs">
                         <span className="rounded-md bg-panel px-2 py-1 text-textMuted">Total: {item.stats.total}</span>
-                        <span className="rounded-md bg-success/20 px-2 py-1 text-success">Lidas: {item.stats.read}</span>
-                        <span className="rounded-md bg-warning/20 px-2 py-1 text-warning">Pendentes: {item.stats.unread}</span>
+                        <span className="rounded-md bg-success/20 px-2 py-1 text-success">
+                          Visualizadas: {item.stats.read}
+                        </span>
+                        <span className="rounded-md bg-warning/20 px-2 py-1 text-warning">
+                          Nao visualizadas: {item.stats.unread}
+                        </span>
+                        <span className="rounded-md bg-accent/20 px-2 py-1 text-accent">
+                          Em andamento: {item.stats.inProgress}
+                        </span>
                         <span className="rounded-md bg-panel px-2 py-1 text-textMuted">Com resposta: {item.stats.responded}</span>
                       </div>
 
@@ -532,6 +1070,9 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                               {responseStatusLabel(recipient.responseStatus)}
                             </p>
                             <p className="text-[11px] text-textMuted">
+                              Visualizada em: {formatDate(recipient.visualizedAt)}
+                            </p>
+                            <p className="text-[11px] text-textMuted">
                               Mensagem: {recipient.responseMessage?.trim() || "(sem mensagem)"}
                             </p>
                             {recipient.responseStatus === "em_andamento" && Boolean(recipient.responseMessage?.trim()) && (
@@ -540,7 +1081,7 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                               </p>
                             )}
                             <p className="text-[11px] text-textMuted">
-                              Atualizado em: {formatDate(recipient.responseAt ?? recipient.readAt)}
+                              Atualizado em: {formatDate(recipient.responseAt ?? recipient.visualizedAt)}
                             </p>
                           </div>
                         ))}
@@ -548,6 +1089,153 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
                     </div>
                   );
                 })}
+              </div>
+            </article>
+          )}
+
+          {menu === "audit" && (
+            <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-display text-lg text-textMain">Auditoria</h3>
+                  <p className="text-sm text-textMuted">Rastreamento de acessos, leitura e operacao administrativa</p>
+                </div>
+                <button
+                  className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+                  onClick={loadAudit}
+                >
+                  Atualizar
+                </button>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Tipo de evento</span>
+                  <input
+                    className="input"
+                    list="audit-event-types"
+                    placeholder="Ex: auth.login"
+                    value={auditFilters.eventType}
+                    onChange={(event) =>
+                      setAuditFilters((prev) => ({ ...prev, eventType: event.target.value }))
+                    }
+                  />
+                  <datalist id="audit-event-types">
+                    {auditEventTypes.map((eventType) => (
+                      <option key={eventType} value={eventType} />
+                    ))}
+                  </datalist>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">De</span>
+                  <input
+                    className="input"
+                    type="date"
+                    value={auditFilters.from}
+                    onChange={(event) =>
+                      setAuditFilters((prev) => ({ ...prev, from: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Ate</span>
+                  <input
+                    className="input"
+                    type="date"
+                    value={auditFilters.to}
+                    onChange={(event) =>
+                      setAuditFilters((prev) => ({ ...prev, to: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-textMuted">Limite</span>
+                  <select
+                    className="input"
+                    value={auditFilters.limit}
+                    onChange={(event) =>
+                      setAuditFilters((prev) => ({ ...prev, limit: Number(event.target.value) }))
+                    }
+                  >
+                    {AUDIT_LIMIT_OPTIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button className="btn-primary" onClick={applyAuditFilters}>
+                  Aplicar filtros
+                </button>
+                <button
+                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                  onClick={resetAuditFilters}
+                >
+                  Limpar filtros
+                </button>
+                <span className="rounded-md bg-panelAlt px-3 py-2 text-xs text-textMuted">
+                  Ultima atualizacao: {formatDate(lastAuditRefreshAt)}
+                </span>
+                <span className="rounded-md bg-panelAlt px-3 py-2 text-xs text-textMuted">
+                  Pagina {auditPagination.page} de {auditPagination.totalPages} | Total {auditPagination.total}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+                  onClick={() =>
+                    setAuditPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))
+                  }
+                  disabled={auditPagination.page <= 1}
+                >
+                  Pagina anterior
+                </button>
+                <button
+                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+                  onClick={() =>
+                    setAuditPagination((prev) => ({
+                      ...prev,
+                      page: Math.min(prev.totalPages, prev.page + 1)
+                    }))
+                  }
+                  disabled={auditPagination.page >= auditPagination.totalPages}
+                >
+                  Proxima pagina
+                </button>
+              </div>
+
+              {loadingAudit && <p className="text-sm text-textMuted">Carregando...</p>}
+              {!loadingAudit && auditEvents.length === 0 && (
+                <p className="text-sm text-textMuted">Nenhum evento de auditoria.</p>
+              )}
+
+              <div className="space-y-3">
+                {auditEvents.map((event) => (
+                  <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-textMain">{event.event_type}</p>
+                        <p className="text-xs text-textMuted">{formatDate(event.created_at)}</p>
+                      </div>
+                      <span className="rounded-md bg-panel px-2 py-1 text-xs text-textMuted">
+                        {event.target_type} #{event.target_id ?? "-"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-textMuted">
+                      Ator: {event.actor ? `${event.actor.name} (${event.actor.login})` : "sistema"}
+                    </p>
+                    <p className="mt-1 text-xs text-textMuted">
+                      Metadados: {summarizeAuditMetadata(event.metadata)}
+                    </p>
+                  </div>
+                ))}
               </div>
             </article>
           )}
@@ -732,8 +1420,3 @@ export const AdminDashboard = ({ onError, onToast }: AdminDashboardProps) => {
     </section>
   );
 };
-
-
-
-
-

@@ -89,12 +89,12 @@ const toLocalNotification = (payload: IncomingNotification): NotificationItem =>
   senderId: payload.sender.id,
   senderName: payload.sender.name,
   senderLogin: payload.sender.login,
-  readAt: null,
+  visualizedAt: null,
   deliveredAt: payload.createdAt,
   responseStatus: null,
   responseAt: null,
   responseMessage: null,
-  isRead: false
+  isVisualized: false
 });
 
 const BellIcon = () => (
@@ -170,7 +170,7 @@ export const UserDashboard = ({
               ...toLocalNotification(payload),
               responseStatus: "em_andamento",
               responseAt: new Date().toISOString(),
-              isRead: false
+              isVisualized: false
             },
             ...prev
           ];
@@ -214,7 +214,7 @@ export const UserDashboard = ({
       return;
     }
 
-    const firstPendingCritical = items.find((item) => !item.isRead && item.priority === "critical");
+    const firstPendingCritical = items.find((item) => !item.isVisualized && item.priority === "critical");
     if (firstPendingCritical) {
       setCriticalModal(firstPendingCritical);
     }
@@ -232,14 +232,17 @@ export const UserDashboard = ({
     }
   }, [criticalModal, selected]);
 
-  const unreadItems = useMemo(() => items.filter((item) => !item.isRead), [items]);
+  const unreadItems = useMemo(() => items.filter((item) => !item.isVisualized), [items]);
   const unreadCount = unreadItems.length;
   const dropdownItems = useMemo(() => items.slice(0, 10), [items]);
 
   const updateItemState = (
     notificationId: number,
     patch: Partial<
-      Pick<NotificationItem, "readAt" | "isRead" | "responseStatus" | "responseAt" | "responseMessage">
+      Pick<
+        NotificationItem,
+        "visualizedAt" | "isVisualized" | "responseStatus" | "responseAt" | "responseMessage"
+      >
     >
   ) => {
     setItems((prev) => prev.map((item) => (item.id === notificationId ? { ...item, ...patch } : item)));
@@ -252,7 +255,7 @@ export const UserDashboard = ({
       }
 
       const next = { ...prev, ...patch };
-      return next.isRead ? null : next;
+      return next.isVisualized ? null : next;
     });
   };
 
@@ -260,8 +263,8 @@ export const UserDashboard = ({
     try {
       const response = await api.markRead(notificationId);
       updateItemState(notificationId, {
-        readAt: response.readAt,
-        isRead: response.isRead
+        visualizedAt: response.visualizedAt,
+        isVisualized: response.isVisualized
       });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Falha ao marcar como lida";
@@ -273,19 +276,19 @@ export const UserDashboard = ({
     setSubmittingReadAll(true);
     try {
       const response = await api.markAllRead();
-      if (!response.readAt || response.updatedCount === 0) {
+      if (!response.visualizedAt || response.updatedCount === 0) {
         onToast("Nenhuma notificacao pendente para marcar");
         return;
       }
 
       setItems((prev) =>
         prev.map((item) =>
-          item.isRead
+          item.isVisualized
             ? item
             : {
                 ...item,
-                readAt: response.readAt,
-                isRead: true
+                visualizedAt: response.visualizedAt,
+                isVisualized: true
               }
         )
       );
@@ -307,8 +310,8 @@ export const UserDashboard = ({
     try {
       const response = await api.respondNotification(notificationId, responseStatus, responseMessage);
       updateItemState(notificationId, {
-        readAt: response.readAt,
-        isRead: response.isRead,
+        visualizedAt: response.visualizedAt,
+        isVisualized: response.isVisualized,
         responseStatus,
         responseMessage: response.responseMessage,
         responseAt: response.responseAt
@@ -373,7 +376,7 @@ export const UserDashboard = ({
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-textMain">{item.title}</p>
                         <div className="flex items-center gap-1">
-                          {!item.isRead && <span className="h-2 w-2 rounded-full bg-accent" />}
+                          {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
                           {item.priority === "critical" && (
                             <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[10px] text-danger">
                               Critica
@@ -461,7 +464,7 @@ export const UserDashboard = ({
             <button
               key={item.id}
               className={`w-full rounded-xl border p-3 text-left transition ${
-                item.isRead
+                item.isVisualized
                   ? "border-slate-700 bg-panelAlt/60"
                   : item.priority === "critical"
                     ? "border-danger bg-danger/10"
@@ -472,7 +475,7 @@ export const UserDashboard = ({
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium text-textMain">{item.title}</p>
                 <div className="flex items-center gap-2">
-                  {!item.isRead && <span className="h-2 w-2 rounded-full bg-accent" />}
+                  {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
                   {item.priority === "critical" && (
                     <span className="rounded-md bg-danger/20 px-2 py-1 text-[10px] uppercase tracking-wide text-danger">
                       Critica
@@ -502,7 +505,7 @@ export const UserDashboard = ({
               <h3 className="font-display text-lg text-textMain">{selected.title}</h3>
               <p className="whitespace-pre-wrap text-sm text-textMain">{selected.message}</p>
               <p className="text-xs text-textMuted">Recebida: {formatDate(selected.deliveredAt)}</p>
-              <p className="text-xs text-textMuted">Leitura: {formatDate(selected.readAt)}</p>
+              <p className="text-xs text-textMuted">Visualizada em: {formatDate(selected.visualizedAt)}</p>
               <p className="text-xs text-textMuted">
                 Status de resposta: {selected.responseStatus ? RESPONSE_LABELS[selected.responseStatus] : "-"}
               </p>
@@ -510,7 +513,7 @@ export const UserDashboard = ({
                 <p className="text-xs text-textMuted">Mensagem atual: {selected.responseMessage}</p>
               )}
 
-              {!selected.isRead && (
+              {!selected.isVisualized && (
                 <button
                   className="w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
                   onClick={() => markAsRead(selected.id)}
@@ -597,6 +600,3 @@ export const UserDashboard = ({
     </section>
   );
 };
-
-
-

@@ -7,6 +7,23 @@ const toNumber = (value: string | undefined, fallback: number): number => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const toBoolean = (value: string | undefined, fallback: boolean): boolean => {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+};
+
 const parseCsv = (value: string, fallback: string[]): string[] => {
   const parsed = value
     .split(",")
@@ -35,6 +52,7 @@ export interface AppConfig {
   corsOrigin: string;
   corsOrigins: string[];
   cookieName: string;
+  allowInsecureFixedAdmin: boolean;
   adminSeed: {
     login: string;
     password: string;
@@ -45,12 +63,27 @@ export interface AppConfig {
 const defaultCorsOrigin = "http://localhost:5173";
 const configuredCorsOrigin = process.env.CORS_ORIGIN?.trim();
 const corsOrigin = configuredCorsOrigin || defaultCorsOrigin;
+const nodeEnv = process.env.NODE_ENV ?? "development";
 const allowAnyDevOrigin =
-  (process.env.NODE_ENV ?? "development") !== "production" &&
+  nodeEnv !== "production" &&
   (!configuredCorsOrigin || configuredCorsOrigin === defaultCorsOrigin);
+const defaultAllowInsecureFixedAdmin = nodeEnv === "development";
+const allowInsecureFixedAdmin = toBoolean(
+  process.env.ALLOW_INSECURE_FIXED_ADMIN,
+  defaultAllowInsecureFixedAdmin
+);
+
+const configuredAdminLogin = process.env.ADMIN_LOGIN?.trim();
+const configuredAdminPassword = process.env.ADMIN_PASSWORD;
+const configuredAdminName = process.env.ADMIN_NAME?.trim();
+const adminSeed = {
+  login: configuredAdminLogin || FIXED_ADMIN_LOGIN,
+  password: configuredAdminPassword || FIXED_ADMIN_PASSWORD,
+  name: configuredAdminName || FIXED_ADMIN_NAME
+};
 
 export const config: AppConfig = {
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  nodeEnv,
   port: toNumber(process.env.PORT, 4000),
   dbPath: process.env.DB_PATH ?? "./data/noctification.db",
   jwtSecret: process.env.JWT_SECRET ?? DEV_JWT_FALLBACK,
@@ -58,15 +91,23 @@ export const config: AppConfig = {
   corsOrigin,
   corsOrigins: allowAnyDevOrigin ? ["*"] : parseCsv(corsOrigin, [defaultCorsOrigin]),
   cookieName: "nc_access",
-  adminSeed: {
-    login: FIXED_ADMIN_LOGIN,
-    password: FIXED_ADMIN_PASSWORD,
-    name: FIXED_ADMIN_NAME
-  }
+  allowInsecureFixedAdmin,
+  adminSeed
 };
 
 if (config.nodeEnv === "production") {
   if (INSECURE_PRODUCTION_VALUES.has(config.jwtSecret)) {
     throw new Error("JWT_SECRET inseguro para producao. Defina um segredo forte e unico.");
   }
+}
+
+const usingDefaultFixedAdmin =
+  config.adminSeed.login === FIXED_ADMIN_LOGIN &&
+  config.adminSeed.password === FIXED_ADMIN_PASSWORD &&
+  config.adminSeed.name === FIXED_ADMIN_NAME;
+
+if (usingDefaultFixedAdmin && !config.allowInsecureFixedAdmin) {
+  throw new Error(
+    "Admin fixo inseguro desabilitado. Defina ADMIN_LOGIN, ADMIN_PASSWORD e ADMIN_NAME ou habilite ALLOW_INSECURE_FIXED_ADMIN apenas em dev."
+  );
 }

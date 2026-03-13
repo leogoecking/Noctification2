@@ -18,12 +18,19 @@ interface NotificationRow {
   senderId: number;
   senderName: string;
   senderLogin: string;
-  readAt: string | null;
+  visualizedAt: string | null;
   deliveredAt: string;
   responseStatus: NotificationResponseStatus | null;
   responseAt: string | null;
   responseMessage: string | null;
 }
+
+const isNotificationVisualized = (visualizedAt: string | null): boolean => visualizedAt !== null;
+
+const isNotificationOperationallyPending = (
+  visualizedAt: string | null,
+  responseStatus: NotificationResponseStatus | null
+): boolean => visualizedAt === null || responseStatus === "em_andamento";
 
 const toOptionalResponseMessage = (value: unknown): string | null => {
   if (typeof value !== "string") {
@@ -75,7 +82,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
             n.sender_id AS senderId,
             sender.name AS senderName,
             sender.login AS senderLogin,
-            nr.read_at AS readAt,
+            nr.read_at AS visualizedAt,
             nr.delivered_at AS deliveredAt,
             nr.response_status AS responseStatus,
             nr.response_at AS responseAt,
@@ -93,7 +100,11 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     res.json({
       notifications: notifications.map((item) => ({
         ...item,
-        isRead: item.readAt !== null
+        isVisualized: isNotificationVisualized(item.visualizedAt),
+        isOperationallyPending: isNotificationOperationallyPending(
+          item.visualizedAt,
+          item.responseStatus
+        )
       }))
     });
   });
@@ -123,7 +134,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     }>;
 
     if (unreadRows.length === 0) {
-      res.json({ updatedCount: 0, readAt: null });
+      res.json({ updatedCount: 0, visualizedAt: null });
       return;
     }
 
@@ -157,13 +168,13 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       targetId: req.authUser.id,
       metadata: {
         updatedCount: result.changes,
-        readAt: timestamp
+        visualizedAt: timestamp
       }
     });
 
     res.json({
       updatedCount: result.changes,
-      readAt: timestamp
+      visualizedAt: timestamp
     });
   });
 
@@ -195,7 +206,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       .prepare(
         `
           SELECT
-            read_at AS readAt,
+            read_at AS visualizedAt,
             response_status AS responseStatus,
             response_at AS responseAt,
             response_message AS responseMessage
@@ -206,14 +217,14 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       )
       .get(notificationId, req.authUser.id) as
       | {
-          readAt: string | null;
+          visualizedAt: string | null;
           responseStatus: NotificationResponseStatus | null;
           responseAt: string | null;
           responseMessage: string | null;
         }
       | undefined;
 
-    if (!current || !current.readAt) {
+    if (!current || !current.visualizedAt) {
       res.status(404).json({ error: "Notificacao nao encontrada" });
       return;
     }
@@ -221,7 +232,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     emitReadUpdateToAdmins(io, {
       notificationId,
       userId: req.authUser.id,
-      readAt: current.readAt,
+      readAt: current.visualizedAt,
       responseStatus: current.responseStatus,
       responseAt: current.responseAt
     });
@@ -232,17 +243,21 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       targetType: "notification",
       targetId: notificationId,
       metadata: {
-        readAt: current.readAt,
+        visualizedAt: current.visualizedAt,
         responseStatus: current.responseStatus,
         responseMessage: current.responseMessage,
-        isRead: true
+        isVisualized: true
       }
     });
 
     res.json({
       notificationId,
-      readAt: current.readAt,
-      isRead: true
+      visualizedAt: current.visualizedAt,
+      isVisualized: true,
+      isOperationallyPending: isNotificationOperationallyPending(
+        current.visualizedAt,
+        current.responseStatus
+      )
     });
   });
 
@@ -275,13 +290,13 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
     const existing = db
       .prepare(
         `
-          SELECT read_at AS readAt
+          SELECT read_at AS visualizedAt
           FROM notification_recipients
           WHERE notification_id = ?
             AND user_id = ?
         `
       )
-      .get(notificationId, req.authUser.id) as { readAt: string | null } | undefined;
+      .get(notificationId, req.authUser.id) as { visualizedAt: string | null } | undefined;
 
     if (!existing) {
       res.status(404).json({ error: "Notificacao nao encontrada" });
@@ -303,12 +318,12 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
       `
     ).run(responseStatus, timestamp, responseMessage, timestamp, notificationId, req.authUser.id);
 
-    const readAt = existing.readAt ?? timestamp;
+    const visualizedAt = existing.visualizedAt ?? timestamp;
 
     emitReadUpdateToAdmins(io, {
       notificationId,
       userId: req.authUser.id,
-      readAt,
+      readAt: visualizedAt,
       responseStatus,
       responseAt: timestamp
     });
@@ -322,18 +337,19 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
         responseStatus,
         responseMessage,
         responseAt: timestamp,
-        readAt,
-        isRead: true
+        visualizedAt,
+        isVisualized: true
       }
     });
 
     res.json({
       notificationId,
-      readAt,
+      visualizedAt,
       responseStatus,
       responseMessage,
       responseAt: timestamp,
-      isRead: true
+      isVisualized: true,
+      isOperationallyPending: isNotificationOperationallyPending(visualizedAt, responseStatus)
     });
   });
 
