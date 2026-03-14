@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { playReminderAlert } from "../lib/reminderAudio";
-import {
-  connectSocket
-} from "../lib/socket";
 import {
   dispatchReminderDue,
   dispatchReminderUpdated,
   type IncomingReminderDue,
   type IncomingReminderUpdated
 } from "../lib/reminderEvents";
+import { useBrowserNotifications } from "../hooks/useBrowserNotifications";
+import { useReminderSocket } from "../hooks/useReminderSocket";
 import type { ReminderOccurrenceItem } from "../types";
 
 interface ReminderAlertCenterProps {
@@ -17,6 +16,12 @@ interface ReminderAlertCenterProps {
   onError: (message: string) => void;
   onToast: (message: string) => void;
   onOpenReminders: () => void;
+}
+
+interface ReminderVisualAlert {
+  occurrence: ReminderOccurrenceItem;
+  audioBlocked: boolean;
+  dismissed: boolean;
 }
 
 const buildOccurrenceFromDue = (payload: IncomingReminderDue): ReminderOccurrenceItem => ({
@@ -43,16 +48,50 @@ export const ReminderAlertCenter = ({
   onToast,
   onOpenReminders
 }: ReminderAlertCenterProps) => {
-  const [activeAlert, setActiveAlert] = useState<ReminderOccurrenceItem | null>(null);
-  const [audioBlocked, setAudioBlocked] = useState(false);
+  const [alerts, setAlerts] = useState<ReminderVisualAlert[]>([]);
+  const { permission, requestPermission, notifyReminderDue, closeReminderNotification } =
+    useBrowserNotifications(onOpenReminders);
 
-  useEffect(() => {
-    const socket = connectSocket();
+  const upsertAlert = useCallback((nextOccurrence: ReminderOccurrenceItem, audioBlocked: boolean) => {
+    setAlerts((prev) => {
+      const existing = prev.find((item) => item.occurrence.id === nextOccurrence.id);
+      if (!existing) {
+        return [{ occurrence: nextOccurrence, audioBlocked, dismissed: false }, ...prev];
+      }
 
-    const onReminderDue = (payload: IncomingReminderDue) => {
+      return prev.map((item) =>
+        item.occurrence.id === nextOccurrence.id
+          ? {
+              ...item,
+              occurrence: {
+                ...item.occurrence,
+                ...nextOccurrence
+              },
+              audioBlocked,
+              dismissed: false
+            }
+          : item
+      );
+    });
+  }, []);
+
+  const removeAlert = useCallback((occurrenceId: number) => {
+    setAlerts((prev) => prev.filter((item) => item.occurrence.id !== occurrenceId));
+  }, []);
+
+  const dismissAlert = useCallback((occurrenceId: number) => {
+    setAlerts((prev) =>
+      prev.map((item) =>
+        item.occurrence.id === occurrenceId ? { ...item, dismissed: true } : item
+      )
+    );
+  }, []);
+
+  const onReminderDue = useCallback(
+    (payload: IncomingReminderDue) => {
       const occurrence = buildOccurrenceFromDue(payload);
       const audioProfile = payload.retryCount > 0 ? "retry" : "default";
-      setActiveAlert(occurrence);
+      upsertAlert(occurrence, false);
       onToast(
         payload.retryCount > 0
           ? `Lembrete novamente pendente: ${payload.title}`
@@ -61,61 +100,87 @@ export const ReminderAlertCenter = ({
 
       void (async () => {
         const played = await playReminderAlert(payload.occurrenceId, audioProfile);
+        const body =
+          payload.description.trim() || `Agendado para ${new Date(payload.scheduledFor).toLocaleString("pt-BR")}`;
 
         dispatchReminderDue({
           ...payload,
           audioBlocked: !played
         });
 
-        setAudioBlocked(!played);
+        notifyReminderDue({
+          occurrenceId: payload.occurrenceId,
+          title:
+            payload.retryCount > 0 ? `Lembrete pendente: ${payload.title}` : `Lembrete: ${payload.title}`,
+          body
+        });
+
+        upsertAlert(
+          {
+            ...occurrence,
+            updatedAt: new Date().toISOString()
+          },
+          !played
+        );
       })();
-    };
+    },
+    [notifyReminderDue, onToast, upsertAlert]
+  );
 
-    const onReminderUpdated = (payload: IncomingReminderUpdated) => {
+  const onReminderUpdated = useCallback(
+    (payload: IncomingReminderUpdated) => {
       dispatchReminderUpdated(payload);
+      if (payload.status !== "pending") {
+        closeReminderNotification(payload.occurrenceId);
+      }
 
-      setActiveAlert((prev) => {
-        if (!prev || prev.id !== payload.occurrenceId) {
-          return prev;
-        }
+      setAlerts((prev) =>
+        prev.flatMap((item) => {
+          if (item.occurrence.id !== payload.occurrenceId) {
+            return [item];
+          }
+          if (payload.status !== "pending") {
+            return [];
+          }
 
-        if (payload.status !== "pending") {
-          return null;
-        }
+          return [
+            {
+              ...item,
+              occurrence: {
+                ...item.occurrence,
+                retryCount: payload.retryCount,
+                completedAt: payload.completedAt ?? item.occurrence.completedAt,
+                expiredAt: payload.expiredAt ?? item.occurrence.expiredAt,
+                updatedAt: new Date().toISOString()
+              }
+            }
+          ];
+        })
+      );
+    },
+    [closeReminderNotification]
+  );
 
-        return {
-          ...prev,
-          retryCount: payload.retryCount,
-          completedAt: payload.completedAt ?? prev.completedAt,
-          expiredAt: payload.expiredAt ?? prev.expiredAt,
-          updatedAt: new Date().toISOString()
-        };
-      });
-    };
+  const onSocketError = useCallback(() => {
+    onError("Falha na conexao em tempo real dos lembretes");
+  }, [onError]);
 
-    const onConnectError = () => {
-      onError("Falha na conexao em tempo real dos lembretes");
-    };
+  useReminderSocket({
+    onDue: onReminderDue,
+    onUpdated: onReminderUpdated,
+    onError: onSocketError
+  });
 
-    socket.on("reminder:due", onReminderDue);
-    socket.on("reminder:updated", onReminderUpdated);
-    socket.on("connect_error", onConnectError);
-
-    return () => {
-      socket.off("reminder:due", onReminderDue);
-      socket.off("reminder:updated", onReminderUpdated);
-      socket.off("connect_error", onConnectError);
-      socket.disconnect();
-    };
-  }, [onError, onToast]);
-
-  const retryAlertSound = async () => {
-    if (!activeAlert) {
-      return;
-    }
-
-    const played = await playReminderAlert(activeAlert.id);
-    setAudioBlocked(!played);
+  const retryAlertSound = async (alert: ReminderVisualAlert) => {
+    const played = await playReminderAlert(
+      alert.occurrence.id,
+      alert.occurrence.retryCount > 0 ? "retry" : "default"
+    );
+    setAlerts((prev) =>
+      prev.map((item) =>
+        item.occurrence.id === alert.occurrence.id ? { ...item, audioBlocked: !played } : item
+      )
+    );
 
     if (played) {
       onToast("Som do lembrete reproduzido");
@@ -125,71 +190,115 @@ export const ReminderAlertCenter = ({
     onError("O navegador ainda bloqueou o som do lembrete");
   };
 
-  const completeOccurrence = async () => {
-    if (!activeAlert) {
-      return;
-    }
-
+  const completeOccurrence = async (alert: ReminderVisualAlert) => {
     try {
-      await api.completeReminderOccurrence(activeAlert.id);
-      setActiveAlert(null);
+      await api.completeReminderOccurrence(alert.occurrence.id);
+      closeReminderNotification(alert.occurrence.id);
+      dispatchReminderUpdated({
+        occurrenceId: alert.occurrence.id,
+        reminderId: alert.occurrence.reminderId,
+        userId: alert.occurrence.userId,
+        status: "completed",
+        retryCount: alert.occurrence.retryCount,
+        completedAt: new Date().toISOString()
+      });
+      removeAlert(alert.occurrence.id);
       onToast("Ocorrencia concluida");
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao concluir ocorrencia");
     }
   };
 
-  if (!isVisible || !activeAlert) {
+  const visibleAlerts = alerts.filter((item) => !item.dismissed);
+
+  if (!isVisible || visibleAlerts.length === 0) {
     return null;
   }
 
   return (
-    <aside className="fixed bottom-20 right-4 z-40 w-full max-w-md rounded-2xl border border-warning/60 bg-warning/10 p-4 shadow-lg">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-display text-base text-textMain">Lembrete pendente agora</p>
-          <p className="mt-1 font-semibold text-textMain">{activeAlert.title}</p>
-          {activeAlert.description && (
-            <p className="mt-1 text-sm text-textMuted">{activeAlert.description}</p>
-          )}
-          <p className="mt-2 text-xs text-textMuted">
-            Agendado para {new Date(activeAlert.scheduledFor).toLocaleString("pt-BR")} | Tentativas:{" "}
-            {activeAlert.retryCount}
-          </p>
-          {audioBlocked && (
-            <div className="mt-2 space-y-2">
-              <p className="text-xs text-warning">
-                O navegador bloqueou o som. O alerta visual continua ativo.
+    <aside className="fixed bottom-20 right-4 z-40 flex w-full max-w-md flex-col gap-3">
+      {visibleAlerts.map((alert) => (
+        <article
+          key={alert.occurrence.id}
+          className="rounded-2xl border border-warning/60 bg-warning/10 p-4 shadow-lg"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-display text-base text-textMain">Lembrete pendente agora</p>
+              <p className="mt-1 font-semibold text-textMain">{alert.occurrence.title}</p>
+              {alert.occurrence.description && (
+                <p className="mt-1 text-sm text-textMuted">{alert.occurrence.description}</p>
+              )}
+              <p className="mt-2 text-xs text-textMuted">
+                Agendado para {new Date(alert.occurrence.scheduledFor).toLocaleString("pt-BR")} | Tentativas:{" "}
+                {alert.occurrence.retryCount}
               </p>
+              {permission !== "granted" && permission !== "unsupported" && (
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs text-textMuted">
+                    Ative notificacoes do navegador para receber alertas quando a aba estiver em segundo plano.
+                  </p>
+                  <button
+                    className="rounded-lg border border-accent/60 px-3 py-2 text-xs text-accent"
+                    onClick={() => {
+                      void requestPermission();
+                    }}
+                    type="button"
+                  >
+                    Ativar notificacoes do navegador
+                  </button>
+                </div>
+              )}
+              {permission === "denied" && (
+                <p className="mt-2 text-xs text-warning">
+                  A permissao de notificacoes do navegador esta bloqueada. O alerta visual continua ativo.
+                </p>
+              )}
+              {alert.audioBlocked && (
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs text-warning">
+                    O navegador bloqueou o som. O alerta visual continua ativo.
+                  </p>
+                  <button
+                    className="rounded-lg border border-warning/60 px-3 py-2 text-xs text-warning"
+                    onClick={() => {
+                      void retryAlertSound(alert);
+                    }}
+                    type="button"
+                  >
+                    Tentar som novamente
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
               <button
-                className="rounded-lg border border-warning/60 px-3 py-2 text-xs text-warning"
+                className="rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
                 onClick={() => {
-                  void retryAlertSound();
+                  void completeOccurrence(alert);
                 }}
                 type="button"
               >
-                Tentar som novamente
+                Concluir
+              </button>
+              <button
+                className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain"
+                onClick={onOpenReminders}
+                type="button"
+              >
+                Abrir lembretes
+              </button>
+              <button
+                className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMuted"
+                onClick={() => dismissAlert(alert.occurrence.id)}
+                type="button"
+              >
+                Fechar pop-up
               </button>
             </div>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
-            onClick={completeOccurrence}
-            type="button"
-          >
-            Concluir
-          </button>
-          <button
-            className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain"
-            onClick={onOpenReminders}
-            type="button"
-          >
-            Abrir lembretes
-          </button>
-        </div>
-      </div>
+          </div>
+        </article>
+      ))}
     </aside>
   );
 };

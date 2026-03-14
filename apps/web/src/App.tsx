@@ -268,7 +268,7 @@ export default function App() {
         {!loadingSession && currentUser?.role === "user" && (
           <>
             <ReminderAlertCenter
-              isVisible={currentPath !== "/reminders"}
+              isVisible
               onError={handleErrorToast}
               onToast={handleOkToast}
               onOpenReminders={() => navigate("/reminders")}
