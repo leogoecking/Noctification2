@@ -27,6 +27,16 @@ const EMPTY_FORM = {
   weekdays: [] as number[]
 };
 
+const WEEKDAY_LABELS = [
+  { short: "Dom", full: "domingo", value: 0 },
+  { short: "Seg", full: "segunda", value: 1 },
+  { short: "Ter", full: "terca", value: 2 },
+  { short: "Qua", full: "quarta", value: 3 },
+  { short: "Qui", full: "quinta", value: 4 },
+  { short: "Sex", full: "sexta", value: 5 },
+  { short: "Sab", full: "sabado", value: 6 }
+] as const;
+
 const matchesReminderFilter = (item: ReminderItem, filter: ReminderFilterMode): boolean => {
   if (filter === "active") {
     return item.isActive;
@@ -327,6 +337,32 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
     return "Dias uteis";
   };
 
+  const formatReminderSummary = (item: Pick<ReminderItem, "repeatType" | "weekdays" | "timeOfDay">) => {
+    if (item.repeatType === "none") {
+      return `Uma vez as ${item.timeOfDay}`;
+    }
+
+    if (item.repeatType === "daily") {
+      return `Todos os dias as ${item.timeOfDay}`;
+    }
+
+    if (item.repeatType === "monthly") {
+      return `Todo mes as ${item.timeOfDay}`;
+    }
+
+    if (item.repeatType === "weekdays") {
+      return `Dias uteis as ${item.timeOfDay}`;
+    }
+
+    const days = WEEKDAY_LABELS.filter((day) => item.weekdays.includes(day.value)).map((day) => day.full);
+    return days.length > 0 ? `${days.join(", ")} as ${item.timeOfDay}` : `Semanal as ${item.timeOfDay}`;
+  };
+
+  const pendingOccurrences = useMemo(
+    () => occurrences.filter((item) => item.status === "pending").slice(0, 5),
+    [occurrences]
+  );
+
   return (
     <section className="space-y-4">
       <header className="rounded-2xl border border-slate-700 bg-panel p-4">
@@ -354,72 +390,110 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
         </article>
       </section>
 
-      <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
-        <h4 className="font-display text-base text-textMain">
-          {form.id ? "Editar lembrete" : "Novo lembrete"}
-        </h4>
-        <input className="input" placeholder="Titulo" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
-        <textarea className="input min-h-24" placeholder="Descricao opcional" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />
-        <div className="grid gap-3 md:grid-cols-2">
-          <input className="input" type="date" value={form.startDate} onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))} />
-          <input className="input" type="time" value={form.timeOfDay} onChange={(event) => setForm((prev) => ({ ...prev, timeOfDay: event.target.value }))} />
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <select className="input" value={form.repeatType} onChange={(event) => setForm((prev) => ({ ...prev, repeatType: event.target.value as ReminderRepeatType, weekdays: event.target.value === "weekdays" ? [1, 2, 3, 4, 5] : prev.weekdays }))}>
-            <option value="none">Sem repeticao</option>
-            <option value="daily">Diaria</option>
-            <option value="weekly">Semanal</option>
-            <option value="monthly">Mensal</option>
-            <option value="weekdays">Dias uteis</option>
-          </select>
-          <div className="space-y-1">
-            <input className="input" placeholder="Timezone" value={form.timezone} readOnly />
-            <p className="text-xs text-textMuted">
-              Timezone operacional fixa do sistema: {form.timezone}
-            </p>
-          </div>
-        </div>
-        {form.repeatType === "weekly" && (
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Dom", value: 0 },
-              { label: "Seg", value: 1 },
-              { label: "Ter", value: 2 },
-              { label: "Qua", value: 3 },
-              { label: "Qui", value: 4 },
-              { label: "Sex", value: 5 },
-              { label: "Sab", value: 6 }
-            ].map((item) => (
-              <button
-                key={item.value}
-                className={`rounded-lg px-3 py-2 text-xs ${form.weekdays.includes(item.value) ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
-                onClick={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    weekdays: prev.weekdays.includes(item.value)
-                      ? prev.weekdays.filter((value) => value !== item.value)
-                      : [...prev.weekdays, item.value].sort((a, b) => a - b)
-                  }))
-                }
-                type="button"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <button className="btn-primary" onClick={saveReminder}>
-            {form.id ? "Salvar" : "Criar lembrete"}
-          </button>
-          {form.id > 0 && (
-            <button className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain" onClick={() => setForm(EMPTY_FORM)}>
-              Cancelar
-            </button>
-          )}
-        </div>
-      </article>
+      <div className="grid gap-4 xl:grid-cols-[1.05fr,0.95fr]">
+        <div className="space-y-4">
+          <article className="rounded-2xl border border-warning/40 bg-warning/5 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h4 className="font-display text-base text-textMain">Ocorrencias pendentes agora</h4>
+                <p className="text-sm text-textMuted">Itens que exigem sua confirmacao</p>
+              </div>
+              <span className="rounded-full bg-warning/20 px-3 py-1 text-xs text-warning">
+                {occurrenceStats.pending} pendentes
+              </span>
+            </div>
+            {pendingOccurrences.length === 0 && (
+              <p className="text-sm text-textMuted">Nenhuma ocorrencia pendente no momento.</p>
+            )}
+            <div className="space-y-2">
+              {pendingOccurrences.map((item) => (
+                <div key={item.id} className="rounded-xl border border-slate-700 bg-panel p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-textMain">{item.title}</p>
+                    <span className="rounded-full bg-warning/20 px-2.5 py-1 text-xs text-warning">
+                      Tentativas: {item.retryCount}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-textMuted">
+                    Agendado para {new Date(item.scheduledFor).toLocaleString("pt-BR")}
+                  </p>
+                  {item.description && <p className="mt-2 text-sm text-textMuted">{item.description}</p>}
+                  <button
+                    className="mt-3 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
+                    onClick={() => completeOccurrence(item.id)}
+                  >
+                    Concluir
+                  </button>
+                </div>
+              ))}
+            </div>
+          </article>
 
+          <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
+            <div>
+              <h4 className="font-display text-base text-textMain">
+                {form.id ? "Editar lembrete" : "Novo lembrete"}
+              </h4>
+              <p className="text-sm text-textMuted">Configure horario, repeticao e dias da semana</p>
+            </div>
+            <input className="input" placeholder="Titulo" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
+            <textarea className="input min-h-24" placeholder="Descricao opcional" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />
+            <div className="grid gap-3 md:grid-cols-2">
+              <input className="input" type="date" value={form.startDate} onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))} />
+              <input className="input" type="time" value={form.timeOfDay} onChange={(event) => setForm((prev) => ({ ...prev, timeOfDay: event.target.value }))} />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <select className="input" value={form.repeatType} onChange={(event) => setForm((prev) => ({ ...prev, repeatType: event.target.value as ReminderRepeatType, weekdays: event.target.value === "weekdays" ? [1, 2, 3, 4, 5] : prev.weekdays }))}>
+                <option value="none">Sem repeticao</option>
+                <option value="daily">Diaria</option>
+                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensal</option>
+                <option value="weekdays">Dias uteis</option>
+              </select>
+              <div className="space-y-1">
+                <input className="input" placeholder="Timezone" value={form.timezone} readOnly />
+                <p className="text-xs text-textMuted">
+                  Timezone operacional fixa do sistema: {form.timezone}
+                </p>
+              </div>
+            </div>
+            {form.repeatType === "weekly" && (
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAY_LABELS.map((item) => (
+                  <button
+                    key={item.value}
+                    className={`rounded-full px-3 py-2 text-xs ${
+                      form.weekdays.includes(item.value) ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"
+                    }`}
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        weekdays: prev.weekdays.includes(item.value)
+                          ? prev.weekdays.filter((value) => value !== item.value)
+                          : [...prev.weekdays, item.value].sort((a, b) => a - b)
+                      }))
+                    }
+                    type="button"
+                  >
+                    {item.short}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button className="btn-primary" onClick={saveReminder}>
+                {form.id ? "Salvar" : "Criar lembrete"}
+              </button>
+              {form.id > 0 && (
+                <button className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain" onClick={() => setForm(EMPTY_FORM)}>
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </article>
+        </div>
+
+        <div className="space-y-4">
       <article className="rounded-2xl border border-slate-700 bg-panel p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h4 className="font-display text-base text-textMain">Meus lembretes</h4>
@@ -453,8 +527,9 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
                 <div>
                   <p className="font-semibold text-textMain">{item.title}</p>
                   <p className="text-xs text-textMuted">
-                    {item.startDate} {item.timeOfDay} | {formatRepeatType(item.repeatType)}
+                    Inicio em {item.startDate} | {formatRepeatType(item.repeatType)}
                   </p>
+                  <p className="mt-1 text-xs text-textMuted">{formatReminderSummary(item)}</p>
                 </div>
                 <span className={`rounded-md px-2 py-1 text-xs ${item.isActive ? "bg-success/20 text-success" : "bg-panel text-textMuted"}`}>
                   {item.isActive ? "Ativo" : "Inativo"}
@@ -534,6 +609,8 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
           ))}
         </div>
       </article>
+        </div>
+      </div>
     </section>
   );
 };

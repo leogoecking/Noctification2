@@ -274,6 +274,42 @@ export default function App() {
 
         {!loadingSession && currentUser?.role === "user" && (
           <>
+            <nav className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-slate-700 bg-panel p-2">
+              <button
+                className={`rounded-xl px-4 py-2 text-sm transition ${
+                  currentPath === "/"
+                    ? "bg-accent text-slate-900"
+                    : "text-textMuted hover:bg-panelAlt hover:text-textMain"
+                }`}
+                onClick={() => navigate("/")}
+                type="button"
+              >
+                Painel
+              </button>
+              <button
+                className={`rounded-xl px-4 py-2 text-sm transition ${
+                  currentPath === "/notifications"
+                    ? "bg-accent text-slate-900"
+                    : "text-textMuted hover:bg-panelAlt hover:text-textMain"
+                }`}
+                onClick={() => navigate("/notifications")}
+                type="button"
+              >
+                Notificacoes
+              </button>
+              <button
+                className={`rounded-xl px-4 py-2 text-sm transition ${
+                  currentPath === "/reminders"
+                    ? "bg-accent text-slate-900"
+                    : "text-textMuted hover:bg-panelAlt hover:text-textMain"
+                }`}
+                onClick={() => navigate("/reminders")}
+                type="button"
+              >
+                Lembretes
+              </button>
+            </nav>
+
             <NotificationAlertCenter
               isVisible
               onError={handleErrorToast}
@@ -300,24 +336,6 @@ export default function App() {
                 onToast={handleOkToast}
               />
             )}
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {currentPath !== "/reminders" ? (
-                <button
-                  className="rounded-xl border border-slate-600 px-3 py-2 text-sm text-textMain"
-                  onClick={() => navigate("/reminders")}
-                >
-                  Ir para lembretes
-                </button>
-              ) : (
-                <button
-                  className="rounded-xl border border-slate-600 px-3 py-2 text-sm text-textMain"
-                  onClick={() => navigate("/")}
-                >
-                  Voltar ao painel
-                </button>
-              )}
-            </div>
           </>
         )}
 

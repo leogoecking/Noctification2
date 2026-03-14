@@ -192,7 +192,22 @@ export const UserDashboard = ({
 
   const unreadItems = useMemo(() => items.filter((item) => !item.isVisualized), [items]);
   const unreadCount = unreadItems.length;
+  const inProgressCount = useMemo(
+    () => items.filter((item) => item.operationalStatus === "em_andamento").length,
+    [items]
+  );
+  const criticalCount = useMemo(
+    () => items.filter((item) => !item.isVisualized && item.priority === "critical").length,
+    [items]
+  );
   const dropdownItems = useMemo(() => items.slice(0, 10), [items]);
+  const dashboardItems = useMemo(
+    () =>
+      items
+        .filter((item) => !item.isVisualized || item.operationalStatus !== "recebida")
+        .slice(0, 6),
+    [items]
+  );
 
   const updateItemState = (
     notificationId: number,
@@ -344,7 +359,7 @@ export const UserDashboard = ({
                   {dropdownItems.map((item) => (
                     <button
                       key={item.id}
-                      className="w-full rounded-lg border border-slate-700 bg-panelAlt p-2 text-left"
+                      className="w-full rounded-lg border border-slate-700 bg-panelAlt p-2.5 text-left"
                       onClick={() => {
                         setSelected(item);
                         setBellOpen(false);
@@ -354,15 +369,30 @@ export const UserDashboard = ({
                         <p className="text-sm font-semibold text-textMain">{item.title}</p>
                         <div className="flex items-center gap-1">
                           {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
-                          {item.priority === "critical" && (
-                            <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[10px] text-danger">
-                              Critica
-                            </span>
-                          )}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] ${
+                              item.priority === "critical"
+                                ? "bg-danger/20 text-danger"
+                                : item.priority === "high"
+                                  ? "bg-warning/20 text-warning"
+                                  : "bg-panel text-textMuted"
+                            }`}
+                          >
+                            {item.priority === "critical"
+                              ? "Critica"
+                              : item.priority === "high"
+                                ? "Alta"
+                                : "Normal"}
+                          </span>
                         </div>
                       </div>
-                      <p className="mt-1 text-xs text-textMuted">{item.message}</p>
-                      <p className="mt-1 text-[11px] text-textMuted">{formatDate(item.createdAt)}</p>
+                      <p className="mt-1 line-clamp-1 text-xs text-textMuted">
+                        {item.message || "Sem mensagem adicional"}
+                      </p>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-textMuted">
+                        <span>{formatDate(item.createdAt)}</span>
+                        <span>{OPERATIONAL_STATUS_LABELS[item.operationalStatus]}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -383,13 +413,31 @@ export const UserDashboard = ({
         </div>
       </header>
 
+      <section className="grid gap-3 md:grid-cols-3">
+        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Pendentes</p>
+          <p className="mt-2 font-display text-2xl text-textMain">{unreadCount}</p>
+          <p className="mt-1 text-xs text-textMuted">Notificacoes ainda nao visualizadas</p>
+        </article>
+        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-accent">Em andamento</p>
+          <p className="mt-2 font-display text-2xl text-textMain">{inProgressCount}</p>
+          <p className="mt-1 text-xs text-textMuted">Itens que ainda exigem acompanhamento</p>
+        </article>
+        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-danger">Criticas</p>
+          <p className="mt-2 font-display text-2xl text-textMain">{criticalCount}</p>
+          <p className="mt-1 text-xs text-textMuted">Notificacoes criticas nao visualizadas</p>
+        </article>
+      </section>
+
       <div className="flex flex-wrap gap-2">
         {!isNotificationsPage && (
           <button
             className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
             onClick={onOpenAllNotifications}
           >
-            Ver todas as notificacoes
+            Abrir central de notificacoes
           </button>
         )}
         {isNotificationsPage && (
@@ -412,118 +460,180 @@ export const UserDashboard = ({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          className={`rounded-lg px-3 py-2 text-sm ${filter === "all" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
-          onClick={() => setFilter("all")}
-        >
-          Todas
-        </button>
-        <button
-          className={`rounded-lg px-3 py-2 text-sm ${filter === "unread" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
-          onClick={() => setFilter("unread")}
-        >
-          Nao lidas
-        </button>
-        <button
-          className={`rounded-lg px-3 py-2 text-sm ${filter === "read" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
-          onClick={() => setFilter("read")}
-        >
-          Lidas
-        </button>
-      </div>
+      {isNotificationsPage && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            className={`rounded-lg px-3 py-2 text-sm ${filter === "all" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
+            onClick={() => setFilter("all")}
+          >
+            Todas
+          </button>
+          <button
+            className={`rounded-lg px-3 py-2 text-sm ${filter === "unread" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
+            onClick={() => setFilter("unread")}
+          >
+            Nao lidas
+          </button>
+          <button
+            className={`rounded-lg px-3 py-2 text-sm ${filter === "read" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
+            onClick={() => setFilter("read")}
+          >
+            Lidas
+          </button>
+        </div>
+      )}
 
-      <div className="grid gap-3 md:grid-cols-[2fr,1fr]">
-        <div className="space-y-2 rounded-2xl border border-slate-700 bg-panel p-3">
-          {loading && <p className="text-sm text-textMuted">Carregando...</p>}
-          {!loading && items.length === 0 && <p className="text-sm text-textMuted">Nenhuma notificacao.</p>}
-          {items.map((item) => (
-            <button
-              key={item.id}
-              className={`w-full rounded-xl border p-3 text-left transition ${
-                item.isVisualized
-                  ? "border-slate-700 bg-panelAlt/60"
-                  : item.priority === "critical"
-                    ? "border-danger bg-danger/10"
-                    : "border-accent/50 bg-accent/10"
-              }`}
-              onClick={() => setSelected(item)}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium text-textMain">{item.title}</p>
-                <div className="flex items-center gap-2">
-                  {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
-                  {item.priority === "critical" && (
-                    <span className="rounded-md bg-danger/20 px-2 py-1 text-[10px] uppercase tracking-wide text-danger">
-                      Critica
-                    </span>
-                  )}
+      {isNotificationsPage ? (
+        <div className="grid gap-3 md:grid-cols-[2fr,1fr]">
+          <div className="space-y-2 rounded-2xl border border-slate-700 bg-panel p-3">
+            {loading && <p className="text-sm text-textMuted">Carregando...</p>}
+            {!loading && items.length === 0 && <p className="text-sm text-textMuted">Nenhuma notificacao.</p>}
+            {items.map((item) => (
+              <button
+                key={item.id}
+                className={`w-full rounded-xl border p-3 text-left transition ${
+                  item.isVisualized
+                    ? "border-slate-700 bg-panelAlt/60"
+                    : item.priority === "critical"
+                      ? "border-danger bg-danger/10"
+                      : "border-accent/50 bg-accent/10"
+                }`}
+                onClick={() => setSelected(item)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-textMain">{item.title}</p>
+                  <div className="flex items-center gap-2">
+                    {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
+                    {item.priority === "critical" && (
+                      <span className="rounded-md bg-danger/20 px-2 py-1 text-[10px] uppercase tracking-wide text-danger">
+                        Critica
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <p className="mt-1 text-sm text-textMuted">{item.message}</p>
+                <p className="mt-2 text-xs text-textMuted">{formatDate(item.createdAt)}</p>
+                {item.operationalStatus !== "recebida" && (
+                  <p className="mt-1 text-xs text-accentWarm">
+                    Estado: {OPERATIONAL_STATUS_LABELS[item.operationalStatus]} ({formatDate(item.responseAt)})
+                  </p>
+                )}
+                {item.responseMessage && (
+                  <p className="mt-1 text-xs text-textMuted">Mensagem: {item.responseMessage}</p>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <aside className="rounded-2xl border border-slate-700 bg-panel p-4">
+            {!selected && <p className="text-sm text-textMuted">Selecione uma notificacao.</p>}
+            {selected && (
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-wider text-accent">Detalhe da notificacao</p>
+                <h3 className="font-display text-lg text-textMain">{selected.title}</h3>
+                <p className="whitespace-pre-wrap text-sm text-textMain">{selected.message}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl bg-panelAlt/70 p-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Recebida</p>
+                    <p className="mt-1 text-sm text-textMain">{formatDate(selected.deliveredAt)}</p>
+                  </div>
+                  <div className="rounded-xl bg-panelAlt/70 p-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Estado atual</p>
+                    <p className="mt-1 text-sm text-textMain">
+                      {OPERATIONAL_STATUS_LABELS[selected.operationalStatus]}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-panelAlt/70 p-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Visualizada em</p>
+                    <p className="mt-1 text-sm text-textMain">{formatDate(selected.visualizedAt)}</p>
+                  </div>
+                  <div className="rounded-xl bg-panelAlt/70 p-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Mensagem atual</p>
+                    <p className="mt-1 text-sm text-textMain">
+                      {selected.responseMessage || "Sem retorno registrado"}
+                    </p>
+                  </div>
+                </div>
+
+                {!selected.isVisualized && (
+                  <button
+                    className="w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+                    onClick={() => markAsRead(selected.id)}
+                  >
+                    Marcar visualizacao
+                  </button>
+                )}
+
+                <label className="block space-y-1">
+                  <span className="text-xs text-textMuted">Mensagem de retorno (opcional)</span>
+                  <textarea
+                    className="input min-h-20"
+                    placeholder="Digite um retorno, se quiser"
+                    value={responseMessageDraft}
+                    onChange={(event) => setResponseMessageDraft(event.target.value)}
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {RESPONSE_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
+                      onClick={() => respondNotification(selected.id, status, responseMessageDraft)}
+                    >
+                      {OPERATIONAL_STATUS_LABELS[status]}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <p className="mt-1 text-sm text-textMuted">{item.message}</p>
-              <p className="mt-2 text-xs text-textMuted">{formatDate(item.createdAt)}</p>
-              {item.operationalStatus !== "recebida" && (
-                <p className="mt-1 text-xs text-accentWarm">
-                  Estado: {OPERATIONAL_STATUS_LABELS[item.operationalStatus]} ({formatDate(item.responseAt)})
-                </p>
-              )}
-              {item.responseMessage && (
-                <p className="mt-1 text-xs text-textMuted">Mensagem: {item.responseMessage}</p>
-              )}
-            </button>
-          ))}
+            )}
+          </aside>
         </div>
-
-        <aside className="rounded-2xl border border-slate-700 bg-panel p-4">
-          {!selected && <p className="text-sm text-textMuted">Selecione uma notificacao.</p>}
-          {selected && (
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-wider text-accent">Detalhe</p>
-              <h3 className="font-display text-lg text-textMain">{selected.title}</h3>
-              <p className="whitespace-pre-wrap text-sm text-textMain">{selected.message}</p>
-              <p className="text-xs text-textMuted">Recebida: {formatDate(selected.deliveredAt)}</p>
-              <p className="text-xs text-textMuted">Visualizada em: {formatDate(selected.visualizedAt)}</p>
-              <p className="text-xs text-textMuted">
-                Estado operacional: {OPERATIONAL_STATUS_LABELS[selected.operationalStatus]}
-              </p>
-              {selected.responseMessage && (
-                <p className="text-xs text-textMuted">Mensagem atual: {selected.responseMessage}</p>
-              )}
-
-              {!selected.isVisualized && (
-                <button
-                  className="w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
-                  onClick={() => markAsRead(selected.id)}
-                >
-                  Marcar visualizacao
-                </button>
-              )}
-
-              <label className="block space-y-1">
-                <span className="text-xs text-textMuted">Mensagem de retorno (opcional)</span>
-                <textarea
-                  className="input min-h-20"
-                  placeholder="Digite um retorno, se quiser"
-                  value={responseMessageDraft}
-                  onChange={(event) => setResponseMessageDraft(event.target.value)}
-                />
-              </label>
-
-              <div className="grid grid-cols-2 gap-2">
-                {RESPONSE_OPTIONS.map((status) => (
-                  <button
-                    key={status}
-                    className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
-                    onClick={() => respondNotification(selected.id, status, responseMessageDraft)}
-                  >
-                    {OPERATIONAL_STATUS_LABELS[status]}
-                  </button>
-                ))}
-              </div>
+      ) : (
+        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-display text-lg text-textMain">Pendencias recentes</h3>
+              <p className="text-sm text-textMuted">Resumo rapido do que ainda precisa de acao</p>
             </div>
+            <button className="btn-primary" onClick={onOpenAllNotifications} type="button">
+              Ver central completa
+            </button>
+          </div>
+
+          {loading && <p className="text-sm text-textMuted">Carregando...</p>}
+          {!loading && dashboardItems.length === 0 && (
+            <p className="text-sm text-textMuted">Nenhuma pendencia operacional no momento.</p>
           )}
-        </aside>
-      </div>
+          <div className="space-y-2">
+            {dashboardItems.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-xl border p-3 ${
+                  item.priority === "critical"
+                    ? "border-danger/60 bg-danger/10"
+                    : item.operationalStatus === "em_andamento"
+                      ? "border-accent/50 bg-accent/10"
+                      : "border-slate-700 bg-panelAlt/70"
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium text-textMain">{item.title}</p>
+                  <span className="rounded-full bg-panel px-2.5 py-1 text-[11px] text-textMuted">
+                    {OPERATIONAL_STATUS_LABELS[item.operationalStatus]}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-textMuted">{item.message}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
+                  <span>{formatDate(item.createdAt)}</span>
+                  <span>Prioridade: {item.priority}</span>
+                  {!item.isVisualized && <span>Nao visualizada</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
 
       {criticalModal && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 px-4">
