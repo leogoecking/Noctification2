@@ -16,6 +16,21 @@ interface ReminderUserPanelProps {
 type ReminderFilterMode = "all" | "active" | "inactive";
 type OccurrenceFilterMode = "all" | "today" | ReminderOccurrenceItem["status"];
 
+const REMINDER_FILTER_LABELS: Record<ReminderFilterMode, string> = {
+  all: "Todos",
+  active: "Ativos",
+  inactive: "Inativos"
+};
+
+const OCCURRENCE_FILTER_LABELS: Record<OccurrenceFilterMode, string> = {
+  all: "Todas",
+  today: "Hoje",
+  pending: "Pendentes",
+  completed: "Concluidas",
+  expired: "Expiradas",
+  cancelled: "Canceladas"
+};
+
 const EMPTY_FORM = {
   id: 0,
   title: "",
@@ -403,7 +418,9 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
               </span>
             </div>
             {pendingOccurrences.length === 0 && (
-              <p className="text-sm text-textMuted">Nenhuma ocorrencia pendente no momento.</p>
+              <p className="text-sm text-textMuted">
+                Nenhuma ocorrencia pendente no momento. Seus proximos lembretes aparecerao aqui.
+              </p>
             )}
             <div className="space-y-2">
               {pendingOccurrences.map((item) => (
@@ -417,7 +434,9 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
                   <p className="mt-1 text-xs text-textMuted">
                     Agendado para {new Date(item.scheduledFor).toLocaleString("pt-BR")}
                   </p>
-                  {item.description && <p className="mt-2 text-sm text-textMuted">{item.description}</p>}
+                  {item.description && (
+                    <p className="mt-2 line-clamp-2 text-sm text-textMuted">{item.description}</p>
+                  )}
                   <button
                     className="mt-3 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
                     onClick={() => completeOccurrence(item.id)}
@@ -442,21 +461,13 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
               <input className="input" type="date" value={form.startDate} onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))} />
               <input className="input" type="time" value={form.timeOfDay} onChange={(event) => setForm((prev) => ({ ...prev, timeOfDay: event.target.value }))} />
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <select className="input" value={form.repeatType} onChange={(event) => setForm((prev) => ({ ...prev, repeatType: event.target.value as ReminderRepeatType, weekdays: event.target.value === "weekdays" ? [1, 2, 3, 4, 5] : prev.weekdays }))}>
-                <option value="none">Sem repeticao</option>
-                <option value="daily">Diaria</option>
-                <option value="weekly">Semanal</option>
-                <option value="monthly">Mensal</option>
-                <option value="weekdays">Dias uteis</option>
-              </select>
-              <div className="space-y-1">
-                <input className="input" placeholder="Timezone" value={form.timezone} readOnly />
-                <p className="text-xs text-textMuted">
-                  Timezone operacional fixa do sistema: {form.timezone}
-                </p>
-              </div>
-            </div>
+            <select className="input" value={form.repeatType} onChange={(event) => setForm((prev) => ({ ...prev, repeatType: event.target.value as ReminderRepeatType, weekdays: event.target.value === "weekdays" ? [1, 2, 3, 4, 5] : prev.weekdays }))}>
+              <option value="none">Sem repeticao</option>
+              <option value="daily">Diaria</option>
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensal</option>
+              <option value="weekdays">Dias uteis</option>
+            </select>
             {form.repeatType === "weekly" && (
               <div className="flex flex-wrap gap-2">
                 {WEEKDAY_LABELS.map((item) => (
@@ -499,9 +510,9 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
           <h4 className="font-display text-base text-textMain">Meus lembretes</h4>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: "Todos", value: "all" },
-              { label: "Ativos", value: "active" },
-              { label: "Inativos", value: "inactive" }
+              { label: REMINDER_FILTER_LABELS.all, value: "all" },
+              { label: REMINDER_FILTER_LABELS.active, value: "active" },
+              { label: REMINDER_FILTER_LABELS.inactive, value: "inactive" }
             ].map((option) => (
               <button
                 key={option.value}
@@ -519,7 +530,11 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
           </div>
         </div>
         {loading && <p className="text-sm text-textMuted">Carregando...</p>}
-        {!loading && reminders.length === 0 && <p className="text-sm text-textMuted">Nenhum lembrete cadastrado.</p>}
+        {!loading && reminders.length === 0 && (
+          <p className="text-sm text-textMuted">
+            Nenhum lembrete encontrado para este filtro. Ajuste os filtros ou crie um novo lembrete.
+          </p>
+        )}
         <div className="space-y-2">
           {reminders.map((item) => (
             <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
@@ -535,7 +550,7 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
                   {item.isActive ? "Ativo" : "Inativo"}
                 </span>
               </div>
-              {item.description && <p className="mt-2 text-sm text-textMuted">{item.description}</p>}
+              {item.description && <p className="mt-2 line-clamp-2 text-sm text-textMuted">{item.description}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain" onClick={() => setForm({ ...item, weekdays: item.weekdays })}>
                   Editar
@@ -557,11 +572,11 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
           <h4 className="font-display text-base text-textMain">Historico de ocorrencias</h4>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: "Todas", value: "all" },
-              { label: "Hoje", value: "today" },
-              { label: "Pendentes", value: "pending" },
-              { label: "Concluidas", value: "completed" },
-              { label: "Expiradas", value: "expired" }
+              { label: OCCURRENCE_FILTER_LABELS.all, value: "all" },
+              { label: OCCURRENCE_FILTER_LABELS.today, value: "today" },
+              { label: OCCURRENCE_FILTER_LABELS.pending, value: "pending" },
+              { label: OCCURRENCE_FILTER_LABELS.completed, value: "completed" },
+              { label: OCCURRENCE_FILTER_LABELS.expired, value: "expired" }
             ].map((option) => (
               <button
                 key={option.value}
@@ -578,7 +593,11 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
             ))}
           </div>
         </div>
-        {occurrences.length === 0 && <p className="text-sm text-textMuted">Nenhuma ocorrencia registrada.</p>}
+        {occurrences.length === 0 && (
+          <p className="text-sm text-textMuted">
+            Nenhuma ocorrencia encontrada para este filtro.
+          </p>
+        )}
         <div className="space-y-2">
           {occurrences.map((item) => (
             <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
@@ -588,18 +607,16 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
                   {formatOccurrenceStatus(item.status)}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-textMuted">Agendado para {new Date(item.scheduledFor).toLocaleString("pt-BR")}</p>
-              <p className="mt-1 text-xs text-textMuted">Tentativas: {item.retryCount}</p>
-              {item.completedAt && (
-                <p className="mt-1 text-xs text-textMuted">
-                  Concluida em {new Date(item.completedAt).toLocaleString("pt-BR")}
-                </p>
-              )}
-              {item.expiredAt && (
-                <p className="mt-1 text-xs text-textMuted">
-                  Expirada em {new Date(item.expiredAt).toLocaleString("pt-BR")}
-                </p>
-              )}
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
+                <span>Agendado para {new Date(item.scheduledFor).toLocaleString("pt-BR")}</span>
+                <span>Tentativas: {item.retryCount}</span>
+                {item.completedAt && (
+                  <span>Concluida em {new Date(item.completedAt).toLocaleString("pt-BR")}</span>
+                )}
+                {item.expiredAt && (
+                  <span>Expirada em {new Date(item.expiredAt).toLocaleString("pt-BR")}</span>
+                )}
+              </div>
               {item.status === "pending" && (
                 <button className="mt-2 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900" onClick={() => completeOccurrence(item.id)}>
                   Concluir

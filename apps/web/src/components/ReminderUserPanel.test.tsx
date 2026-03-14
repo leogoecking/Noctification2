@@ -97,7 +97,7 @@ describe("ReminderUserPanel", () => {
     expect(mockedApi.myReminders).toHaveBeenCalledWith("");
     expect(mockedApi.myReminderOccurrences).toHaveBeenCalledWith("");
     expect(screen.getByText("Tomar agua")).toBeInTheDocument();
-    expect(screen.getByText("Nenhuma ocorrencia registrada.")).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma ocorrencia encontrada para este filtro.")).toBeInTheDocument();
   });
 
   it("aplica filtros de lembretes e ocorrencias ao consultar a API", async () => {

@@ -37,6 +37,25 @@ const OPERATIONAL_STATUS_LABELS: Record<
   resolvida: "Resolvida"
 };
 
+const FILTER_LABELS: Record<FilterMode, string> = {
+  all: "Todas",
+  unread: "Nao lidas",
+  read: "Lidas"
+};
+
+const PRIORITY_LABELS = {
+  normal: "Normal",
+  high: "Alta",
+  critical: "Critica",
+  low: "Baixa"
+} as const;
+
+const RESPONSE_ACTION_STYLES: Record<NotificationResponseStatus, string> = {
+  em_andamento: "border-warning/50 bg-warning/10 text-warning hover:border-warning/70",
+  assumida: "border-accent/50 bg-accent/10 text-accent hover:border-accent/70",
+  resolvida: "border-success/50 bg-success/10 text-success hover:border-success/70"
+};
+
 const formatDate = (value: string | null): string => {
   if (!value) {
     return "-";
@@ -315,6 +334,26 @@ export const UserDashboard = ({
     }
   };
 
+  const renderResponseActions = (notificationId: number) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Atualizar status</p>
+        <span className="text-[11px] text-textMuted">Escolha a proxima etapa</span>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {RESPONSE_OPTIONS.map((status) => (
+          <button
+            key={status}
+            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${RESPONSE_ACTION_STYLES[status]}`}
+            onClick={() => respondNotification(notificationId, status, responseMessageDraft)}
+          >
+            {OPERATIONAL_STATUS_LABELS[status]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <section className="animate-fade-in space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-panel p-4 shadow-glow">
@@ -352,7 +391,9 @@ export const UserDashboard = ({
                 </div>
 
                 {dropdownItems.length === 0 && (
-                  <p className="text-xs text-textMuted">Sem notificacoes.</p>
+                  <p className="text-xs text-textMuted">
+                    Nenhuma notificacao recente. Novos alertas aparecerao aqui.
+                  </p>
                 )}
 
                 <div data-testid="notif-dropdown-list" className="max-h-72 space-y-2 overflow-auto">
@@ -378,11 +419,7 @@ export const UserDashboard = ({
                                   : "bg-panel text-textMuted"
                             }`}
                           >
-                            {item.priority === "critical"
-                              ? "Critica"
-                              : item.priority === "high"
-                                ? "Alta"
-                                : "Normal"}
+                            {PRIORITY_LABELS[item.priority]}
                           </span>
                         </div>
                       </div>
@@ -466,19 +503,19 @@ export const UserDashboard = ({
             className={`rounded-lg px-3 py-2 text-sm ${filter === "all" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
             onClick={() => setFilter("all")}
           >
-            Todas
+            {FILTER_LABELS.all}
           </button>
           <button
             className={`rounded-lg px-3 py-2 text-sm ${filter === "unread" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
             onClick={() => setFilter("unread")}
           >
-            Nao lidas
+            {FILTER_LABELS.unread}
           </button>
           <button
             className={`rounded-lg px-3 py-2 text-sm ${filter === "read" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
             onClick={() => setFilter("read")}
           >
-            Lidas
+            {FILTER_LABELS.read}
           </button>
         </div>
       )}
@@ -504,23 +541,25 @@ export const UserDashboard = ({
                   <p className="font-medium text-textMain">{item.title}</p>
                   <div className="flex items-center gap-2">
                     {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
-                    {item.priority === "critical" && (
-                      <span className="rounded-md bg-danger/20 px-2 py-1 text-[10px] uppercase tracking-wide text-danger">
-                        Critica
-                      </span>
-                    )}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] ${
+                        item.priority === "critical"
+                          ? "bg-danger/20 text-danger"
+                          : item.priority === "high"
+                            ? "bg-warning/20 text-warning"
+                            : "bg-panel text-textMuted"
+                      }`}
+                    >
+                      {PRIORITY_LABELS[item.priority]}
+                    </span>
                   </div>
                 </div>
-                <p className="mt-1 text-sm text-textMuted">{item.message}</p>
-                <p className="mt-2 text-xs text-textMuted">{formatDate(item.createdAt)}</p>
-                {item.operationalStatus !== "recebida" && (
-                  <p className="mt-1 text-xs text-accentWarm">
-                    Estado: {OPERATIONAL_STATUS_LABELS[item.operationalStatus]} ({formatDate(item.responseAt)})
-                  </p>
-                )}
-                {item.responseMessage && (
-                  <p className="mt-1 text-xs text-textMuted">Mensagem: {item.responseMessage}</p>
-                )}
+                <p className="mt-1 line-clamp-2 text-sm text-textMuted">{item.message}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
+                  <span>{formatDate(item.createdAt)}</span>
+                  <span>{OPERATIONAL_STATUS_LABELS[item.operationalStatus]}</span>
+                  {item.responseMessage && <span>Com retorno</span>}
+                </div>
               </button>
             ))}
           </div>
@@ -556,35 +595,28 @@ export const UserDashboard = ({
                 </div>
 
                 {!selected.isVisualized && (
-                  <button
-                    className="w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
-                    onClick={() => markAsRead(selected.id)}
-                  >
-                    Marcar visualizacao
-                  </button>
+                  <div className="rounded-2xl border border-success/30 bg-success/10 p-3">
+                    <p className="text-xs uppercase tracking-[0.18em] text-success">Proxima acao</p>
+                    <button
+                      className="mt-2 w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+                      onClick={() => markAsRead(selected.id)}
+                    >
+                      Marcar como visualizada
+                    </button>
+                  </div>
                 )}
 
+                {renderResponseActions(selected.id)}
+
                 <label className="block space-y-1">
-                  <span className="text-xs text-textMuted">Mensagem de retorno (opcional)</span>
+                  <span className="text-xs text-textMuted">Mensagem de retorno opcional</span>
                   <textarea
                     className="input min-h-20"
-                    placeholder="Digite um retorno, se quiser"
+                    placeholder="Adicione contexto para sua resposta, se necessario"
                     value={responseMessageDraft}
                     onChange={(event) => setResponseMessageDraft(event.target.value)}
                   />
                 </label>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {RESPONSE_OPTIONS.map((status) => (
-                    <button
-                      key={status}
-                      className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
-                      onClick={() => respondNotification(selected.id, status, responseMessageDraft)}
-                    >
-                      {OPERATIONAL_STATUS_LABELS[status]}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
           </aside>
@@ -603,7 +635,9 @@ export const UserDashboard = ({
 
           {loading && <p className="text-sm text-textMuted">Carregando...</p>}
           {!loading && dashboardItems.length === 0 && (
-            <p className="text-sm text-textMuted">Nenhuma pendencia operacional no momento.</p>
+            <p className="text-sm text-textMuted">
+              Nenhuma pendencia operacional no momento. Quando surgir algo novo, aparecera aqui.
+            </p>
           )}
           <div className="space-y-2">
             {dashboardItems.map((item) => (
@@ -623,10 +657,10 @@ export const UserDashboard = ({
                     {OPERATIONAL_STATUS_LABELS[item.operationalStatus]}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-textMuted">{item.message}</p>
+                <p className="mt-1 line-clamp-2 text-sm text-textMuted">{item.message}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
                   <span>{formatDate(item.createdAt)}</span>
-                  <span>Prioridade: {item.priority}</span>
+                  <span>Prioridade: {PRIORITY_LABELS[item.priority]}</span>
                   {!item.isVisualized && <span>Nao visualizada</span>}
                 </div>
               </div>
@@ -646,33 +680,23 @@ export const UserDashboard = ({
             </p>
 
             <label className="mt-3 block space-y-1">
-              <span className="text-xs text-textMuted">Mensagem de retorno (opcional)</span>
+              <span className="text-xs text-textMuted">Mensagem de retorno opcional</span>
               <textarea
                 className="input min-h-20"
-                placeholder="Digite um retorno, se quiser"
+                placeholder="Adicione contexto para sua resposta, se necessario"
                 value={responseMessageDraft}
                 onChange={(event) => setResponseMessageDraft(event.target.value)}
               />
             </label>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {RESPONSE_OPTIONS.map((status) => (
-                <button
-                key={status}
-                className="rounded-lg border border-slate-600 bg-panelAlt px-2 py-2 text-xs text-textMain"
-                onClick={() => respondNotification(criticalModal.id, status, responseMessageDraft)}
-              >
-                {OPERATIONAL_STATUS_LABELS[status]}
-              </button>
-            ))}
-            </div>
+            <div className="mt-4">{renderResponseActions(criticalModal.id)}</div>
 
             <div className="mt-4 flex gap-2">
               <button
                 className="flex-1 rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
                 onClick={() => markAsRead(criticalModal.id)}
               >
-                Marcar visualizacao
+                Marcar como visualizada
               </button>
               <button
                 className="flex-1 rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain"
