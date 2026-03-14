@@ -1,6 +1,14 @@
+import { useMemo, useState } from "react";
 import type { AuditEventItem, PaginationInfo } from "../../types";
 import type { AuditFilters, StateSetter } from "./types";
-import { AUDIT_LIMIT_OPTIONS, formatDate, summarizeAuditMetadata } from "./utils";
+import {
+  AUDIT_LIMIT_OPTIONS,
+  formatAuditEventType,
+  formatAuditTargetType,
+  formatDate,
+  getAuditCategory,
+  summarizeAuditMetadata
+} from "./utils";
 
 interface AdminAuditPanelProps {
   auditFilters: AuditFilters;
@@ -29,134 +37,273 @@ export const AdminAuditPanel = ({
   onResetFilters,
   onRefresh
 }: AdminAuditPanelProps) => {
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
+  const availableCategories = useMemo(() => {
+    const categories = new Map<string, ReturnType<typeof getAuditCategory>>();
+    for (const eventType of auditEventTypes) {
+      const category = getAuditCategory(eventType);
+      categories.set(category.label, category);
+    }
+
+    for (const event of auditEvents) {
+      const category = getAuditCategory(event.event_type);
+      categories.set(category.label, category);
+    }
+
+    return Array.from(categories.values());
+  }, [auditEventTypes, auditEvents]);
+
+  const filteredAuditEvents = useMemo(() => {
+    if (categoryFilter === "all") {
+      return auditEvents;
+    }
+
+    return auditEvents.filter((event) => getAuditCategory(event.event_type).label === categoryFilter);
+  }, [auditEvents, categoryFilter]);
+
+  const auditEventSuggestions = useMemo(() => {
+    return [...auditEventTypes]
+      .sort((left, right) =>
+        formatAuditEventType(left).localeCompare(formatAuditEventType(right), "pt-BR")
+      )
+      .slice(0, 8);
+  }, [auditEventTypes]);
+
+  const selectedEventTypeLabel = useMemo(() => {
+    const trimmed = auditFilters.eventType.trim();
+    return trimmed ? formatAuditEventType(trimmed) : null;
+  }, [auditFilters.eventType]);
+
   return (
-    <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
+    <article className="space-y-4 rounded-2xl border border-slate-700 bg-panel p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
           <h3 className="font-display text-lg text-textMain">Auditoria</h3>
-          <p className="text-sm text-textMuted">Rastreamento de acessos, leitura e operacao administrativa</p>
+          <p className="text-sm text-textMuted">
+            Rastreamento de acessos, leitura e operacao administrativa
+          </p>
         </div>
-        <button className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted" onClick={onRefresh}>
+        <button
+          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMuted transition hover:border-slate-500 hover:text-textMain"
+          onClick={onRefresh}
+        >
           Atualizar
         </button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <label className="space-y-1">
-          <span className="text-xs text-textMuted">Tipo de evento</span>
-          <input
-            className="input"
-            list="audit-event-types"
-            placeholder="Ex: auth.login"
-            value={auditFilters.eventType}
-            onChange={(event) => setAuditFilters((prev) => ({ ...prev, eventType: event.target.value }))}
-          />
-          <datalist id="audit-event-types">
-            {auditEventTypes.map((eventType) => (
-              <option key={eventType} value={eventType} />
+      <section className="rounded-2xl border border-slate-800/80 bg-panelAlt/40 p-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-1.5">
+            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">
+              Tipo de evento
+            </span>
+            <input
+              className="input"
+              list="audit-event-types"
+              placeholder="Ex: Login realizado"
+              value={auditFilters.eventType}
+              onChange={(event) => setAuditFilters((prev) => ({ ...prev, eventType: event.target.value }))}
+            />
+            {selectedEventTypeLabel && (
+              <p className="text-[11px] text-textMuted">
+                {selectedEventTypeLabel} ({auditFilters.eventType})
+              </p>
+            )}
+            <datalist id="audit-event-types">
+              {auditEventTypes.map((eventType) => (
+                <option
+                  key={eventType}
+                  value={eventType}
+                  label={`${formatAuditEventType(eventType)} (${eventType})`}
+                />
+              ))}
+            </datalist>
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">De</span>
+            <input
+              className="input"
+              type="date"
+              value={auditFilters.from}
+              onChange={(event) => setAuditFilters((prev) => ({ ...prev, from: event.target.value }))}
+            />
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">Ate</span>
+            <input
+              className="input"
+              type="date"
+              value={auditFilters.to}
+              onChange={(event) => setAuditFilters((prev) => ({ ...prev, to: event.target.value }))}
+            />
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">Limite</span>
+            <select
+              className="input"
+              value={auditFilters.limit}
+              onChange={(event) => setAuditFilters((prev) => ({ ...prev, limit: Number(event.target.value) }))}
+            >
+              {AUDIT_LIMIT_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {auditEventSuggestions.map((eventType) => (
+              <button
+                key={eventType}
+                className={`rounded-full px-3 py-1.5 text-[11px] transition ${
+                  auditFilters.eventType === eventType
+                    ? "bg-accent/20 text-accent"
+                    : "border border-slate-700 text-textMuted hover:border-slate-600 hover:text-textMain"
+                }`}
+                onClick={() => setAuditFilters((prev) => ({ ...prev, eventType }))}
+                title={eventType}
+                type="button"
+              >
+                {formatAuditEventType(eventType)}
+              </button>
             ))}
-          </datalist>
-        </label>
+          </div>
 
-        <label className="space-y-1">
-          <span className="text-xs text-textMuted">De</span>
-          <input
-            className="input"
-            type="date"
-            value={auditFilters.from}
-            onChange={(event) => setAuditFilters((prev) => ({ ...prev, from: event.target.value }))}
-          />
-        </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="btn-primary" onClick={onApplyFilters}>
+              Aplicar filtros
+            </button>
+            <button
+              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMuted transition hover:border-slate-500 hover:text-textMain"
+              onClick={onResetFilters}
+            >
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+      </section>
 
-        <label className="space-y-1">
-          <span className="text-xs text-textMuted">Ate</span>
-          <input
-            className="input"
-            type="date"
-            value={auditFilters.to}
-            onChange={(event) => setAuditFilters((prev) => ({ ...prev, to: event.target.value }))}
-          />
-        </label>
+      <section className="rounded-xl border border-slate-800/80 bg-panelAlt/20 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-textMuted">
+          <span>Ultima atualizacao: {formatDate(lastAuditRefreshAt)}</span>
+          <span>
+            Pagina {auditPagination.page} de {auditPagination.totalPages} | Total {auditPagination.total}
+          </span>
+        </div>
+      </section>
 
-        <label className="space-y-1">
-          <span className="text-xs text-textMuted">Limite</span>
-          <select
-            className="input"
-            value={auditFilters.limit}
-            onChange={(event) => setAuditFilters((prev) => ({ ...prev, limit: Number(event.target.value) }))}
-          >
-            {AUDIT_LIMIT_OPTIONS.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`rounded-full px-3 py-1.5 text-[11px] transition ${
+                categoryFilter === "all"
+                  ? "bg-accent/20 text-accent"
+                  : "border border-slate-700 text-textMuted hover:border-slate-600 hover:text-textMain"
+              }`}
+              onClick={() => setCategoryFilter("all")}
+              type="button"
+            >
+              Todas as categorias
+            </button>
+            {availableCategories.map((category) => (
+              <button
+                key={category.label}
+                className={`rounded-full px-3 py-1.5 text-[11px] transition ${
+                  categoryFilter === category.label
+                    ? "bg-accent/20 text-accent"
+                    : "border border-slate-700 text-textMuted hover:border-slate-600 hover:text-textMain"
+                }`}
+                onClick={() => setCategoryFilter(category.label)}
+                type="button"
+              >
+                {category.label}
+              </button>
             ))}
-          </select>
-        </label>
-      </div>
+          </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button className="btn-primary" onClick={onApplyFilters}>
-          Aplicar filtros
-        </button>
-        <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
-          onClick={onResetFilters}
-        >
-          Limpar filtros
-        </button>
-        <span className="rounded-md bg-panelAlt px-3 py-2 text-xs text-textMuted">
-          Ultima atualizacao: {formatDate(lastAuditRefreshAt)}
-        </span>
-        <span className="rounded-md bg-panelAlt px-3 py-2 text-xs text-textMuted">
-          Pagina {auditPagination.page} de {auditPagination.totalPages} | Total {auditPagination.total}
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
-          onClick={() => setAuditPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-          disabled={auditPagination.page <= 1}
-        >
-          Pagina anterior
-        </button>
-        <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
-          onClick={() =>
-            setAuditPagination((prev) => ({
-              ...prev,
-              page: Math.min(prev.totalPages, prev.page + 1)
-            }))
-          }
-          disabled={auditPagination.page >= auditPagination.totalPages}
-        >
-          Proxima pagina
-        </button>
-      </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+              onClick={() => setAuditPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+              disabled={auditPagination.page <= 1}
+            >
+              Pagina anterior
+            </button>
+            <button
+              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+              onClick={() =>
+                setAuditPagination((prev) => ({
+                  ...prev,
+                  page: Math.min(prev.totalPages, prev.page + 1)
+                }))
+              }
+              disabled={auditPagination.page >= auditPagination.totalPages}
+            >
+              Proxima pagina
+            </button>
+          </div>
+        </div>
+      </section>
 
       {loadingAudit && <p className="text-sm text-textMuted">Carregando...</p>}
-      {!loadingAudit && auditEvents.length === 0 && (
+      {!loadingAudit && filteredAuditEvents.length === 0 && (
         <p className="text-sm text-textMuted">Nenhum evento de auditoria.</p>
       )}
 
       <div className="space-y-3">
-        {auditEvents.map((event) => (
+        {filteredAuditEvents.map((event) => (
           <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="font-semibold text-textMain">{event.event_type}</p>
-                <p className="text-xs text-textMuted">{formatDate(event.created_at)}</p>
+                <p className="font-semibold text-textMain">{formatAuditEventType(event.event_type)}</p>
+                    <p className="text-[10px] text-slate-500">{event.event_type}</p>
+                    <p className="text-[11px] text-slate-500">{formatDate(event.created_at)}</p>
               </div>
-              <span className="rounded-md bg-panel px-2 py-1 text-xs text-textMuted">
-                {event.target_type} #{event.target_id ?? "-"}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-md px-2 py-1 text-[11px] ${
+                    getAuditCategory(event.event_type).className
+                  }`}
+                >
+                  {getAuditCategory(event.event_type).label}
+                </span>
+                <span className="rounded-md bg-panel px-2 py-1 text-[11px] text-slate-500">
+                  {formatAuditTargetType(event.target_type)} #{event.target_id ?? "-"}
+                </span>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-textMuted">
-              Ator: {event.actor ? `${event.actor.name} (${event.actor.login})` : "sistema"}
-            </p>
-            <p className="mt-1 text-xs text-textMuted">
-              Metadados: {summarizeAuditMetadata(event.metadata)}
-            </p>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <div className="rounded-lg bg-panel p-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Categoria</p>
+                <p className="mt-1 text-sm text-textMain">{getAuditCategory(event.event_type).label}</p>
+              </div>
+              <div className="rounded-lg bg-panel p-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Ator</p>
+                <p className="mt-1 text-sm text-textMain">
+                  {event.actor ? `${event.actor.name} (${event.actor.login})` : "Sistema"}
+                </p>
+              </div>
+              <div className="rounded-lg bg-panel p-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Alvo</p>
+                <p className="mt-1 text-sm text-textMain">
+                  {formatAuditTargetType(event.target_type)} #{event.target_id ?? "-"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2 rounded-lg bg-panel p-2">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Detalhes</p>
+              <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
+            </div>
           </div>
         ))}
       </div>

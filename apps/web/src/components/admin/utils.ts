@@ -8,6 +8,22 @@ import type { HistoryFilters, NotificationRecipient, QueueFilters } from "./type
 export const AUDIT_LIMIT_OPTIONS = [10, 20, 50, 100];
 export const HISTORY_LIMIT_OPTIONS = [20, 50, 100, 200];
 
+const AUDIT_METADATA_LABELS: Record<string, string> = {
+  recipientCount: "Destinatarios",
+  retryCount: "Tentativas",
+  priority: "Prioridade",
+  source: "Origem",
+  responseStatus: "Status de resposta",
+  operationalStatus: "Status operacional",
+  previousStatus: "Status anterior",
+  nextStatus: "Novo status",
+  scheduledFor: "Agendado para",
+  occurrenceId: "Ocorrencia",
+  reminderId: "Lembrete",
+  userId: "Usuario",
+  notificationId: "Notificacao"
+};
+
 export const formatDate = (value: string | null): string => {
   if (!value) {
     return "-";
@@ -42,7 +58,103 @@ export const summarizeAuditMetadata = (metadata: Record<string, unknown> | null)
     return "Sem metadados";
   }
 
-  return entries.map(([key, value]) => `${key}: ${formatAuditValue(value)}`).join(" | ");
+  return entries
+    .map(([key, value]) => `${AUDIT_METADATA_LABELS[key] ?? key}: ${formatAuditValue(value)}`)
+    .join(" | ");
+};
+
+const AUDIT_EVENT_LABELS: Record<string, string> = {
+  "auth.login": "Login realizado",
+  "auth.logout": "Logout realizado",
+  "auth.register": "Conta criada",
+  "admin.user.create": "Usuario criado",
+  "admin.user.update": "Usuario atualizado",
+  "admin.user.status": "Status de usuario alterado",
+  "admin.notification.send": "Notificacao enviada",
+  "reminder.created": "Lembrete criado",
+  "reminder.updated": "Lembrete atualizado",
+  "reminder.deleted": "Lembrete arquivado",
+  "reminder.occurrence.created": "Ocorrencia de lembrete criada",
+  "reminder.occurrence.delivered": "Lembrete disparado",
+  "reminder.occurrence.retried": "Lembrete reenviado",
+  "reminder.occurrence.completed": "Lembrete concluido",
+  "reminder.occurrence.expired": "Lembrete expirado",
+  "reminder.occurrence.cancelled": "Ocorrencia cancelada"
+};
+
+export const formatAuditEventType = (eventType: string): string => {
+  const mapped = AUDIT_EVENT_LABELS[eventType];
+  if (mapped) {
+    return mapped;
+  }
+
+  const normalized = eventType
+    .replace(/[._]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+
+  return normalized || eventType;
+};
+
+export const formatAuditTargetType = (targetType: string): string => {
+  switch (targetType) {
+    case "user":
+      return "Usuario";
+    case "notification":
+      return "Notificacao";
+    case "reminder":
+      return "Lembrete";
+    case "occurrence":
+      return "Ocorrencia";
+    case "session":
+      return "Sessao";
+    default:
+      return targetType
+        .replace(/[._]+/g, " ")
+        .trim()
+        .split(/\s+/)
+        .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+        .join(" ");
+  }
+};
+
+export const getAuditCategory = (
+  eventType: string
+): { label: string; className: string } => {
+  if (eventType.startsWith("auth.")) {
+    return {
+      label: "Autenticacao",
+      className: "bg-sky-500/15 text-sky-200 border border-sky-500/30"
+    };
+  }
+
+  if (eventType.startsWith("admin.user.")) {
+    return {
+      label: "Usuarios",
+      className: "bg-amber-500/15 text-amber-200 border border-amber-500/30"
+    };
+  }
+
+  if (eventType.startsWith("admin.notification.")) {
+    return {
+      label: "Notificacoes",
+      className: "bg-yellow-500/15 text-yellow-200 border border-yellow-500/30"
+    };
+  }
+
+  if (eventType.startsWith("reminder.")) {
+    return {
+      label: "Lembretes",
+      className: "bg-emerald-500/15 text-emerald-200 border border-emerald-500/30"
+    };
+  }
+
+  return {
+    label: "Sistema",
+    className: "bg-slate-500/15 text-slate-200 border border-slate-500/30"
+  };
 };
 
 export const operationalStatusLabel = (status: NotificationOperationalStatus): string => {

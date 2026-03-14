@@ -158,7 +158,7 @@ describe("AdminDashboard", () => {
     expect(screen.getByText("Usuarios online agora")).toBeInTheDocument();
     expect(screen.getByText("Operador")).toBeInTheDocument();
     expect(screen.getByText("Auditoria recente")).toBeInTheDocument();
-    expect(screen.getByText("admin.notification.send")).toBeInTheDocument();
+    expect(screen.getByText("Notificacao enviada")).toBeInTheDocument();
   });
 
   it("atualiza usuarios online pelo payload do socket sem recarregar auditoria e historico", async () => {
@@ -393,7 +393,11 @@ describe("AdminDashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Auditoria" }));
 
     expect(screen.getByText("Rastreamento de acessos, leitura e operacao administrativa")).toBeInTheDocument();
-    expect(screen.getByText("Metadados: recipientCount: 1 | priority: high")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Todas as categorias" })).toBeInTheDocument();
+    expect(screen.getAllByText("Notificacoes").length).toBeGreaterThan(0);
+    expect(screen.getByText("Alvo")).toBeInTheDocument();
+    expect(screen.getByText("Detalhes")).toBeInTheDocument();
+    expect(screen.getByText("Destinatarios: 1 | Prioridade: high")).toBeInTheDocument();
   });
 
   it("aplica filtros de auditoria ao consultar a API", async () => {
@@ -404,7 +408,7 @@ describe("AdminDashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Auditoria" }));
 
-    fireEvent.change(screen.getByPlaceholderText("Ex: auth.login"), {
+    fireEvent.change(screen.getByPlaceholderText("Ex: Login realizado"), {
       target: { value: "auth.login" }
     });
     fireEvent.change(screen.getByLabelText("De"), {
