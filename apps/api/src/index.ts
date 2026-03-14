@@ -27,6 +27,10 @@ const boot = () => {
     ? startReminderScheduler(db, io)
     : () => undefined;
 
+  console.log(
+    `[reminders] scheduler ${config.enableReminderScheduler ? "enabled" : "disabled"} (timezone=${config.reminderTimezone})`
+  );
+
   httpServer.on("request", app);
 
   httpServer.listen(config.port, () => {

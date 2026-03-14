@@ -108,6 +108,7 @@ export const createReminderAdminRouter = (
       .get() as { deliveriesToday: number | null; retriesToday: number | null };
 
     const health: ReminderHealthStats = {
+      schedulerEnabled: config.enableReminderScheduler,
       totalReminders: reminderCounts.totalReminders ?? 0,
       activeReminders: reminderCounts.activeReminders ?? 0,
       pendingOccurrences: occurrenceCounts.pendingOccurrences ?? 0,

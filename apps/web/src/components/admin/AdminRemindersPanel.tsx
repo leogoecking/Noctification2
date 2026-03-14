@@ -399,6 +399,15 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
         <p className="text-sm text-textMuted">Visao administrativa dos lembretes dos usuarios</p>
       </header>
 
+      {health && !health.schedulerEnabled && (
+        <article className="rounded-2xl border border-warning/50 bg-warning/10 p-4">
+          <p className="font-display text-base text-textMain">Scheduler de lembretes desativado</p>
+          <p className="mt-1 text-sm text-textMuted">
+            Os lembretes nao vao disparar enquanto `ENABLE_REMINDER_SCHEDULER` estiver desligado na API.
+          </p>
+        </article>
+      )}
+
       <section className="grid gap-3 md:grid-cols-4">
         <article className="rounded-2xl border border-slate-700 bg-panel p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Lembretes</p>

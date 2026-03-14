@@ -52,6 +52,7 @@ export interface ReminderLogRow {
 }
 
 export interface ReminderHealthStats {
+  schedulerEnabled: boolean;
   totalReminders: number;
   activeReminders: number;
   pendingOccurrences: number;

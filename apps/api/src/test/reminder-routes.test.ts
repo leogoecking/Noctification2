@@ -98,6 +98,7 @@ type LogsResponseBody = {
 
 type HealthResponseBody = {
   health: {
+    schedulerEnabled: boolean;
     totalReminders: number;
     activeReminders: number;
     pendingOccurrences: number;
@@ -615,5 +616,6 @@ describe("reminder routes", () => {
     expect(healthBody.health.pendingOccurrences).toBe(1);
     expect(healthBody.health.deliveriesToday).toBe(1);
     expect(healthBody.health.retriesToday).toBe(1);
+    expect(healthBody.health.schedulerEnabled).toBe(testConfig.enableReminderScheduler);
   });
 });

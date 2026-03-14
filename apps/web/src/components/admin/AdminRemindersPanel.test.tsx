@@ -44,6 +44,7 @@ describe("AdminRemindersPanel", () => {
     socketHandlers.clear();
     mockedApi.adminReminderHealth.mockResolvedValue({
       health: {
+        schedulerEnabled: true,
         totalReminders: 1,
         activeReminders: 1,
         pendingOccurrences: 1,
@@ -239,5 +240,27 @@ describe("AdminRemindersPanel", () => {
     await waitFor(() =>
       expect(within(occurrencesPanel!).queryByText("Checklist")).not.toBeInTheDocument()
     );
+  });
+
+  it("mostra aviso quando o scheduler de lembretes esta desativado", async () => {
+    mockedApi.adminReminderHealth.mockResolvedValueOnce({
+      health: {
+        schedulerEnabled: false,
+        totalReminders: 1,
+        activeReminders: 1,
+        pendingOccurrences: 1,
+        completedToday: 0,
+        expiredToday: 0,
+        deliveriesToday: 0,
+        retriesToday: 0
+      }
+    });
+
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
+
+    expect(await screen.findByText("Scheduler de lembretes desativado")).toBeInTheDocument();
+    expect(
+      screen.getByText((content) => content.includes("ENABLE_REMINDER_SCHEDULER"))
+    ).toBeInTheDocument();
   });
 });

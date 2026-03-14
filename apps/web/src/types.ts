@@ -168,6 +168,7 @@ export interface ReminderLogItem {
 }
 
 export interface ReminderHealthItem {
+  schedulerEnabled: boolean;
   totalReminders: number;
   activeReminders: number;
   pendingOccurrences: number;
