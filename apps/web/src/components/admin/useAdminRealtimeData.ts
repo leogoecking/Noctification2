@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import { connectSocket } from "../../lib/socket";
+import { notifySocketErrorOnce } from "../../lib/socketError";
+import { acquireSocket, releaseSocket } from "../../lib/socket";
 import type {
   AuditEventItem,
   NotificationHistoryItem,
@@ -346,7 +347,7 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
   }, [loadNotificationHistory]);
 
   useEffect(() => {
-    const socket = connectSocket();
+    const socket = acquireSocket();
 
     const onReadUpdate = (payload?: {
       notificationId?: number;
@@ -457,7 +458,7 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
     };
 
     const onConnectError = () => {
-      onError("Falha na conexao em tempo real (admin)");
+      notifySocketErrorOnce(onError, "Falha na conexao em tempo real (admin)");
     };
 
     socket.on("notification:read_update", onReadUpdate);
@@ -470,7 +471,7 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
       socket.off("notification:created", onNotificationCreated);
       socket.off("online_users:update", onOnlineUsersUpdate);
       socket.off("connect_error", onConnectError);
-      socket.disconnect();
+      releaseSocket(socket);
     };
   }, [
     appliedHistoryFilters,

@@ -36,6 +36,17 @@ export const parseReminderRepeatType = (value: unknown): ReminderRepeatType | nu
 
 export const isValidTimeOfDay = (value: string): boolean => /^\d{2}:\d{2}$/.test(value);
 
+const safeParseWeekdaysJson = (value: string): number[] => {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.map((item) => Number(item)).filter((item) => Number.isInteger(item) && WEEKDAY_VALUES.has(item))
+      : [];
+  } catch {
+    return [];
+  }
+};
+
 export const normalizeReminderRow = (row: ReminderRow) => ({
   id: row.id,
   userId: row.userId,
@@ -47,7 +58,7 @@ export const normalizeReminderRow = (row: ReminderRow) => ({
   timeOfDay: row.timeOfDay,
   timezone: row.timezone,
   repeatType: row.repeatType,
-  weekdays: JSON.parse(row.weekdaysJson) as number[],
+  weekdays: safeParseWeekdaysJson(row.weekdaysJson),
   isActive: row.isActive === 1,
   lastScheduledFor: row.lastScheduledFor,
   createdAt: row.createdAt,

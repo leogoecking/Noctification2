@@ -12,6 +12,7 @@ const testConfig: AppConfig = {
   nodeEnv: "test",
   port: 0,
   dbPath: ":memory:",
+  reminderTimezone: "America/Bahia",
   jwtSecret: "test-secret",
   jwtExpiresHours: 8,
   corsOrigin: "http://localhost:5173",

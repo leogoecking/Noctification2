@@ -12,6 +12,7 @@ const testConfig: AppConfig = {
   nodeEnv: "test",
   port: 0,
   dbPath: ":memory:",
+  reminderTimezone: "America/Bahia",
   jwtSecret: "test-secret",
   jwtExpiresHours: 8,
   corsOrigin: "http://localhost:5173",
@@ -325,6 +326,26 @@ describe("reminder routes", () => {
 
     expect(invalidUpdateRes.statusCode).toBe(400);
     expect((invalidUpdateRes.body as ErrorResponseBody).error).toMatch(/weekdays e obrigatorio/i);
+
+    const invalidTimezoneCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Valido",
+          description: "",
+          startDate: "2026-03-13",
+          timeOfDay: "08:00",
+          timezone: "America/Sao_Paulo",
+          repeatType: "none",
+          weekdays: []
+        }
+      },
+      invalidTimezoneCreateRes
+    );
+
+    expect(invalidTimezoneCreateRes.statusCode).toBe(400);
+    expect((invalidTimezoneCreateRes.body as ErrorResponseBody).error).toMatch(/America\/Bahia/i);
   });
 
   it("conclui ocorrencia pendente e emite atualizacao realtime", () => {
@@ -395,6 +416,104 @@ describe("reminder routes", () => {
     expect(completedRow.status).toBe("completed");
     expect(completedRow.completedAt).toBeTruthy();
     expect(emittedEvents.some((item) => item.event === "reminder:updated")).toBe(true);
+  });
+
+  it("arquiva o lembrete sem apagar historico e cancela ocorrencias pendentes", () => {
+    const deleteHandler = getRouteHandler(meRouter, "/reminders/:id", "delete");
+    const listHandler = getRouteHandler(meRouter, "/reminders", "get");
+    const listOccurrencesHandler = getRouteHandler(meRouter, "/reminder-occurrences", "get");
+    const listLogsHandler = getRouteHandler(adminRouter, "/reminder-logs", "get");
+    const timestamp = nowIso();
+
+    const reminderResult = db
+      .prepare(
+        `
+          INSERT INTO reminders (
+            user_id, title, description, start_date, time_of_day, timezone,
+            repeat_type, weekdays_json, is_active, created_at, updated_at
+          ) VALUES (?, 'Alongamento', '', '2026-03-13', '10:00', 'America/Bahia', 'daily', '[]', 1, ?, ?)
+        `
+      )
+      .run(regularUser.id, timestamp, timestamp);
+
+    const reminderId = Number(reminderResult.lastInsertRowid);
+    const occurrenceResult = db
+      .prepare(
+        `
+          INSERT INTO reminder_occurrences (
+            reminder_id, user_id, scheduled_for, triggered_at, status, retry_count, next_retry_at, trigger_source, created_at, updated_at
+          ) VALUES (?, ?, '2026-03-13T13:00:00.000Z', '2026-03-13T13:00:00.000Z', 'pending', 2, '2026-03-13T13:10:00.000Z', 'scheduler', ?, ?)
+        `
+      )
+      .run(reminderId, regularUser.id, timestamp, timestamp);
+
+    const occurrenceId = Number(occurrenceResult.lastInsertRowid);
+
+    const deleteRes = createMockResponse();
+    deleteHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(reminderId) }
+      },
+      deleteRes
+    );
+
+    expect(deleteRes.statusCode).toBe(204);
+
+    const reminderRow = db
+      .prepare("SELECT is_active AS isActive, deleted_at AS deletedAt FROM reminders WHERE id = ?")
+      .get(reminderId) as { isActive: number; deletedAt: string | null };
+    expect(reminderRow.isActive).toBe(0);
+    expect(reminderRow.deletedAt).toBeTruthy();
+
+    const listRes = createMockResponse();
+    listHandler(
+      {
+        authUser: regularUser,
+        query: {}
+      },
+      listRes
+    );
+
+    expect((listRes.body as ReminderListResponseBody).reminders).toHaveLength(0);
+
+    const occurrencesRes = createMockResponse();
+    listOccurrencesHandler(
+      {
+        authUser: regularUser,
+        query: {}
+      },
+      occurrencesRes
+    );
+
+    const occurrencesBody = occurrencesRes.body as {
+      occurrences: Array<{ id: number; status: string }>;
+    };
+    expect(occurrencesBody.occurrences).toHaveLength(1);
+    expect(occurrencesBody.occurrences[0].id).toBe(occurrenceId);
+    expect(occurrencesBody.occurrences[0].status).toBe("cancelled");
+
+    const logsRes = createMockResponse();
+    listLogsHandler(
+      {
+        authUser: adminUser,
+        query: { reminder_id: String(reminderId) }
+      },
+      logsRes
+    );
+
+    const logsBody = logsRes.body as LogsResponseBody;
+    expect(logsBody.logs.some((item) => item.eventType === "reminder.deleted")).toBe(true);
+    expect(logsBody.logs.some((item) => item.eventType === "reminder.occurrence.cancelled")).toBe(true);
+
+    expect(
+      emittedEvents.some(
+        (item) =>
+          item.event === "reminder:updated" &&
+          (item.payload as { occurrenceId?: number; status?: string }).occurrenceId === occurrenceId &&
+          (item.payload as { occurrenceId?: number; status?: string }).status === "cancelled"
+      )
+    ).toBe(true);
   });
 
   it("retorna contexto de usuario no admin e permite busca textual", () => {

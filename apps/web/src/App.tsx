@@ -5,6 +5,7 @@ import { UserDashboard } from "./components/UserDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { ReminderUserPanel } from "./components/ReminderUserPanel";
 import { ReminderAlertCenter } from "./components/ReminderAlertCenter";
+import { useNotificationSocket } from "./hooks/useNotificationSocket";
 import { primeReminderAudio } from "./lib/reminderAudio";
 import type { AuthUser } from "./types";
 
@@ -207,6 +208,12 @@ export default function App() {
 
     return "Painel Operacional";
   }, [currentPath, currentUser]);
+
+  useNotificationSocket({
+    enabled: currentUser?.role === "user",
+    onError: handleErrorToast,
+    onToast: handleOkToast
+  });
 
   return (
     <main className="min-h-screen bg-canvas text-textMain">

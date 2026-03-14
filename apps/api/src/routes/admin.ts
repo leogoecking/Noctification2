@@ -103,6 +103,11 @@ const toNullableString = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const toNormalizedLogin = (value: unknown): string | null => {
+  const normalized = toNullableString(value);
+  return normalized ? normalized.toLowerCase() : null;
+};
+
 const parseUserIds = (value: unknown): number[] => {
   if (!Array.isArray(value)) {
     return [];
@@ -369,7 +374,7 @@ export const createAdminRouter = (
     }
 
     const name = toNullableString(req.body?.name);
-    const login = toNullableString(req.body?.login);
+    const login = toNormalizedLogin(req.body?.login);
     const password = toNullableString(req.body?.password);
     const department = toNullableString(req.body?.department) ?? "";
     const jobTitle = toNullableString(req.body?.job_title) ?? "";
@@ -395,7 +400,7 @@ export const createAdminRouter = (
       return;
     }
 
-    const existing = db.prepare("SELECT id FROM users WHERE login = ?").get(login) as
+    const existing = db.prepare("SELECT id FROM users WHERE lower(login) = ?").get(login) as
       | { id: number }
       | undefined;
 
@@ -507,7 +512,7 @@ export const createAdminRouter = (
       params.push(name);
     }
 
-    const login = toNullableString(req.body?.login);
+    const login = toNormalizedLogin(req.body?.login);
     if (login) {
       if (fixedAdminUser && !isFixedAdminLogin(login)) {
         res.status(400).json({ error: "Login do admin fixo nao pode ser alterado" });
@@ -516,6 +521,15 @@ export const createAdminRouter = (
 
       if (!fixedAdminUser && isFixedAdminLogin(login)) {
         res.status(400).json({ error: "Login reservado para administrador" });
+        return;
+      }
+
+      const conflictingUser = db
+        .prepare("SELECT id FROM users WHERE lower(login) = ? AND id != ?")
+        .get(login, userId) as { id: number } | undefined;
+
+      if (conflictingUser) {
+        res.status(409).json({ error: "Login ja existente" });
         return;
       }
 

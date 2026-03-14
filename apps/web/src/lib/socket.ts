@@ -37,9 +37,39 @@ const resolveSocketUrl = (): string => {
 
 const SOCKET_URL = resolveSocketUrl().replace(/\/+$/, "");
 
-export const connectSocket = (): Socket => {
+let sharedSocket: Socket | null = null;
+let sharedSocketRefCount = 0;
+
+const createSocket = (): Socket => {
   return io(SOCKET_URL, {
     transports: ["websocket", "polling"],
     withCredentials: true
   });
+};
+
+export const acquireSocket = (): Socket => {
+  if (!sharedSocket) {
+    sharedSocket = createSocket();
+  }
+
+  sharedSocketRefCount += 1;
+  return sharedSocket;
+};
+
+export const releaseSocket = (socket: Socket): void => {
+  if (!sharedSocket || socket !== sharedSocket) {
+    return;
+  }
+
+  sharedSocketRefCount = Math.max(0, sharedSocketRefCount - 1);
+  if (sharedSocketRefCount > 0) {
+    return;
+  }
+
+  sharedSocket.disconnect();
+  sharedSocket = null;
+};
+
+export const connectSocket = (): Socket => {
+  return acquireSocket();
 };

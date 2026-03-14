@@ -128,6 +128,7 @@ const generateDueOccurrences = (db: Database.Database, now: Date) => {
           updated_at AS updatedAt
         FROM reminders
         WHERE is_active = 1
+          AND deleted_at IS NULL
       `
     )
     .all() as ReminderRow[];
@@ -151,6 +152,7 @@ const generateDueOccurrences = (db: Database.Database, now: Date) => {
       UPDATE reminders
       SET last_scheduled_for = ?, updated_at = ?
       WHERE id = ?
+        AND deleted_at IS NULL
     `
   );
 

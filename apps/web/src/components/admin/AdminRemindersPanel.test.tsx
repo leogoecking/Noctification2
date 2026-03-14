@@ -6,7 +6,7 @@ import { api } from "../../lib/api";
 const socketHandlers = new Map<string, (payload: unknown) => void>();
 
 vi.mock("../../lib/socket", () => ({
-  connectSocket: () => ({
+  acquireSocket: () => ({
     on: vi.fn((event: string, handler: (payload: unknown) => void) => {
       socketHandlers.set(event, handler);
     }),
@@ -14,7 +14,9 @@ vi.mock("../../lib/socket", () => ({
       socketHandlers.delete(event);
     }),
     disconnect: vi.fn()
-  })
+  }),
+  releaseSocket: vi.fn(),
+  connectSocket: vi.fn()
 }));
 
 vi.mock("../../lib/api", () => ({

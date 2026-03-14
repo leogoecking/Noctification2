@@ -233,7 +233,7 @@ export const ReminderAlertCenter = ({
                 Agendado para {new Date(alert.occurrence.scheduledFor).toLocaleString("pt-BR")} | Tentativas:{" "}
                 {alert.occurrence.retryCount}
               </p>
-              {permission !== "granted" && permission !== "unsupported" && (
+              {permission === "default" && (
                 <div className="mt-2 space-y-2">
                   <p className="text-xs text-textMuted">
                     Ative notificacoes do navegador para receber alertas quando a aba estiver em segundo plano.

@@ -173,6 +173,13 @@ export const playReminderAlert = async (
   }
 };
 
+export const playSystemAlert = async (
+  alertId: number,
+  profile: ReminderAudioProfile = "default"
+): Promise<boolean> => {
+  return playReminderAlert(alertId, profile);
+};
+
 export const resetReminderAudioStateForTests = () => {
   recentPlaybacks.clear();
   lastGlobalPlaybackAt = 0;

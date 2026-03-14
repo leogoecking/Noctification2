@@ -18,7 +18,7 @@ Objetivo: fazer o sistema crescer sem degradar consulta, realtime e manutencao.
 - Concluido parcialmente: reduzir recargas integrais do dashboard admin a cada evento em tempo real.
 - Concluido: corrigir o acoplamento atual entre filtros/paginacao e recargas integrais no hook de realtime.
 - Concluido parcialmente: melhorar modelagem de consultas do historico para evitar custo por notificacao.
-- Fortalecer a suite de testes da API sem dependencia de porta real.
+- Concluido parcialmente: fortalecer a suite de testes da API sem dependencia de porta real.
 - Adicionar indicadores de saude operacional, logs estruturados e cobertura de fluxos criticos.
 - Concluido: refatorar filtros e efeitos do admin para evitar recarga automatica e desnecessaria durante digitacao.
 - Concluido: alinhar a persistencia principal com a nomenclatura de visualizacao e reduzir dependencia de `read_at`.
@@ -32,6 +32,9 @@ Entregue parcialmente nesta fase:
 - criacao, edicao e ativacao/desativacao de usuarios no admin passaram a atualizar a lista localmente, sem recarga completa
 - paineis de lembretes no usuario e no admin deixaram de depender de recarga total apos create/update/toggle/delete mais comuns
 - eventos `reminder:due` e `reminder:updated` no admin passaram a refletir ocorrencias, logs e saude localmente quando o payload permite
+- notificacoes gerais do usuario passaram a ser consumidas por um hook global, mantendo eventos tambem em `/reminders`
+- frontend web passou a reutilizar uma conexao `Socket.IO` por aba com `acquire/release`, reduzindo conexoes paralelas desnecessarias
+- telas filtradas do usuario e de lembretes passaram a ignorar respostas HTTP antigas, evitando sobrescrita por requests fora de ordem
 
 ## Fase 3: Produto Operacional
 
@@ -187,6 +190,8 @@ Entregue parcialmente:
 - contexto administrativo de usuario melhorado com nome/login no painel de lembretes
 - indicadores de saude operacional para lembretes no painel admin
 - logs operacionais de lembretes com filtro por usuario e tipo de evento
+- exclusao de lembrete trocada por arquivamento logico, preservando ocorrencias e logs historicos
+- cancelamento realtime de ocorrencias pendentes quando o lembrete e arquivado
 
 #### Fase 6
 
@@ -197,11 +202,15 @@ Entregue parcialmente:
 
 Entregue parcialmente:
 - testes deterministas de scheduler e rotas de lembretes sem dependencia de `listen`
+- testes de auth e notificacoes adicionados no mesmo modelo sem dependencia de `listen`
 - suite HTTP de integracao mantida como opt-in para ambientes que suportem bind de porta
 - observabilidade minima de lembretes exposta no admin para rollout mais seguro
 - validacoes de payload endurecidas para titulo, descricao, data, hora, timezone e recorrencia
 - documentacao de ativacao controlada do scheduler por ambiente
 - cobertura do scheduler ativo por timer local, sem depender do servidor HTTP
+- politica de timezone dos lembretes explicitada no backend com suporte operacional unico para `America/Bahia`
+- login normalizado para lowercase na borda do backend, com autenticação e checagem de duplicidade case-insensitive
+- script operacional adicionado para auditar colisões legadas de login por `LOWER(login)` sem alterar dados automaticamente
 
 ### Riscos
 

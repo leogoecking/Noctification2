@@ -47,6 +47,7 @@ export interface AppConfig {
   nodeEnv: string;
   port: number;
   dbPath: string;
+  reminderTimezone: string;
   jwtSecret: string;
   jwtExpiresHours: number;
   corsOrigin: string;
@@ -74,7 +75,7 @@ const allowInsecureFixedAdmin = toBoolean(
   defaultAllowInsecureFixedAdmin
 );
 
-const configuredAdminLogin = process.env.ADMIN_LOGIN?.trim();
+const configuredAdminLogin = process.env.ADMIN_LOGIN?.trim().toLowerCase();
 const configuredAdminPassword = process.env.ADMIN_PASSWORD;
 const configuredAdminName = process.env.ADMIN_NAME?.trim();
 const adminSeed = {
@@ -87,6 +88,7 @@ export const config: AppConfig = {
   nodeEnv,
   port: toNumber(process.env.PORT, 4000),
   dbPath: process.env.DB_PATH ?? "./data/noctification.db",
+  reminderTimezone: "America/Bahia",
   jwtSecret: process.env.JWT_SECRET ?? DEV_JWT_FALLBACK,
   jwtExpiresHours: toNumber(process.env.JWT_EXPIRES_HOURS, 8),
   corsOrigin,

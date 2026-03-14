@@ -30,7 +30,7 @@ class FakeNotification {
 }
 
 vi.mock("../lib/socket", () => ({
-  connectSocket: () => ({
+  acquireSocket: () => ({
     on: vi.fn((event: string, handler: (payload: unknown) => void) => {
       socketHandlers.set(event, handler);
     }),
@@ -38,7 +38,9 @@ vi.mock("../lib/socket", () => ({
       socketHandlers.delete(event);
     }),
     disconnect: vi.fn()
-  })
+  }),
+  releaseSocket: vi.fn(),
+  connectSocket: vi.fn()
 }));
 
 vi.mock("../lib/reminderAudio", () => ({
@@ -315,6 +317,38 @@ describe("ReminderAlertCenter", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ativar notificacoes do navegador" }));
 
     await waitFor(() => expect(FakeNotification.requestPermission).toHaveBeenCalled());
+  });
+
+  it("nao oferece ativacao quando a permissao do navegador foi negada", async () => {
+    FakeNotification.permission = "denied";
+
+    render(
+      <ReminderAlertCenter
+        isVisible
+        onError={vi.fn()}
+        onToast={vi.fn()}
+        onOpenReminders={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(socketHandlers.has("reminder:due")).toBe(true));
+
+    await act(async () => {
+      socketHandlers.get("reminder:due")?.({
+        occurrenceId: 83,
+        reminderId: 4,
+        userId: 2,
+        title: "Alongar",
+        description: "",
+        scheduledFor: new Date().toISOString(),
+        retryCount: 0
+      });
+    });
+
+    expect(screen.queryByRole("button", { name: "Ativar notificacoes do navegador" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("A permissao de notificacoes do navegador esta bloqueada. O alerta visual continua ativo.")
+    ).toBeInTheDocument();
   });
 
   it("permite tentar o som novamente quando o navegador bloqueia autoplay", async () => {

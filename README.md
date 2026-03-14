@@ -47,6 +47,7 @@ Para ambientes fora de desenvolvimento, ajuste [`apps/api/.env.example`](/home/l
 - defina `ADMIN_LOGIN`, `ADMIN_PASSWORD` e `ADMIN_NAME`
 - use `ALLOW_INSECURE_FIXED_ADMIN=false`
 - controle a ativacao de lembretes com `ENABLE_REMINDER_SCHEDULER`
+- a timezone operacional dos lembretes e fixa em `America/Bahia`
 
 ## Fluxo disponível
 
@@ -99,6 +100,14 @@ npm run test:web
 npm run build
 ```
 
+Auditoria de logins legados:
+
+```bash
+npm run audit-logins --workspace @noctification/api
+```
+
+O script nao altera dados. Ele lista colisoes de `login` por `LOWER(login)` e retorna codigo de saida `2` quando encontra conflito.
+
 ## Rollout seguro de lembretes
 
 Para subir lembretes em producao com baixo risco:
@@ -110,6 +119,7 @@ Para subir lembretes em producao com baixo risco:
    - painel do usuario
    - painel admin
    - logs e saude operacional de lembretes
+   - timezone fixa `America/Bahia` refletida corretamente na criacao/edicao
 4. depois habilite `ENABLE_REMINDER_SCHEDULER=true`
 5. monitore expiracoes, retries e disparos no painel admin
 

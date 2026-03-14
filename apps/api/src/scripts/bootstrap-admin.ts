@@ -7,7 +7,7 @@ const run = async () => {
   const db = connectDatabase(config.dbPath);
   runMigrations(db, apiMigrationsDir);
 
-  const login = config.adminSeed.login.trim();
+  const login = config.adminSeed.login.trim().toLowerCase();
   const password = config.adminSeed.password;
   const name = config.adminSeed.name.trim();
 
@@ -16,7 +16,7 @@ const run = async () => {
   }
 
   const existing = db
-    .prepare("SELECT id FROM users WHERE login = ?")
+    .prepare("SELECT id FROM users WHERE lower(login) = ?")
     .get(login) as { id: number } | undefined;
 
   const passwordHash = await bcrypt.hash(password, 12);

@@ -12,6 +12,7 @@ interface NotificationLockRecord {
 }
 
 const LOCK_TTL_MS = 15_000;
+const LOCK_RENEW_INTERVAL_MS = 5_000;
 
 const getNotificationLockKey = (occurrenceId: number) =>
   `noctification:browser-notification:${occurrenceId}`;
@@ -57,6 +58,29 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
     };
   }, []);
 
+  useEffect(() => {
+    const renewLocks = () => {
+      try {
+        const now = Date.now();
+        for (const occurrenceId of openNotificationsRef.current.keys()) {
+          const key = getNotificationLockKey(occurrenceId);
+          window.localStorage.setItem(
+            key,
+            JSON.stringify({
+              ownerId: tabIdRef.current,
+              expiresAt: now + LOCK_TTL_MS
+            } satisfies NotificationLockRecord)
+          );
+        }
+      } catch {
+        // Ignore storage failures and keep local notifications active.
+      }
+    };
+
+    const timer = window.setInterval(renewLocks, LOCK_RENEW_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const requestPermission = useCallback(async () => {
     if (typeof Notification === "undefined") {
       return "unsupported" as const;
@@ -70,6 +94,17 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
     const nextPermission = await Notification.requestPermission();
     setPermission(nextPermission);
     return nextPermission;
+  }, []);
+
+  const closeLocalReminderNotification = useCallback((occurrenceId: number) => {
+    const current = openNotificationsRef.current.get(occurrenceId);
+    if (!current) {
+      return;
+    }
+
+    current.onclose = null;
+    current.close();
+    openNotificationsRef.current.delete(occurrenceId);
   }, []);
 
   const releaseNotificationLock = useCallback((occurrenceId: number) => {
@@ -91,15 +126,10 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
 
   const closeReminderNotification = useCallback(
     (occurrenceId: number) => {
-      const current = openNotificationsRef.current.get(occurrenceId);
-      if (current) {
-        current.close();
-        openNotificationsRef.current.delete(occurrenceId);
-      }
-
+      closeLocalReminderNotification(occurrenceId);
       releaseNotificationLock(occurrenceId);
     },
-    [releaseNotificationLock]
+    [closeLocalReminderNotification, releaseNotificationLock]
   );
 
   const claimNotificationLock = useCallback((occurrenceId: number) => {
@@ -141,7 +171,7 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
         return false;
       }
 
-      closeReminderNotification(input.occurrenceId);
+      closeLocalReminderNotification(input.occurrenceId);
 
       const notification = new Notification(input.title, {
         body: input.body,
@@ -163,7 +193,7 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
       openNotificationsRef.current.set(input.occurrenceId, notification);
       return true;
     },
-    [claimNotificationLock, closeReminderNotification, onOpenReminders, releaseNotificationLock]
+    [claimNotificationLock, closeLocalReminderNotification, onOpenReminders, releaseNotificationLock]
   );
 
   return useMemo(

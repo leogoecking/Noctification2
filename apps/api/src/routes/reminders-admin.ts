@@ -59,6 +59,7 @@ export const createReminderAdminRouter = (
             COUNT(*) AS totalReminders,
             SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS activeReminders
           FROM reminders
+          WHERE deleted_at IS NULL
         `
       )
       .get() as { totalReminders: number; activeReminders: number | null };
@@ -123,7 +124,7 @@ export const createReminderAdminRouter = (
     const userId = Number(req.query.user_id);
     const userSearch = toNullableString(req.query.user_search);
     const active = toNullableString(req.query.active);
-    const conditions: string[] = [];
+    const conditions: string[] = ["r.deleted_at IS NULL"];
     const values: Array<number | string> = [];
 
     if (Number.isInteger(userId) && userId > 0) {
@@ -141,7 +142,7 @@ export const createReminderAdminRouter = (
       values.push(active === "true" ? 1 : 0);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereClause = `WHERE ${conditions.join(" AND ")}`;
     const reminders = db
       .prepare(
         `
@@ -322,7 +323,19 @@ export const createReminderAdminRouter = (
 
   router.patch("/reminders/:id/toggle", (req, res) => {
     const reminderId = Number(req.params.id);
-    const isActive = Boolean(req.body?.is_active ?? req.body?.isActive);
+    const rawIsActive = req.body?.is_active ?? req.body?.isActive;
+
+    if (!Number.isInteger(reminderId) || reminderId <= 0) {
+      res.status(400).json({ error: "ID invalido" });
+      return;
+    }
+
+    if (typeof rawIsActive !== "boolean") {
+      res.status(400).json({ error: "is_active deve ser boolean" });
+      return;
+    }
+
+    const isActive = rawIsActive;
 
     const result = db
       .prepare(
@@ -330,6 +343,7 @@ export const createReminderAdminRouter = (
           UPDATE reminders
           SET is_active = ?, updated_at = ?
           WHERE id = ?
+            AND deleted_at IS NULL
         `
       )
       .run(isActive ? 1 : 0, nowIso(), reminderId);

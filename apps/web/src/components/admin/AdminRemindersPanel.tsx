@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import { connectSocket } from "../../lib/socket";
+import { notifySocketErrorOnce } from "../../lib/socketError";
+import { acquireSocket, releaseSocket } from "../../lib/socket";
 import type {
   ReminderHealthItem,
   ReminderItem,
@@ -96,8 +97,11 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
   const [reminderFilter, setReminderFilter] = useState<ReminderAdminFilterMode>("all");
   const [occurrenceFilter, setOccurrenceFilter] = useState<OccurrenceAdminFilterMode>("all");
   const [logEventFilter, setLogEventFilter] = useState("all");
+  const loadRequestIdRef = useRef(0);
 
   const loadData = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
     setLoading(true);
     try {
       const remindersParams = new URLSearchParams();
@@ -143,14 +147,24 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
         api.adminReminderOccurrences(occurrencesQuery ? `?${occurrencesQuery}` : ""),
         api.adminReminderLogs(logsQuery ? `?${logsQuery}` : "")
       ]);
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
+
       setHealth(healthResponse.health as ReminderHealthItem);
       setReminders(remindersResponse.reminders as ReminderItem[]);
       setOccurrences(occurrencesResponse.occurrences as ReminderOccurrenceItem[]);
       setLogs(logsResponse.logs as ReminderLogItem[]);
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
+
       onError(error instanceof ApiError ? error.message : "Falha ao carregar lembretes");
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [logEventFilter, occurrenceFilter, onError, reminderFilter, userFilter]);
 
@@ -159,7 +173,7 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
   }, [loadData]);
 
   useEffect(() => {
-    const socket = connectSocket();
+    const socket = acquireSocket();
 
     const onReminderDue = (payload: {
       occurrenceId: number;
@@ -316,13 +330,18 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
 
     socket.on("reminder:due", onReminderDue);
     socket.on("reminder:updated", onReminderUpdated);
+    const onConnectError = () => {
+      notifySocketErrorOnce(onError, "Falha na conexao em tempo real dos lembretes (admin)");
+    };
+    socket.on("connect_error", onConnectError);
 
     return () => {
       socket.off("reminder:due", onReminderDue);
       socket.off("reminder:updated", onReminderUpdated);
-      socket.disconnect();
+      socket.off("connect_error", onConnectError);
+      releaseSocket(socket);
     };
-  }, [logEventFilter, occurrenceFilter, occurrences, onToast, reminders, userFilter]);
+  }, [logEventFilter, occurrenceFilter, occurrences, onError, onToast, reminders, userFilter]);
 
   const toggleReminder = async (item: ReminderItem) => {
     try {

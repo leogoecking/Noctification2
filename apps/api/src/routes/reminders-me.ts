@@ -44,6 +44,7 @@ const validateReminderFields = (params: {
   startDate?: string | null;
   timeOfDay?: string | null;
   timezone?: string | null;
+  supportedTimezone: string;
   repeatType?: ReturnType<typeof parseReminderRepeatType> | null;
   weekdays?: number[];
 }) => {
@@ -81,6 +82,14 @@ const validateReminderFields = (params: {
     return `timezone deve ter entre 1 e ${MAX_TIMEZONE_LENGTH} caracteres`;
   }
 
+  if (
+    params.timezone !== undefined &&
+    params.timezone !== null &&
+    params.timezone !== params.supportedTimezone
+  ) {
+    return `timezone invalida. Use ${params.supportedTimezone}`;
+  }
+
   if (params.repeatType === "weekly" && (!params.weekdays || params.weekdays.length === 0)) {
     return "weekdays e obrigatorio para repeticao semanal";
   }
@@ -104,7 +113,7 @@ export const createReminderMeRouter = (
     }
 
     const active = toNullableString(req.query.active);
-    const conditions = ["user_id = ?"];
+    const conditions = ["user_id = ?", "deleted_at IS NULL"];
     const values: Array<number | string> = [req.authUser.id];
 
     if (active === "true" || active === "false") {
@@ -151,7 +160,7 @@ export const createReminderMeRouter = (
     const description = toNullableString(req.body?.description) ?? "";
     const startDate = toNullableString(req.body?.startDate ?? req.body?.start_date);
     const timeOfDay = toNullableString(req.body?.timeOfDay ?? req.body?.time_of_day);
-    const timezone = toNullableString(req.body?.timezone) ?? "America/Bahia";
+    const timezone = toNullableString(req.body?.timezone) ?? config.reminderTimezone;
     const repeatType = parseReminderRepeatType(req.body?.repeatType ?? req.body?.repeat_type);
     const weekdays = parseWeekdays(req.body?.weekdays);
     const timestamp = nowIso();
@@ -167,6 +176,7 @@ export const createReminderMeRouter = (
       startDate,
       timeOfDay,
       timezone,
+      supportedTimezone: config.reminderTimezone,
       repeatType,
       weekdays
     });
@@ -225,6 +235,7 @@ export const createReminderMeRouter = (
             updated_at AS updatedAt
           FROM reminders
           WHERE id = ?
+            AND deleted_at IS NULL
         `
       )
       .get(Number(result.lastInsertRowid)) as ReminderRow;
@@ -258,7 +269,7 @@ export const createReminderMeRouter = (
     }
 
     const existing = db
-      .prepare("SELECT id FROM reminders WHERE id = ? AND user_id = ?")
+      .prepare("SELECT id FROM reminders WHERE id = ? AND user_id = ? AND deleted_at IS NULL")
       .get(reminderId, req.authUser.id) as { id: number } | undefined;
 
     if (!existing) {
@@ -293,6 +304,7 @@ export const createReminderMeRouter = (
             weekdays_json AS weekdaysJson
           FROM reminders
           WHERE id = ? AND user_id = ?
+            AND deleted_at IS NULL
         `
       )
       .get(reminderId, req.authUser.id) as {
@@ -305,6 +317,8 @@ export const createReminderMeRouter = (
       weekdaysJson: string;
     };
 
+    const currentTimezone =
+      current.timezone === config.reminderTimezone ? current.timezone : config.reminderTimezone;
     const nextRepeatType = repeatType ?? (current.repeatType as ReturnType<typeof parseReminderRepeatType>);
     const nextWeekdays = weekdays ?? (JSON.parse(current.weekdaysJson) as number[]);
 
@@ -313,7 +327,8 @@ export const createReminderMeRouter = (
       description: description ?? current.description,
       startDate: startDate ?? current.startDate,
       timeOfDay: timeOfDay ?? current.timeOfDay,
-      timezone: timezone ?? current.timezone,
+      timezone: timezone ?? currentTimezone,
+      supportedTimezone: config.reminderTimezone,
       repeatType: nextRepeatType,
       weekdays: nextWeekdays
     });
@@ -336,13 +351,14 @@ export const createReminderMeRouter = (
           updated_at = ?
         WHERE id = ?
           AND user_id = ?
+          AND deleted_at IS NULL
       `
     ).run(
       title ?? current.title,
       description ?? current.description,
       startDate ?? current.startDate,
       timeOfDay ?? current.timeOfDay,
-      timezone ?? current.timezone,
+      timezone ?? currentTimezone,
       nextRepeatType,
       stringifyWeekdays(nextWeekdays),
       nowIso(),
@@ -369,6 +385,7 @@ export const createReminderMeRouter = (
             updated_at AS updatedAt
           FROM reminders
           WHERE id = ?
+            AND deleted_at IS NULL
         `
       )
       .get(reminderId) as ReminderRow;
@@ -389,7 +406,19 @@ export const createReminderMeRouter = (
     }
 
     const reminderId = Number(req.params.id);
-    const isActive = Boolean(req.body?.is_active ?? req.body?.isActive);
+    const rawIsActive = req.body?.is_active ?? req.body?.isActive;
+
+    if (!Number.isInteger(reminderId) || reminderId <= 0) {
+      res.status(400).json({ error: "ID invalido" });
+      return;
+    }
+
+    if (typeof rawIsActive !== "boolean") {
+      res.status(400).json({ error: "is_active deve ser boolean" });
+      return;
+    }
+
+    const isActive = rawIsActive;
 
     const result = db
       .prepare(
@@ -398,6 +427,7 @@ export const createReminderMeRouter = (
           SET is_active = ?, updated_at = ?
           WHERE id = ?
             AND user_id = ?
+            AND deleted_at IS NULL
         `
       )
       .run(isActive ? 1 : 0, nowIso(), reminderId, req.authUser.id);
@@ -423,13 +453,76 @@ export const createReminderMeRouter = (
     }
 
     const reminderId = Number(req.params.id);
+    if (!Number.isInteger(reminderId) || reminderId <= 0) {
+      res.status(400).json({ error: "ID invalido" });
+      return;
+    }
+
+    const pendingOccurrences = db
+      .prepare(
+        `
+          SELECT id, retry_count AS retryCount
+          FROM reminder_occurrences
+          WHERE reminder_id = ?
+            AND user_id = ?
+            AND status = 'pending'
+        `
+      )
+      .all(reminderId, req.authUser.id) as Array<{ id: number; retryCount: number }>;
+
+    const timestamp = nowIso();
     const result = db
-      .prepare("DELETE FROM reminders WHERE id = ? AND user_id = ?")
-      .run(reminderId, req.authUser.id);
+      .prepare(
+        `
+          UPDATE reminders
+          SET
+            is_active = 0,
+            deleted_at = ?,
+            updated_at = ?
+          WHERE id = ?
+            AND user_id = ?
+            AND deleted_at IS NULL
+        `
+      )
+      .run(timestamp, timestamp, reminderId, req.authUser.id);
 
     if (result.changes === 0) {
       res.status(404).json({ error: "Lembrete nao encontrado" });
       return;
+    }
+
+    db.prepare(
+      `
+        UPDATE reminder_occurrences
+        SET
+          status = 'cancelled',
+          next_retry_at = NULL,
+          updated_at = ?
+        WHERE reminder_id = ?
+          AND user_id = ?
+          AND status = 'pending'
+      `
+    ).run(timestamp, reminderId, req.authUser.id);
+
+    for (const occurrence of pendingOccurrences) {
+      logReminderEvent(db, {
+        reminderId,
+        occurrenceId: occurrence.id,
+        userId: req.authUser.id,
+        eventType: "reminder.occurrence.cancelled",
+        metadata: {
+          reason: "reminder_deleted",
+          retryCount: occurrence.retryCount
+        }
+      });
+
+      emitReminderUpdated(io, {
+        occurrenceId: occurrence.id,
+        reminderId,
+        userId: req.authUser.id,
+        status: "cancelled",
+        retryCount: occurrence.retryCount
+      });
     }
 
     logReminderEvent(db, {

@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
-import { connectSocket } from "../lib/socket";
+import {
+  subscribeNotificationEvents,
+  type IncomingNotification,
+  type IncomingReminder
+} from "../lib/notificationEvents";
 import type {
   AuthUser,
   NotificationItem,
   NotificationOperationalStatus,
-  NotificationPriority,
   NotificationResponseStatus
 } from "../types";
 
@@ -16,23 +19,6 @@ interface UserDashboardProps {
   onBackToDashboard: () => void;
   onError: (message: string) => void;
   onToast: (message: string) => void;
-}
-
-interface IncomingNotification {
-  id: number;
-  title: string;
-  message: string;
-  priority: NotificationPriority;
-  createdAt: string;
-  sender: {
-    id: number;
-    name: string;
-    login: string;
-  };
-}
-
-interface IncomingReminder extends IncomingNotification {
-  reminderCount: number;
 }
 
 type FilterMode = "all" | "read" | "unread";
@@ -56,35 +42,6 @@ const formatDate = (value: string | null): string => {
   }
 
   return new Date(value).toLocaleString("pt-BR");
-};
-
-const playAlert = () => {
-  const AudioCtor =
-    window.AudioContext ??
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtor) {
-    return;
-  }
-
-  try {
-    const context = new AudioCtor();
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
-
-    oscillator.type = "triangle";
-    oscillator.frequency.value = 880;
-    gainNode.gain.value = 0.04;
-
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.12);
-    oscillator.onended = () => {
-      void context.close();
-    };
-  } catch {
-    // Browser can block autoplay sounds before user interaction.
-  }
 };
 
 const toLocalNotification = (payload: IncomingNotification): NotificationItem => ({
@@ -127,34 +84,43 @@ export const UserDashboard = ({
   const [bellOpen, setBellOpen] = useState(false);
   const [responseMessageDraft, setResponseMessageDraft] = useState("");
   const [submittingReadAll, setSubmittingReadAll] = useState(false);
+  const loadRequestIdRef = useRef(0);
 
-  const loadNotifications = async (nextFilter: FilterMode) => {
-    setLoading(true);
+  const loadNotifications = useCallback(
+    async (nextFilter: FilterMode) => {
+      const requestId = loadRequestIdRef.current + 1;
+      loadRequestIdRef.current = requestId;
+      setLoading(true);
 
-    try {
-      const query = nextFilter === "all" ? "" : `?status=${nextFilter}`;
-      const response = await api.myNotifications(query);
-      setItems(response.notifications as NotificationItem[]);
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Falha ao carregar notificacoes";
-      onError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        const query = nextFilter === "all" ? "" : `?status=${nextFilter}`;
+        const response = await api.myNotifications(query);
+        if (requestId !== loadRequestIdRef.current) {
+          return;
+        }
+
+        setItems(response.notifications as NotificationItem[]);
+      } catch (error) {
+        if (requestId !== loadRequestIdRef.current) {
+          return;
+        }
+
+        const message = error instanceof ApiError ? error.message : "Falha ao carregar notificacoes";
+        onError(message);
+      } finally {
+        if (requestId === loadRequestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [onError]
+  );
 
   useEffect(() => {
-    loadNotifications(filter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+    void loadNotifications(filter);
+  }, [filter, loadNotifications]);
 
   useEffect(() => {
-    const socket = connectSocket();
-
-    const onConnect = () => {
-      socket.emit("notifications:subscribe", () => undefined);
-    };
-
     const onNotificationNew = (payload: IncomingNotification) => {
       const parsed = toLocalNotification(payload);
       setItems((prev) => [parsed, ...prev]);
@@ -164,8 +130,6 @@ export const UserDashboard = ({
       }
 
       setBellOpen(true);
-      onToast(`Nova notificacao: ${payload.title}`);
-      playAlert();
     };
 
     const onNotificationReminder = (payload: IncomingReminder) => {
@@ -194,27 +158,13 @@ export const UserDashboard = ({
       });
 
       setBellOpen(true);
-      onToast(`Lembrete (${payload.reminderCount}): ${payload.title} ainda em andamento`);
-      playAlert();
     };
 
-    const onConnectError = () => {
-      onError("Falha na conexao em tempo real");
-    };
-
-    socket.on("connect", onConnect);
-    socket.on("notification:new", onNotificationNew);
-    socket.on("notification:reminder", onNotificationReminder);
-    socket.on("connect_error", onConnectError);
-
-    return () => {
-      socket.off("connect", onConnect);
-      socket.off("notification:new", onNotificationNew);
-      socket.off("notification:reminder", onNotificationReminder);
-      socket.off("connect_error", onConnectError);
-      socket.disconnect();
-    };
-  }, [onError, onToast]);
+    return subscribeNotificationEvents({
+      onNew: onNotificationNew,
+      onReminder: onNotificationReminder
+    });
+  }, []);
 
   useEffect(() => {
     if (criticalModal) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import {
   subscribeReminderDue,
@@ -73,6 +73,7 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
   const [form, setForm] = useState(EMPTY_FORM);
   const [reminderFilter, setReminderFilter] = useState<ReminderFilterMode>("all");
   const [occurrenceFilter, setOccurrenceFilter] = useState<OccurrenceFilterMode>("all");
+  const loadRequestIdRef = useRef(0);
 
   const buildReminderQuery = (filterMode: ReminderFilterMode): string => {
     if (filterMode === "active") {
@@ -100,18 +101,30 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
   };
 
   const loadData = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
     setLoading(true);
     try {
       const [remindersResponse, occurrencesResponse] = await Promise.all([
         api.myReminders(buildReminderQuery(reminderFilter)),
         api.myReminderOccurrences(buildOccurrenceQuery(occurrenceFilter))
       ]);
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
+
       setReminders(remindersResponse.reminders as ReminderItem[]);
       setOccurrences(occurrencesResponse.occurrences as ReminderOccurrenceItem[]);
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
+
       onError(error instanceof ApiError ? error.message : "Falha ao carregar lembretes");
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [occurrenceFilter, onError, reminderFilter]);
 
@@ -254,9 +267,9 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
     try {
       await api.deleteMyReminder(id);
       setReminders((prev) => prev.filter((item) => item.id !== id));
-      onToast("Lembrete removido");
+      onToast("Lembrete arquivado");
     } catch (error) {
-      onError(error instanceof ApiError ? error.message : "Falha ao remover lembrete");
+      onError(error instanceof ApiError ? error.message : "Falha ao arquivar lembrete");
     }
   };
 
@@ -359,7 +372,12 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
             <option value="monthly">Mensal</option>
             <option value="weekdays">Dias uteis</option>
           </select>
-          <input className="input" placeholder="Timezone" value={form.timezone} onChange={(event) => setForm((prev) => ({ ...prev, timezone: event.target.value }))} />
+          <div className="space-y-1">
+            <input className="input" placeholder="Timezone" value={form.timezone} readOnly />
+            <p className="text-xs text-textMuted">
+              Timezone operacional fixa do sistema: {form.timezone}
+            </p>
+          </div>
         </div>
         {form.repeatType === "weekly" && (
           <div className="flex flex-wrap gap-2">
@@ -451,7 +469,7 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
                   {item.isActive ? "Desativar" : "Ativar"}
                 </button>
                 <button className="rounded-lg border border-danger/60 px-3 py-2 text-xs text-danger" onClick={() => deleteReminder(item.id)}>
-                  Excluir
+                  Arquivar
                 </button>
               </div>
             </div>

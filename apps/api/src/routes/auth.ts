@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import bcrypt from "bcryptjs";
 import type Database from "better-sqlite3";
-import { createAccessToken } from "../auth";
+import { createAccessToken, verifyAccessToken } from "../auth";
 import type { AppConfig } from "../config";
 import { logAudit, nowIso } from "../db";
 import { authenticate } from "../middleware/auth";
@@ -131,6 +131,8 @@ const normalizeRequiredString = (value: unknown): string => {
   return value.trim();
 };
 
+const normalizeLogin = (value: unknown): string => normalizeRequiredString(value).toLowerCase();
+
 const isFixedAdminLogin = (config: AppConfig, login: string): boolean => {
   return login.toLowerCase() === config.adminSeed.login.toLowerCase();
 };
@@ -141,7 +143,7 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
 
   router.post("/register", async (req, res) => {
     const name = normalizeRequiredString(req.body?.name);
-    const login = normalizeRequiredString(req.body?.login);
+    const login = normalizeLogin(req.body?.login);
     const password = typeof req.body?.password === "string" ? req.body.password : "";
 
     if (!name || !login || !password.trim()) {
@@ -154,7 +156,7 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
       return;
     }
 
-    const existing = db.prepare("SELECT id FROM users WHERE login = ?").get(login) as
+    const existing = db.prepare("SELECT id FROM users WHERE lower(login) = ?").get(login) as
       | { id: number }
       | undefined;
 
@@ -206,7 +208,7 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
   });
 
   router.post("/login", async (req, res) => {
-    const login = normalizeRequiredString(req.body?.login);
+    const login = normalizeLogin(req.body?.login);
     const password = typeof req.body?.password === "string" ? req.body.password : "";
 
     if (!login || !password) {
@@ -230,7 +232,7 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
         `
           SELECT id, login, name, role, password_hash AS passwordHash
           FROM users
-          WHERE login = ? AND is_active = 1
+          WHERE lower(login) = ? AND is_active = 1
         `
       )
       .get(login) as LoginRow | undefined;
@@ -306,7 +308,32 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
     });
   });
 
-  router.post("/logout", authenticate(db, config), (req, res) => {
+  router.post("/logout", (req, res) => {
+    const token = req.cookies?.[config.cookieName] as string | undefined;
+    if (token) {
+      const payload = verifyAccessToken(config, token);
+      if (payload) {
+        const user = db
+          .prepare(
+            `
+              SELECT id, login, name, role
+              FROM users
+              WHERE id = ? AND is_active = 1
+            `
+          )
+          .get(payload.sub) as LoginRow | undefined;
+
+        if (user) {
+          req.authUser = {
+            id: user.id,
+            login: user.login,
+            name: user.name,
+            role: user.role
+          };
+        }
+      }
+    }
+
     const user = req.authUser;
     if (user) {
       logAudit(db, {
