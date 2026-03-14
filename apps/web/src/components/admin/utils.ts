@@ -8,8 +8,19 @@ import type { HistoryFilters, NotificationRecipient, QueueFilters } from "./type
 export const AUDIT_LIMIT_OPTIONS = [10, 20, 50, 100];
 export const HISTORY_LIMIT_OPTIONS = [20, 50, 100, 200];
 
+export const AUDIT_LABELS = {
+  actor: "Responsavel",
+  target: "Alvo",
+  category: "Categoria",
+  details: "Detalhes",
+  systemActor: "Sistema",
+  noMetadata: "Sem detalhes adicionais"
+} as const;
+
 const AUDIT_METADATA_LABELS: Record<string, string> = {
   recipientCount: "Destinatarios",
+  recipientIds: "IDs dos destinatarios",
+  recipientUserIds: "IDs dos destinatarios",
   retryCount: "Tentativas",
   priority: "Prioridade",
   source: "Origem",
@@ -17,6 +28,9 @@ const AUDIT_METADATA_LABELS: Record<string, string> = {
   operationalStatus: "Status operacional",
   previousStatus: "Status anterior",
   nextStatus: "Novo status",
+  responseMessage: "Mensagem de resposta",
+  message: "Mensagem",
+  login: "Login",
   scheduledFor: "Agendado para",
   occurrenceId: "Ocorrencia",
   reminderId: "Lembrete",
@@ -37,6 +51,30 @@ const formatAuditValue = (value: unknown): string => {
     return "-";
   }
 
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return "-";
+    }
+
+    return value
+      .map((item) => {
+        if (typeof item === "number" && Number.isInteger(item)) {
+          return `#${item}`;
+        }
+
+        if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+          return String(item);
+        }
+
+        try {
+          return JSON.stringify(item);
+        } catch {
+          return "[valor nao serializavel]";
+        }
+      })
+      .join(", ");
+  }
+
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
@@ -50,12 +88,12 @@ const formatAuditValue = (value: unknown): string => {
 
 export const summarizeAuditMetadata = (metadata: Record<string, unknown> | null): string => {
   if (!metadata) {
-    return "Sem metadados";
+    return AUDIT_LABELS.noMetadata;
   }
 
   const entries = Object.entries(metadata).slice(0, 3);
   if (entries.length === 0) {
-    return "Sem metadados";
+    return AUDIT_LABELS.noMetadata;
   }
 
   return entries
@@ -118,6 +156,12 @@ export const formatAuditTargetType = (targetType: string): string => {
         .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
         .join(" ");
   }
+};
+
+export const formatAuditActor = (
+  actor: { name: string; login: string } | null
+): string => {
+  return actor ? `${actor.name} (${actor.login})` : AUDIT_LABELS.systemActor;
 };
 
 export const getAuditCategory = (

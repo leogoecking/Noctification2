@@ -1,7 +1,12 @@
 import type { AuditEventItem, NotificationHistoryItem, OnlineUserItem } from "../../types";
 import type { AdminMetrics, OnlineSummary, QueueFilters, StateSetter } from "./types";
 import {
+  AUDIT_LABELS,
+  formatAuditActor,
+  formatAuditEventType,
+  formatAuditTargetType,
   formatDate,
+  getAuditCategory,
   operationalStatusLabel,
   summarizeAuditMetadata
 } from "./utils";
@@ -194,14 +199,28 @@ export const AdminOverviewPanel = ({
             {recentAuditEvents.map((event) => (
               <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-textMain">{event.event_type}</p>
-                  <span className="text-[11px] text-textMuted">{formatDate(event.created_at)}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-textMain">
+                      {formatAuditEventType(event.event_type)}
+                    </p>
+                    <p className="text-[11px] text-textMuted">{event.event_type}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-md px-2 py-1 text-[11px] ${
+                        getAuditCategory(event.event_type).className
+                      }`}
+                    >
+                      {getAuditCategory(event.event_type).label}
+                    </span>
+                    <span className="text-[11px] text-textMuted">{formatDate(event.created_at)}</span>
+                  </div>
                 </div>
                 <p className="mt-1 text-xs text-textMuted">
-                  Ator: {event.actor ? `${event.actor.name} (${event.actor.login})` : "sistema"}
+                  {AUDIT_LABELS.actor}: {formatAuditActor(event.actor)}
                 </p>
                 <p className="mt-1 text-xs text-textMuted">
-                  Alvo: {event.target_type} {event.target_id ?? "-"}
+                  {AUDIT_LABELS.target}: {formatAuditTargetType(event.target_type)} {event.target_id ?? "-"}
                 </p>
                 <p className="mt-1 text-xs text-textMuted">{summarizeAuditMetadata(event.metadata)}</p>
               </div>

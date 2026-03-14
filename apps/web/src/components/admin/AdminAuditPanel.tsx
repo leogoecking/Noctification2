@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import type { AuditEventItem, PaginationInfo } from "../../types";
 import type { AuditFilters, StateSetter } from "./types";
 import {
+  AUDIT_LABELS,
   AUDIT_LIMIT_OPTIONS,
+  formatAuditActor,
   formatAuditEventType,
   formatAuditTargetType,
   formatDate,
@@ -283,17 +285,17 @@ export const AdminAuditPanel = ({
 
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               <div className="rounded-lg bg-panel p-2">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Categoria</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                  {AUDIT_LABELS.category}
+                </p>
                 <p className="mt-1 text-sm text-textMain">{getAuditCategory(event.event_type).label}</p>
               </div>
               <div className="rounded-lg bg-panel p-2">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Ator</p>
-                <p className="mt-1 text-sm text-textMain">
-                  {event.actor ? `${event.actor.name} (${event.actor.login})` : "Sistema"}
-                </p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{AUDIT_LABELS.actor}</p>
+                <p className="mt-1 text-sm text-textMain">{formatAuditActor(event.actor)}</p>
               </div>
               <div className="rounded-lg bg-panel p-2">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Alvo</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{AUDIT_LABELS.target}</p>
                 <p className="mt-1 text-sm text-textMain">
                   {formatAuditTargetType(event.target_type)} #{event.target_id ?? "-"}
                 </p>
@@ -301,7 +303,7 @@ export const AdminAuditPanel = ({
             </div>
 
             <div className="mt-2 rounded-lg bg-panel p-2">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Detalhes</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{AUDIT_LABELS.details}</p>
               <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
             </div>
           </div>
