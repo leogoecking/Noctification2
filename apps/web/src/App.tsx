@@ -4,6 +4,8 @@ import { LoginScreen } from "./components/LoginScreen";
 import { UserDashboard } from "./components/UserDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { ReminderUserPanel } from "./components/ReminderUserPanel";
+import { ReminderAlertCenter } from "./components/ReminderAlertCenter";
+import { primeReminderAudio } from "./lib/reminderAudio";
 import type { AuthUser } from "./types";
 
 interface Toast {
@@ -82,6 +84,10 @@ export default function App() {
   useEffect(() => {
     loadSession();
   }, [loadSession]);
+
+  useEffect(() => {
+    primeReminderAudio();
+  }, []);
 
   useEffect(() => {
     if (loadingSession) {
@@ -261,6 +267,13 @@ export default function App() {
 
         {!loadingSession && currentUser?.role === "user" && (
           <>
+            <ReminderAlertCenter
+              isVisible={currentPath !== "/reminders"}
+              onError={handleErrorToast}
+              onToast={handleOkToast}
+              onOpenReminders={() => navigate("/reminders")}
+            />
+
             {currentPath === "/reminders" ? (
               <ReminderUserPanel onError={handleErrorToast} onToast={handleOkToast} />
             ) : (

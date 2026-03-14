@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../lib/api";
-import { playReminderAlert } from "../lib/reminderAudio";
-import { connectSocket } from "../lib/socket";
+import {
+  subscribeReminderDue,
+  subscribeReminderUpdated,
+  type IncomingReminderDue,
+  type IncomingReminderUpdated
+} from "../lib/reminderEvents";
 import type { ReminderItem, ReminderOccurrenceItem, ReminderRepeatType } from "../types";
 
 interface ReminderUserPanelProps {
@@ -22,26 +26,6 @@ const EMPTY_FORM = {
   repeatType: "none" as ReminderRepeatType,
   weekdays: [] as number[]
 };
-
-interface IncomingReminderDue {
-  occurrenceId: number;
-  reminderId: number;
-  userId: number;
-  title: string;
-  description: string;
-  scheduledFor: string;
-  retryCount: number;
-}
-
-interface IncomingReminderUpdated {
-  occurrenceId: number;
-  reminderId: number;
-  userId: number;
-  status: ReminderOccurrenceItem["status"];
-  retryCount: number;
-  completedAt?: string | null;
-  expiredAt?: string | null;
-}
 
 const matchesReminderFilter = (item: ReminderItem, filter: ReminderFilterMode): boolean => {
   if (filter === "active") {
@@ -87,8 +71,6 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
   const [occurrences, setOccurrences] = useState<ReminderOccurrenceItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [activeAlert, setActiveAlert] = useState<ReminderOccurrenceItem | null>(null);
-  const [audioBlocked, setAudioBlocked] = useState(false);
   const [reminderFilter, setReminderFilter] = useState<ReminderFilterMode>("all");
   const [occurrenceFilter, setOccurrenceFilter] = useState<OccurrenceFilterMode>("all");
 
@@ -138,8 +120,6 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
   }, [loadData]);
 
   useEffect(() => {
-    const socket = connectSocket();
-
     const onReminderDue = (payload: IncomingReminderDue) => {
       const occurrence: ReminderOccurrenceItem = {
         id: payload.occurrenceId,
@@ -180,15 +160,6 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
             : item
         );
       });
-
-      setActiveAlert(occurrence);
-      const played = playReminderAlert(payload.occurrenceId);
-      setAudioBlocked(!played);
-      onToast(
-        payload.retryCount > 0
-          ? `Lembrete novamente pendente: ${payload.title}`
-          : `Lembrete disparado: ${payload.title}`
-      );
     };
 
     const onReminderUpdated = (payload: IncomingReminderUpdated) => {
@@ -210,46 +181,16 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
           return matchesOccurrenceFilter(nextItem, occurrenceFilter) ? [nextItem] : [];
         })
       );
-
-      setActiveAlert((prev) => {
-        if (!prev || prev.id !== payload.occurrenceId || payload.status === "pending") {
-          return prev;
-        }
-
-        return null;
-      });
     };
 
-    const onConnectError = () => {
-      onError("Falha na conexao em tempo real dos lembretes");
-    };
-
-    socket.on("reminder:due", onReminderDue);
-    socket.on("reminder:updated", onReminderUpdated);
-    socket.on("connect_error", onConnectError);
+    const unsubscribeDue = subscribeReminderDue(onReminderDue);
+    const unsubscribeUpdated = subscribeReminderUpdated(onReminderUpdated);
 
     return () => {
-      socket.off("reminder:due", onReminderDue);
-      socket.off("reminder:updated", onReminderUpdated);
-      socket.off("connect_error", onConnectError);
-      socket.disconnect();
+      unsubscribeDue();
+      unsubscribeUpdated();
     };
-  }, [occurrenceFilter, onError, onToast]);
-
-  const retryAlertSound = () => {
-    if (!activeAlert) {
-      return;
-    }
-
-    const played = playReminderAlert(activeAlert.id);
-    setAudioBlocked(!played);
-
-    if (played) {
-      onToast("Som do lembrete reproduzido");
-    } else {
-      onError("O navegador ainda bloqueou o som do lembrete");
-    }
-  };
+  }, [occurrenceFilter]);
 
   const saveReminder = async () => {
     if (!form.title.trim() || !form.startDate || !form.timeOfDay) {
@@ -334,7 +275,6 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
             : item
         )
       );
-      setActiveAlert((prev) => (prev?.id === id ? null : prev));
       onToast("Ocorrencia concluida");
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao concluir ocorrencia");
@@ -380,52 +320,6 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
         <h3 className="font-display text-lg text-textMain">Lembretes</h3>
         <p className="text-sm text-textMuted">Cadastro e acompanhamento dos seus lembretes</p>
       </header>
-
-      {activeAlert && (
-        <article className="rounded-2xl border border-warning/60 bg-warning/10 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="font-display text-base text-textMain">Lembrete pendente agora</p>
-              <p className="mt-1 font-semibold text-textMain">{activeAlert.title}</p>
-              {activeAlert.description && (
-                <p className="mt-1 text-sm text-textMuted">{activeAlert.description}</p>
-              )}
-              <p className="mt-2 text-xs text-textMuted">
-                Agendado para {new Date(activeAlert.scheduledFor).toLocaleString("pt-BR")} | Tentativas:{" "}
-                {activeAlert.retryCount}
-              </p>
-              {audioBlocked && (
-                <div className="mt-2 space-y-2">
-                  <p className="text-xs text-warning">
-                    O navegador bloqueou o som. O alerta visual continua ativo.
-                  </p>
-                  <button
-                    className="rounded-lg border border-warning/60 px-3 py-2 text-xs text-warning"
-                    onClick={retryAlertSound}
-                    type="button"
-                  >
-                    Tentar som novamente
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
-                onClick={() => completeOccurrence(activeAlert.id)}
-              >
-                Concluir
-              </button>
-              <button
-                className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain"
-                onClick={() => setActiveAlert(null)}
-              >
-                Fechar alerta
-              </button>
-            </div>
-          </div>
-        </article>
-      )}
 
       <section className="grid gap-3 md:grid-cols-3">
         <article className="rounded-2xl border border-slate-700 bg-panel p-4">

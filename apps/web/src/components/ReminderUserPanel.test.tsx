@@ -2,25 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReminderUserPanel } from "./ReminderUserPanel";
 import { api } from "../lib/api";
-import { playReminderAlert } from "../lib/reminderAudio";
-
-const socketHandlers = new Map<string, (payload: unknown) => void>();
-
-vi.mock("../lib/socket", () => ({
-  connectSocket: () => ({
-    on: vi.fn((event: string, handler: (payload: unknown) => void) => {
-      socketHandlers.set(event, handler);
-    }),
-    off: vi.fn((event: string) => {
-      socketHandlers.delete(event);
-    }),
-    disconnect: vi.fn()
-  })
-}));
-
-vi.mock("../lib/reminderAudio", () => ({
-  playReminderAlert: vi.fn(() => false)
-}));
+import { dispatchReminderDue, dispatchReminderUpdated } from "../lib/reminderEvents";
 
 vi.mock("../lib/api", () => ({
   api: {
@@ -42,13 +24,10 @@ vi.mock("../lib/api", () => ({
 }));
 
 const mockedApi = vi.mocked(api);
-const mockedPlayReminderAlert = vi.mocked(playReminderAlert);
 
 describe("ReminderUserPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    socketHandlers.clear();
-    mockedPlayReminderAlert.mockReturnValue(false);
     mockedApi.myReminders.mockResolvedValue({
       reminders: [
         {
@@ -187,13 +166,9 @@ describe("ReminderUserPanel", () => {
 
     render(<ReminderUserPanel onError={vi.fn()} onToast={onToast} />);
     await waitFor(() => expect(mockedApi.myReminderOccurrences).toHaveBeenCalled());
-    await waitFor(() => expect(socketHandlers.has("reminder:due")).toBe(true));
-
-    const dueHandler = socketHandlers.get("reminder:due");
-    expect(dueHandler).toBeTruthy();
 
     await act(async () => {
-      dueHandler?.({
+      dispatchReminderDue({
         occurrenceId: 100,
         reminderId: 1,
         userId: 2,
@@ -204,46 +179,15 @@ describe("ReminderUserPanel", () => {
       });
     });
 
-    expect(screen.getByText("Lembrete pendente agora")).toBeInTheDocument();
-    expect(
-      screen.getByText("O navegador bloqueou o som. O alerta visual continua ativo.")
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tentar som novamente" })).toBeInTheDocument();
+    const occurrencesPanel = screen.getByText("Historico de ocorrencias").closest("article");
+    expect(occurrencesPanel).not.toBeNull();
+    expect(within(occurrencesPanel!).getByText("Tomar agua")).toBeInTheDocument();
+    expect(within(occurrencesPanel!).getByText("Pendente")).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Concluir" })[0]);
 
     await waitFor(() => expect(mockedApi.completeReminderOccurrence).toHaveBeenCalledWith(100));
     expect(onToast).toHaveBeenCalledWith("Ocorrencia concluida");
-  });
-
-  it("permite tentar tocar o som novamente apos bloqueio", async () => {
-    const onToast = vi.fn();
-    const onError = vi.fn();
-
-    mockedPlayReminderAlert.mockReturnValueOnce(false).mockReturnValueOnce(true);
-
-    render(<ReminderUserPanel onError={onError} onToast={onToast} />);
-    await waitFor(() => expect(socketHandlers.has("reminder:due")).toBe(true));
-
-    const dueHandler = socketHandlers.get("reminder:due");
-
-    await act(async () => {
-      dueHandler?.({
-        occurrenceId: 101,
-        reminderId: 1,
-        userId: 2,
-        title: "Tomar agua",
-        description: "Beber 500ml",
-        scheduledFor: new Date().toISOString(),
-        retryCount: 0
-      });
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Tentar som novamente" }));
-
-    expect(mockedPlayReminderAlert).toHaveBeenLastCalledWith(101);
-    expect(onToast).toHaveBeenCalledWith("Som do lembrete reproduzido");
-    expect(onError).not.toHaveBeenCalledWith("O navegador ainda bloqueou o som do lembrete");
   });
 
   it("remove ocorrencia da lista filtrada quando o status deixa de atender o filtro", async () => {
@@ -270,7 +214,7 @@ describe("ReminderUserPanel", () => {
     });
 
     render(<ReminderUserPanel onError={vi.fn()} onToast={vi.fn()} />);
-    await waitFor(() => expect(socketHandlers.has("reminder:updated")).toBe(true));
+    await waitFor(() => expect(mockedApi.myReminderOccurrences).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: "Pendentes" }));
     const occurrencesPanel = screen.getByText("Historico de ocorrencias").closest("article");
@@ -280,7 +224,7 @@ describe("ReminderUserPanel", () => {
     );
 
     await act(async () => {
-      socketHandlers.get("reminder:updated")?.({
+      dispatchReminderUpdated({
         occurrenceId: 200,
         reminderId: 1,
         userId: 2,

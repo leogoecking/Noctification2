@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { playReminderAlert, resetReminderAudioStateForTests } from "./reminderAudio";
+import {
+  playReminderAlert,
+  primeReminderAudio,
+  resetReminderAudioStateForTests
+} from "./reminderAudio";
 
 class FakeOscillator {
   type = "sine";
-  frequency = { value: 0 };
-  onended: (() => void) | null = null;
+  frequency = {
+    value: 0,
+    setValueAtTime: vi.fn()
+  };
 
   connect(): void {
     // No-op for tests.
@@ -15,12 +21,16 @@ class FakeOscillator {
   }
 
   stop(): void {
-    this.onended?.();
+    // No-op for tests.
   }
 }
 
 class FakeGainNode {
-  gain = { value: 0 };
+  gain = {
+    value: 0,
+    setValueAtTime: vi.fn(),
+    linearRampToValueAtTime: vi.fn()
+  };
 
   connect(): void {
     // No-op for tests.
@@ -31,6 +41,7 @@ class FakeAudioContext {
   static instances = 0;
   currentTime = 0;
   destination = {};
+  state: "suspended" | "running" | "closed" = "running";
 
   constructor() {
     FakeAudioContext.instances += 1;
@@ -45,6 +56,12 @@ class FakeAudioContext {
   }
 
   close(): Promise<void> {
+    this.state = "closed";
+    return Promise.resolve();
+  }
+
+  resume(): Promise<void> {
+    this.state = "running";
     return Promise.resolve();
   }
 }
@@ -87,32 +104,32 @@ describe("reminderAudio", () => {
     });
   });
 
-  it("reproduz audio quando o contexto esta disponivel", () => {
-    expect(playReminderAlert(10)).toBe(true);
+  it("reproduz audio quando o contexto esta disponivel", async () => {
+    await expect(playReminderAlert(10)).resolves.toBe(true);
     expect(FakeAudioContext.instances).toBe(1);
   });
 
-  it("nao tenta reproduzir repetidamente para a mesma ocorrencia em curto intervalo", () => {
-    expect(playReminderAlert(10)).toBe(true);
+  it("nao tenta reproduzir repetidamente para a mesma ocorrencia em curto intervalo", async () => {
+    await expect(playReminderAlert(10)).resolves.toBe(true);
     nowSpy.mockReturnValue(1_500);
 
-    expect(playReminderAlert(10)).toBe(true);
+    await expect(playReminderAlert(10)).resolves.toBe(true);
     expect(FakeAudioContext.instances).toBe(1);
   });
 
-  it("aplica cooldown global curto entre ocorrencias diferentes para evitar caos sonoro", () => {
-    expect(playReminderAlert(10)).toBe(true);
+  it("aplica cooldown global curto entre ocorrencias diferentes para evitar caos sonoro", async () => {
+    await expect(playReminderAlert(10)).resolves.toBe(true);
     nowSpy.mockReturnValue(1_500);
 
-    expect(playReminderAlert(11)).toBe(true);
+    await expect(playReminderAlert(11)).resolves.toBe(true);
     expect(FakeAudioContext.instances).toBe(1);
 
     nowSpy.mockReturnValue(2_300);
-    expect(playReminderAlert(11)).toBe(true);
-    expect(FakeAudioContext.instances).toBe(2);
+    await expect(playReminderAlert(11)).resolves.toBe(true);
+    expect(FakeAudioContext.instances).toBe(1);
   });
 
-  it("retorna falso quando nao existe AudioContext disponivel", () => {
+  it("retorna falso quando nao existe AudioContext disponivel", async () => {
     Object.defineProperty(window, "AudioContext", {
       configurable: true,
       writable: true,
@@ -124,6 +141,36 @@ describe("reminderAudio", () => {
       value: undefined
     });
 
-    expect(playReminderAlert(99)).toBe(false);
+    await expect(playReminderAlert(99)).resolves.toBe(false);
+  });
+
+  it("registra o priming do contexto para desbloquear audio apos interacao", () => {
+    const addEventListenerSpy = vi.spyOn(window, "addEventListener");
+
+    primeReminderAudio();
+
+    expect(addEventListenerSpy).toHaveBeenCalledWith("pointerdown", expect.any(Function), {
+      passive: true
+    });
+    expect(addEventListenerSpy).toHaveBeenCalledWith("click", expect.any(Function), {
+      passive: true
+    });
+    expect(addEventListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function), {
+      passive: true
+    });
+    expect(addEventListenerSpy).toHaveBeenCalledWith(
+      "touchstart",
+      expect.any(Function),
+      { passive: true }
+    );
+
+    addEventListenerSpy.mockRestore();
+  });
+
+  it("aceita perfil retry e critical sem quebrar a reproducao", async () => {
+    await expect(playReminderAlert(20, "retry")).resolves.toBe(true);
+    nowSpy.mockReturnValue(3_000);
+    await expect(playReminderAlert(21, "critical")).resolves.toBe(true);
+    expect(FakeAudioContext.instances).toBe(1);
   });
 });
