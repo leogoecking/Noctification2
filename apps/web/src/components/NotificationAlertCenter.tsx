@@ -108,11 +108,6 @@ export const NotificationAlertCenter = ({
         reminderCount > 0 ? buildNotificationFromReminder(payload as IncomingReminder) : buildNotificationFromNew(payload);
 
       upsertAlert(nextNotification, reminderCount, false);
-      onToast(
-        reminderCount > 0
-          ? `Notificacao pendente novamente: ${payload.title}`
-          : `Nova notificacao: ${payload.title}`
-      );
 
       void (async () => {
         const played = await playSystemAlert(payload.id, profile);
@@ -136,7 +131,7 @@ export const NotificationAlertCenter = ({
         );
       })();
     },
-    [notify, onToast, upsertAlert]
+    [notify, upsertAlert]
   );
 
   const onUpdated = useCallback(

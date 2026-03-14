@@ -94,11 +94,6 @@ export const ReminderAlertCenter = ({
       const occurrence = buildOccurrenceFromDue(payload);
       const audioProfile = payload.retryCount > 0 ? "retry" : "default";
       upsertAlert(occurrence, false);
-      onToast(
-        payload.retryCount > 0
-          ? `Lembrete novamente pendente: ${payload.title}`
-          : `Lembrete disparado: ${payload.title}`
-      );
 
       void (async () => {
         const played = await playReminderAlert(payload.occurrenceId, audioProfile);
@@ -127,7 +122,7 @@ export const ReminderAlertCenter = ({
         );
       })();
     },
-    [notify, onToast, upsertAlert]
+    [notify, upsertAlert]
   );
 
   const onReminderUpdated = useCallback(

@@ -148,8 +148,6 @@ export const UserDashboard = ({
       if (parsed.priority === "critical") {
         setCriticalModal(parsed);
       }
-
-      setBellOpen(true);
     };
 
     const onNotificationReminder = (payload: IncomingReminder) => {
@@ -176,8 +174,6 @@ export const UserDashboard = ({
             : item
         );
       });
-
-      setBellOpen(true);
     };
 
     return subscribeNotificationEvents({

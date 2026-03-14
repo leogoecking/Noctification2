@@ -123,7 +123,7 @@ describe("NotificationAlertCenter", () => {
     expect(screen.getByText("Nova tarefa")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir notificacoes" })).toBeInTheDocument();
     expect(mockedPlaySystemAlert).toHaveBeenCalledWith(11, "default");
-    expect(onToast).toHaveBeenCalledWith("Nova notificacao: Nova tarefa");
+    expect(onToast).not.toHaveBeenCalled();
   });
 
   it("atualiza o mesmo pop-up em retries sem empilhar duplicatas", async () => {

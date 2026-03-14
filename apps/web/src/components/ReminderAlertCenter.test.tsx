@@ -132,7 +132,7 @@ describe("ReminderAlertCenter", () => {
     expect(mockedPlayReminderAlert).toHaveBeenCalledWith(77, "default");
     expect(screen.getByText("Lembrete pendente agora")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir lembretes" })).toBeInTheDocument();
-    expect(onToast).toHaveBeenCalledWith("Lembrete disparado: Tomar agua");
+    expect(onToast).not.toHaveBeenCalled();
   });
 
   it("fecha apenas visualmente o pop-up sem concluir a ocorrencia", async () => {

@@ -36,6 +36,8 @@ Entregue parcialmente nesta fase:
 - frontend web passou a reutilizar uma conexao `Socket.IO` por aba com `acquire/release`, reduzindo conexoes paralelas desnecessarias
 - telas filtradas do usuario e de lembretes passaram a ignorar respostas HTTP antigas, evitando sobrescrita por requests fora de ordem
 - dashboard admin principal passou a ignorar respostas HTTP antigas em usuarios, online, auditoria, fila e historico
+- alertas globais do usuario passaram a usar centros persistentes no frontend para notificacoes e lembretes, com `Notification API`, audio com fallback e deduplicacao entre abas
+- dropdown do sino do usuario deixou de abrir automaticamente por eventos em tempo real, abrindo apenas por clique
 
 ## Fase 3: Produto Operacional
 
@@ -47,6 +49,7 @@ Objetivo: transformar o sistema em um painel operacional de fato.
 - Concluido: explicitar no admin a diferenca entre visualizacao e andamento operacional.
 - Concluido: tornar a superficie de API/frontend explicita com `isVisualized` e `visualizedAt`.
 - Concluido: refatorar o `AdminDashboard` em componentes menores e hooks dedicados.
+- Concluido: separar melhor `Painel` e `Notificacoes` na experiencia do usuario.
 - Criar SLA por prioridade com destaque de atraso.
 - Concluido: separar estados de notificacao em uma maquina de estado explicita, com impacto em modelo de dados, API e UI:
   - `recebida`
@@ -163,6 +166,9 @@ Entregue parcialmente:
 - alerta visual realtime para ocorrencias pendentes
 - atualizacao realtime ao concluir/expirar ocorrencia
 - filtros de produto no painel do usuario para ativos, inativos, hoje, pendentes, concluidas e expiradas
+- painel do usuario reorganizado com navegacao fixa, cards-resumo e separacao clara entre `Painel`, `Notificacoes` e `Lembretes`
+- tela de lembretes reorganizada em blocos mais claros, com pendencias em destaque, formulario separado e historico mais legivel
+- estados vazios e labels da interface do usuario padronizados para leitura operacional mais clara
 
 #### Fase 4
 
@@ -176,6 +182,8 @@ Concluido:
 - acao de retentativa manual do som no painel do usuario
 - protecao contra disparos sonoros em rajada por cooldown por ocorrencia e cooldown global curto
 - cobertura automatizada do helper de audio e do fluxo de fallback
+- notificacoes gerais do usuario alinhadas ao mesmo padrao dos lembretes, com pop-up persistente, som, `Notification API` em background e fallback visual
+- toasts de chegada deixaram de competir com os pop-ups persistentes, ficando restritos a confirmacoes de acao, erro e retentativa manual
 
 #### Fase 5
 
@@ -253,6 +261,8 @@ Status atual desta checklist:
 - protecao contra duplicidade validada
 - testes de scheduler e rotas de lembretes validados sem dependencia de porta real
 - painel admin com saude operacional e logs minimos observaveis validado
+- fallback sem audio validado no frontend
+- painel do usuario validado com fluxo de alertas persistentes para notificacoes gerais e lembretes
 
 ### Plano de rollback
 
