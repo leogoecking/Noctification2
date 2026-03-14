@@ -35,6 +35,7 @@ Entregue parcialmente nesta fase:
 - notificacoes gerais do usuario passaram a ser consumidas por um hook global, mantendo eventos tambem em `/reminders`
 - frontend web passou a reutilizar uma conexao `Socket.IO` por aba com `acquire/release`, reduzindo conexoes paralelas desnecessarias
 - telas filtradas do usuario e de lembretes passaram a ignorar respostas HTTP antigas, evitando sobrescrita por requests fora de ordem
+- dashboard admin principal passou a ignorar respostas HTTP antigas em usuarios, online, auditoria, fila e historico
 
 ## Fase 3: Produto Operacional
 

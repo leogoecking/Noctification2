@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { notifySocketErrorOnce } from "../../lib/socketError";
 import { acquireSocket, releaseSocket } from "../../lib/socket";
@@ -98,33 +98,64 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
     limit: 20
   });
   const [lastQueueRefreshAt, setLastQueueRefreshAt] = useState<string | null>(null);
+  const usersRequestIdRef = useRef(0);
+  const onlineUsersRequestIdRef = useRef(0);
+  const auditRequestIdRef = useRef(0);
+  const queueRequestIdRef = useRef(0);
+  const historyRequestIdRef = useRef(0);
 
   const loadUsers = useCallback(async () => {
+    const requestId = usersRequestIdRef.current + 1;
+    usersRequestIdRef.current = requestId;
     setLoadingUsers(true);
     try {
       const response = await api.adminUsers();
+      if (requestId !== usersRequestIdRef.current) {
+        return;
+      }
+
       setUsers(response.users as UserItem[]);
     } catch (error) {
+      if (requestId !== usersRequestIdRef.current) {
+        return;
+      }
+
       onError(toErrorMessage(error, "Falha ao carregar usuarios"));
     } finally {
-      setLoadingUsers(false);
+      if (requestId === usersRequestIdRef.current) {
+        setLoadingUsers(false);
+      }
     }
   }, [onError]);
 
   const loadOnlineUsers = useCallback(async () => {
+    const requestId = onlineUsersRequestIdRef.current + 1;
+    onlineUsersRequestIdRef.current = requestId;
     setLoadingOnlineUsers(true);
     try {
       const response = await api.adminOnlineUsers();
+      if (requestId !== onlineUsersRequestIdRef.current) {
+        return;
+      }
+
       setOnlineUsers(response.users as OnlineUserItem[]);
       setLastOnlineRefreshAt(new Date().toISOString());
     } catch (error) {
+      if (requestId !== onlineUsersRequestIdRef.current) {
+        return;
+      }
+
       onError(toErrorMessage(error, "Falha ao carregar usuarios online"));
     } finally {
-      setLoadingOnlineUsers(false);
+      if (requestId === onlineUsersRequestIdRef.current) {
+        setLoadingOnlineUsers(false);
+      }
     }
   }, [onError]);
 
   const loadAudit = useCallback(async () => {
+    const requestId = auditRequestIdRef.current + 1;
+    auditRequestIdRef.current = requestId;
     setLoadingAudit(true);
     try {
       const params = new URLSearchParams();
@@ -141,13 +172,23 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
       }
 
       const response = await api.adminAudit(`?${params.toString()}`);
+      if (requestId !== auditRequestIdRef.current) {
+        return;
+      }
+
       setAuditEvents(response.events as AuditEventItem[]);
       setAuditPagination(response.pagination as PaginationInfo);
       setLastAuditRefreshAt(new Date().toISOString());
     } catch (error) {
+      if (requestId !== auditRequestIdRef.current) {
+        return;
+      }
+
       onError(toErrorMessage(error, "Falha ao carregar auditoria"));
     } finally {
-      setLoadingAudit(false);
+      if (requestId === auditRequestIdRef.current) {
+        setLoadingAudit(false);
+      }
     }
   }, [
     appliedAuditFilters.eventType,
@@ -159,6 +200,8 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
   ]);
 
   const loadUnreadDashboard = useCallback(async () => {
+    const requestId = queueRequestIdRef.current + 1;
+    queueRequestIdRef.current = requestId;
     setLoadingHistory(true);
     try {
       const params = new URLSearchParams();
@@ -173,13 +216,23 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
       }
 
       const response = await api.adminNotifications(`?${params.toString()}`);
+      if (requestId !== queueRequestIdRef.current) {
+        return;
+      }
+
       setHistory(response.notifications as NotificationHistoryItem[]);
       setQueuePagination(response.pagination as PaginationInfo);
       setLastQueueRefreshAt(new Date().toISOString());
     } catch (error) {
+      if (requestId !== queueRequestIdRef.current) {
+        return;
+      }
+
       onError(toErrorMessage(error, "Falha ao carregar dashboard"));
     } finally {
-      setLoadingHistory(false);
+      if (requestId === queueRequestIdRef.current) {
+        setLoadingHistory(false);
+      }
     }
   }, [
     appliedQueueFilters.limit,
@@ -190,6 +243,8 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
   ]);
 
   const loadNotificationHistory = useCallback(async () => {
+    const requestId = historyRequestIdRef.current + 1;
+    historyRequestIdRef.current = requestId;
     setLoadingHistoryAll(true);
     try {
       const params = new URLSearchParams();
@@ -213,13 +268,23 @@ export const useAdminRealtimeData = ({ onError }: UseAdminRealtimeDataOptions) =
 
       const query = params.toString();
       const response = await api.adminNotifications(query ? `?${query}` : "");
+      if (requestId !== historyRequestIdRef.current) {
+        return;
+      }
+
       setHistoryAll(response.notifications as NotificationHistoryItem[]);
       setHistoryPagination(response.pagination as PaginationInfo);
       setLastHistoryRefreshAt(new Date().toISOString());
     } catch (error) {
+      if (requestId !== historyRequestIdRef.current) {
+        return;
+      }
+
       onError(toErrorMessage(error, "Falha ao carregar historico"));
     } finally {
-      setLoadingHistoryAll(false);
+      if (requestId === historyRequestIdRef.current) {
+        setLoadingHistoryAll(false);
+      }
     }
   }, [
     appliedHistoryFilters.from,
