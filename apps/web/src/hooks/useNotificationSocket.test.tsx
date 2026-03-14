@@ -2,7 +2,6 @@ import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useNotificationSocket } from "./useNotificationSocket";
 import { subscribeNotificationEvents } from "../lib/notificationEvents";
-import { playSystemAlert } from "../lib/reminderAudio";
 
 const socketHandlers = new Map<string, (payload?: unknown) => void>();
 const { socketEmit, mockedReleaseSocket } = vi.hoisted(() => ({
@@ -24,20 +23,14 @@ vi.mock("../lib/socket", () => ({
   releaseSocket: mockedReleaseSocket
 }));
 
-vi.mock("../lib/reminderAudio", () => ({
-  playSystemAlert: vi.fn(async () => true)
-}));
-
 const TestHarness = ({
   enabled,
-  onError,
-  onToast
+  onError
 }: {
   enabled: boolean;
   onError: (message: string) => void;
-  onToast: (message: string) => void;
 }) => {
-  useNotificationSocket({ enabled, onError, onToast });
+  useNotificationSocket({ enabled, onError });
   return null;
 };
 
@@ -47,8 +40,7 @@ describe("useNotificationSocket", () => {
     socketHandlers.clear();
   });
 
-  it("distribui notificacao nova globalmente e toca alerta", async () => {
-    const onToast = vi.fn();
+  it("distribui notificacao nova globalmente", async () => {
     const onError = vi.fn();
     const receivedPayloads: unknown[] = [];
     const unsubscribe = subscribeNotificationEvents({
@@ -58,7 +50,7 @@ describe("useNotificationSocket", () => {
       onReminder: () => undefined
     });
 
-    render(<TestHarness enabled onError={onError} onToast={onToast} />);
+    render(<TestHarness enabled onError={onError} />);
 
     await waitFor(() => expect(socketHandlers.has("notification:new")).toBe(true));
 
@@ -76,8 +68,6 @@ describe("useNotificationSocket", () => {
     });
 
     await waitFor(() => expect(receivedPayloads).toHaveLength(1));
-    expect(onToast).toHaveBeenCalledWith("Nova notificacao: Teste");
-    expect(playSystemAlert).toHaveBeenCalledWith(11, "critical");
     expect(onError).not.toHaveBeenCalled();
 
     unsubscribe();

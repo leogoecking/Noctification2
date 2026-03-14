@@ -109,6 +109,7 @@ const AUDIT_EVENT_LABELS: Record<string, string> = {
   "admin.user.update": "Usuario atualizado",
   "admin.user.status": "Status de usuario alterado",
   "admin.notification.send": "Notificacao enviada",
+  "notification.respond": "Notificacao respondida",
   "reminder.created": "Lembrete criado",
   "reminder.updated": "Lembrete atualizado",
   "reminder.deleted": "Lembrete arquivado",

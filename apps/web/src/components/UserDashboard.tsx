@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import {
+  dispatchNotificationUpdated,
   subscribeNotificationEvents,
   type IncomingNotification,
   type IncomingReminder
@@ -202,6 +203,14 @@ export const UserDashboard = ({
       >
     >
   ) => {
+    const nextPatch = {
+      visualizedAt: patch.visualizedAt ?? null,
+      operationalStatus: patch.operationalStatus ?? "recebida",
+      responseAt: patch.responseAt,
+      responseMessage: patch.responseMessage,
+      isVisualized: patch.isVisualized ?? false
+    };
+
     setItems((prev) => prev.map((item) => (item.id === notificationId ? { ...item, ...patch } : item)));
 
     setSelected((prev) => (prev && prev.id === notificationId ? { ...prev, ...patch } : prev));
@@ -213,6 +222,15 @@ export const UserDashboard = ({
 
       const next = { ...prev, ...patch };
       return next.isVisualized ? null : next;
+    });
+
+    dispatchNotificationUpdated({
+      id: notificationId,
+      visualizedAt: nextPatch.visualizedAt,
+      operationalStatus: nextPatch.operationalStatus,
+      responseAt: nextPatch.responseAt,
+      responseMessage: nextPatch.responseMessage,
+      isVisualized: nextPatch.isVisualized
     });
   };
 

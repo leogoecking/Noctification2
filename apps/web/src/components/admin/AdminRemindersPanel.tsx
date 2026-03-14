@@ -2,12 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { notifySocketErrorOnce } from "../../lib/socketError";
 import { acquireSocket, releaseSocket } from "../../lib/socket";
-import type {
-  ReminderHealthItem,
-  ReminderItem,
-  ReminderLogItem,
-  ReminderOccurrenceItem
-} from "../../types";
+import type { ReminderHealthItem, ReminderItem, ReminderOccurrenceItem } from "../../types";
 
 interface AdminRemindersPanelProps {
   onError: (message: string) => void;
@@ -70,33 +65,14 @@ const matchesOccurrenceAdminFilter = (
   return true;
 };
 
-const matchesLogAdminFilter = (
-  item: ReminderLogItem,
-  eventFilter: string,
-  userFilter: string
-): boolean => {
-  const trimmedUserFilter = userFilter.trim().toLowerCase();
-  if (trimmedUserFilter) {
-    const matchesText = `${item.userName ?? ""} ${item.userLogin ?? ""}`.toLowerCase();
-    const matchesId = String(item.userId ?? "") === trimmedUserFilter;
-    if (!matchesId && !matchesText.includes(trimmedUserFilter)) {
-      return false;
-    }
-  }
-
-  return eventFilter === "all" || item.eventType === eventFilter;
-};
-
 export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelProps) => {
   const [health, setHealth] = useState<ReminderHealthItem | null>(null);
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [occurrences, setOccurrences] = useState<ReminderOccurrenceItem[]>([]);
-  const [logs, setLogs] = useState<ReminderLogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [userFilter, setUserFilter] = useState("");
   const [reminderFilter, setReminderFilter] = useState<ReminderAdminFilterMode>("all");
   const [occurrenceFilter, setOccurrenceFilter] = useState<OccurrenceAdminFilterMode>("all");
-  const [logEventFilter, setLogEventFilter] = useState("all");
   const loadRequestIdRef = useRef(0);
 
   const loadData = useCallback(async () => {
@@ -106,18 +82,15 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
     try {
       const remindersParams = new URLSearchParams();
       const occurrencesParams = new URLSearchParams();
-      const logParams = new URLSearchParams();
       const trimmedUserFilter = userFilter.trim();
 
       if (trimmedUserFilter) {
         if (/^\d+$/.test(trimmedUserFilter)) {
           remindersParams.set("user_id", trimmedUserFilter);
           occurrencesParams.set("user_id", trimmedUserFilter);
-          logParams.set("user_id", trimmedUserFilter);
         } else {
           remindersParams.set("user_search", trimmedUserFilter);
           occurrencesParams.set("user_search", trimmedUserFilter);
-          logParams.set("user_search", trimmedUserFilter);
         }
       }
 
@@ -133,19 +106,13 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
         occurrencesParams.set("status", occurrenceFilter);
       }
 
-      if (logEventFilter !== "all") {
-        logParams.set("event_type", logEventFilter);
-      }
-
       const remindersQuery = remindersParams.toString();
       const occurrencesQuery = occurrencesParams.toString();
-      const logsQuery = logParams.toString();
 
-      const [healthResponse, remindersResponse, occurrencesResponse, logsResponse] = await Promise.all([
+      const [healthResponse, remindersResponse, occurrencesResponse] = await Promise.all([
         api.adminReminderHealth(),
         api.adminReminders(remindersQuery ? `?${remindersQuery}` : ""),
-        api.adminReminderOccurrences(occurrencesQuery ? `?${occurrencesQuery}` : ""),
-        api.adminReminderLogs(logsQuery ? `?${logsQuery}` : "")
+        api.adminReminderOccurrences(occurrencesQuery ? `?${occurrencesQuery}` : "")
       ]);
       if (requestId !== loadRequestIdRef.current) {
         return;
@@ -154,7 +121,6 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
       setHealth(healthResponse.health as ReminderHealthItem);
       setReminders(remindersResponse.reminders as ReminderItem[]);
       setOccurrences(occurrencesResponse.occurrences as ReminderOccurrenceItem[]);
-      setLogs(logsResponse.logs as ReminderLogItem[]);
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) {
         return;
@@ -166,7 +132,7 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
         setLoading(false);
       }
     }
-  }, [logEventFilter, occurrenceFilter, onError, reminderFilter, userFilter]);
+  }, [occurrenceFilter, onError, reminderFilter, userFilter]);
 
   useEffect(() => {
     void loadData();
@@ -221,25 +187,6 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
 
           return [nextOccurrence, ...prev].slice(0, 300);
         });
-      }
-
-      const nextLog: ReminderLogItem = {
-        id: -Date.now(),
-        reminderId: payload.reminderId,
-        occurrenceId: payload.occurrenceId,
-        userId: payload.userId,
-        userName: contextReminder?.userName ?? existingOccurrence?.userName ?? null,
-        userLogin: contextReminder?.userLogin ?? existingOccurrence?.userLogin ?? null,
-        eventType:
-          payload.retryCount > 0
-            ? "reminder.occurrence.retried"
-            : "reminder.occurrence.delivered",
-        metadata: { retryCount: payload.retryCount, source: "socket" },
-        createdAt: new Date().toISOString()
-      };
-
-      if (matchesLogAdminFilter(nextLog, logEventFilter, userFilter)) {
-        setLogs((prev) => [nextLog, ...prev].slice(0, 100));
       }
 
       setHealth((prev) =>
@@ -303,29 +250,6 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
         };
       });
 
-      const affected = occurrences.find((item) => item.id === payload.occurrenceId);
-      if (affected) {
-        const nextLog: ReminderLogItem = {
-          id: -Date.now(),
-          reminderId: affected.reminderId,
-          occurrenceId: payload.occurrenceId,
-          userId: payload.userId,
-          userName: affected.userName ?? null,
-          userLogin: affected.userLogin ?? null,
-          eventType:
-            payload.status === "completed"
-              ? "reminder.occurrence.completed"
-              : payload.status === "expired"
-                ? "reminder.occurrence.expired"
-                : "reminder.occurrence.updated",
-          metadata: { retryCount: payload.retryCount, source: "socket" },
-          createdAt: new Date().toISOString()
-        };
-
-        if (matchesLogAdminFilter(nextLog, logEventFilter, userFilter)) {
-          setLogs((prev) => [nextLog, ...prev].slice(0, 100));
-        }
-      }
     };
 
     socket.on("reminder:due", onReminderDue);
@@ -341,7 +265,7 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
       socket.off("connect_error", onConnectError);
       releaseSocket(socket);
     };
-  }, [logEventFilter, occurrenceFilter, occurrences, onError, onToast, reminders, userFilter]);
+  }, [occurrenceFilter, occurrences, onError, onToast, reminders, userFilter]);
 
   const toggleReminder = async (item: ReminderItem) => {
     try {
@@ -549,63 +473,6 @@ export const AdminRemindersPanel = ({ onError, onToast }: AdminRemindersPanelPro
                 <p className="mt-1 text-xs text-textMuted">
                   Expirada em {new Date(item.expiredAt).toLocaleString("pt-BR")}
                 </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </article>
-
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h4 className="font-display text-base text-textMain">Logs operacionais</h4>
-            <p className="text-xs text-textMuted">Rastreabilidade recente de disparos, retries e expiracoes</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Todos", value: "all" },
-              { label: "Disparos", value: "reminder.occurrence.delivered" },
-              { label: "Retries", value: "reminder.occurrence.retried" },
-              { label: "Expiracoes", value: "reminder.occurrence.expired" },
-              { label: "Conclusoes", value: "reminder.occurrence.completed" }
-            ].map((option) => (
-              <button
-                key={option.value}
-                className={`rounded-lg px-3 py-2 text-xs ${
-                  logEventFilter === option.value
-                    ? "bg-accent text-slate-900"
-                    : "border border-slate-600 text-textMain"
-                }`}
-                onClick={() => setLogEventFilter(option.value)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {logs.length === 0 && <p className="text-sm text-textMuted">Nenhum log encontrado.</p>}
-        <div className="space-y-2">
-          {logs.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold text-textMain">{item.eventType}</p>
-                <span className="text-xs text-textMuted">
-                  {new Date(item.createdAt).toLocaleString("pt-BR")}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-textMuted">
-                {(item.userName || item.userLogin)
-                  ? `${item.userName ?? "-"} (${item.userLogin ?? "-"})`
-                  : item.userId
-                    ? `Usuario #${item.userId}`
-                    : "Sem usuario vinculado"}{" "}
-                | Reminder #{item.reminderId ?? "-"} | Ocorrencia #{item.occurrenceId ?? "-"}
-              </p>
-              {item.metadata && (
-                <pre className="mt-2 overflow-x-auto rounded-lg bg-panel p-2 text-[11px] text-textMuted">
-                  {JSON.stringify(item.metadata, null, 2)}
-                </pre>
               )}
             </div>
           ))}

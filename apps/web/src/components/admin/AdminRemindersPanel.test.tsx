@@ -24,7 +24,6 @@ vi.mock("../../lib/api", () => ({
     adminReminderHealth: vi.fn(),
     adminReminders: vi.fn(),
     adminReminderOccurrences: vi.fn(),
-    adminReminderLogs: vi.fn(),
     toggleAdminReminder: vi.fn()
   },
   ApiError: class ApiError extends Error {
@@ -98,21 +97,6 @@ describe("AdminRemindersPanel", () => {
         }
       ]
     });
-    mockedApi.adminReminderLogs.mockResolvedValue({
-      logs: [
-        {
-          id: 99,
-          reminderId: 1,
-          occurrenceId: 10,
-          userId: 7,
-          userName: "Maria Silva",
-          userLogin: "maria",
-          eventType: "reminder.occurrence.delivered",
-          metadata: { retryCount: 0 },
-          createdAt: new Date().toISOString()
-        }
-      ]
-    });
     mockedApi.toggleAdminReminder.mockResolvedValue({ ok: true });
   });
 
@@ -122,11 +106,9 @@ describe("AdminRemindersPanel", () => {
     await waitFor(() => expect(mockedApi.adminReminderHealth).toHaveBeenCalled());
     await waitFor(() => expect(mockedApi.adminReminders).toHaveBeenCalledWith(""));
     await waitFor(() => expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledWith(""));
-    await waitFor(() => expect(mockedApi.adminReminderLogs).toHaveBeenCalledWith(""));
     await waitFor(() => expect(screen.getAllByText("Checklist").length).toBeGreaterThan(0));
     expect(screen.getAllByText("Pendentes").length).toBeGreaterThan(0);
     expect(screen.getByText("Disparos hoje")).toBeInTheDocument();
-    expect(screen.getByText("reminder.occurrence.delivered")).toBeInTheDocument();
     expect(
       screen.getAllByText((_, element) => element?.textContent?.includes("Maria Silva (maria)") ?? false)
         .length
@@ -147,10 +129,6 @@ describe("AdminRemindersPanel", () => {
     await waitFor(() =>
       expect(mockedApi.adminReminderOccurrences).toHaveBeenLastCalledWith("?user_search=maria")
     );
-    await waitFor(() =>
-      expect(mockedApi.adminReminderLogs).toHaveBeenLastCalledWith("?user_search=maria")
-    );
-
     fireEvent.click(screen.getByRole("button", { name: "Inativos" }));
     await waitFor(() =>
       expect(mockedApi.adminReminders).toHaveBeenLastCalledWith("?user_search=maria&active=false")
@@ -162,13 +140,6 @@ describe("AdminRemindersPanel", () => {
         "?user_search=maria&status=expired"
       )
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "Retries" }));
-    await waitFor(() =>
-      expect(mockedApi.adminReminderLogs).toHaveBeenLastCalledWith(
-        "?user_search=maria&event_type=reminder.occurrence.retried"
-      )
-    );
   });
 
   it("altera status do lembrete sem recarregar tudo", async () => {
@@ -176,7 +147,6 @@ describe("AdminRemindersPanel", () => {
     await waitFor(() => expect(mockedApi.adminReminders).toHaveBeenCalledTimes(1));
     const reminderCalls = mockedApi.adminReminders.mock.calls.length;
     const occurrenceCalls = mockedApi.adminReminderOccurrences.mock.calls.length;
-    const logCalls = mockedApi.adminReminderLogs.mock.calls.length;
 
     fireEvent.click(screen.getByRole("button", { name: "Desativar" }));
 
@@ -184,7 +154,6 @@ describe("AdminRemindersPanel", () => {
     expect(screen.getByRole("button", { name: "Ativar" })).toBeInTheDocument();
     expect(mockedApi.adminReminders).toHaveBeenCalledTimes(reminderCalls);
     expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledTimes(occurrenceCalls);
-    expect(mockedApi.adminReminderLogs).toHaveBeenCalledTimes(logCalls);
   });
 
   it("aplica evento realtime de lembrete sem recarregar tudo", async () => {
@@ -194,7 +163,6 @@ describe("AdminRemindersPanel", () => {
     await waitFor(() => expect(socketHandlers.has("reminder:due")).toBe(true));
     const reminderCalls = mockedApi.adminReminders.mock.calls.length;
     const occurrenceCalls = mockedApi.adminReminderOccurrences.mock.calls.length;
-    const logCalls = mockedApi.adminReminderLogs.mock.calls.length;
 
     await act(async () => {
       socketHandlers.get("reminder:due")?.({
@@ -209,10 +177,8 @@ describe("AdminRemindersPanel", () => {
     });
 
     expect(onToast).toHaveBeenCalledWith("Lembrete reenviado para usuario #7: Checklist");
-    expect(screen.getByText("reminder.occurrence.retried")).toBeInTheDocument();
     expect(mockedApi.adminReminders).toHaveBeenCalledTimes(reminderCalls);
     expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledTimes(occurrenceCalls);
-    expect(mockedApi.adminReminderLogs).toHaveBeenCalledTimes(logCalls);
   });
 
   it("remove ocorrencia da lista filtrada quando o status deixa de atender o filtro", async () => {

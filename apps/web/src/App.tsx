@@ -3,6 +3,7 @@ import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { UserDashboard } from "./components/UserDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
+import { NotificationAlertCenter } from "./components/NotificationAlertCenter";
 import { ReminderUserPanel } from "./components/ReminderUserPanel";
 import { ReminderAlertCenter } from "./components/ReminderAlertCenter";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
@@ -211,8 +212,7 @@ export default function App() {
 
   useNotificationSocket({
     enabled: currentUser?.role === "user",
-    onError: handleErrorToast,
-    onToast: handleOkToast
+    onError: handleErrorToast
   });
 
   return (
@@ -274,6 +274,13 @@ export default function App() {
 
         {!loadingSession && currentUser?.role === "user" && (
           <>
+            <NotificationAlertCenter
+              isVisible
+              onError={handleErrorToast}
+              onToast={handleOkToast}
+              onOpenNotifications={() => navigate("/notifications")}
+            />
+
             <ReminderAlertCenter
               isVisible
               onError={handleErrorToast}

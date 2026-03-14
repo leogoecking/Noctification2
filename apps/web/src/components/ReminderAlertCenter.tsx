@@ -49,8 +49,10 @@ export const ReminderAlertCenter = ({
   onOpenReminders
 }: ReminderAlertCenterProps) => {
   const [alerts, setAlerts] = useState<ReminderVisualAlert[]>([]);
-  const { permission, requestPermission, notifyReminderDue, closeReminderNotification } =
-    useBrowserNotifications(onOpenReminders);
+  const { permission, requestPermission, notify, closeNotification } = useBrowserNotifications({
+    namespace: "reminder",
+    onOpen: onOpenReminders
+  });
 
   const upsertAlert = useCallback((nextOccurrence: ReminderOccurrenceItem, audioBlocked: boolean) => {
     setAlerts((prev) => {
@@ -108,11 +110,12 @@ export const ReminderAlertCenter = ({
           audioBlocked: !played
         });
 
-        notifyReminderDue({
-          occurrenceId: payload.occurrenceId,
+        notify({
+          itemId: payload.occurrenceId,
           title:
             payload.retryCount > 0 ? `Lembrete pendente: ${payload.title}` : `Lembrete: ${payload.title}`,
-          body
+          body,
+          tagPrefix: "reminder-occurrence"
         });
 
         upsertAlert(
@@ -124,14 +127,14 @@ export const ReminderAlertCenter = ({
         );
       })();
     },
-    [notifyReminderDue, onToast, upsertAlert]
+    [notify, onToast, upsertAlert]
   );
 
   const onReminderUpdated = useCallback(
     (payload: IncomingReminderUpdated) => {
       dispatchReminderUpdated(payload);
       if (payload.status !== "pending") {
-        closeReminderNotification(payload.occurrenceId);
+        closeNotification(payload.occurrenceId);
       }
 
       setAlerts((prev) =>
@@ -158,7 +161,7 @@ export const ReminderAlertCenter = ({
         })
       );
     },
-    [closeReminderNotification]
+    [closeNotification]
   );
 
   const onSocketError = useCallback(() => {
@@ -193,7 +196,7 @@ export const ReminderAlertCenter = ({
   const completeOccurrence = async (alert: ReminderVisualAlert) => {
     try {
       await api.completeReminderOccurrence(alert.occurrence.id);
-      closeReminderNotification(alert.occurrence.id);
+      closeNotification(alert.occurrence.id);
       dispatchReminderUpdated({
         occurrenceId: alert.occurrence.id,
         reminderId: alert.occurrence.reminderId,

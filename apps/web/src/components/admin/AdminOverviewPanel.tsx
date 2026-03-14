@@ -172,30 +172,32 @@ export const AdminOverviewPanel = ({
         </article>
 
         <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h4 className="font-display text-lg text-textMain">Auditoria recente</h4>
               <p className="text-sm text-textMuted">Eventos mais novos do sistema</p>
             </div>
             <button
-              className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMuted transition hover:border-slate-500 hover:text-textMain"
               onClick={onRefreshAudit}
             >
               Atualizar
             </button>
           </div>
 
-          <p className="mb-3 text-xs text-textMuted">
-            Filtro atual: {auditEventType || "todos"} | limite {auditLimit} | atualizado{" "}
-            {formatDate(lastAuditRefreshAt)}
-          </p>
+          <div className="mb-4 rounded-xl border border-slate-800/80 bg-panelAlt/20 px-3 py-2">
+            <p className="text-[11px] text-textMuted">
+              Filtro atual: {auditEventType || "todos"} | limite {auditLimit} | atualizado{" "}
+              {formatDate(lastAuditRefreshAt)}
+            </p>
+          </div>
 
           {loadingAudit && <p className="text-sm text-textMuted">Carregando...</p>}
           {!loadingAudit && recentAuditEvents.length === 0 && (
             <p className="text-sm text-textMuted">Nenhum evento de auditoria.</p>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {recentAuditEvents.map((event) => (
               <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -203,26 +205,43 @@ export const AdminOverviewPanel = ({
                     <p className="text-sm font-semibold text-textMain">
                       {formatAuditEventType(event.event_type)}
                     </p>
-                    <p className="text-[11px] text-textMuted">{event.event_type}</p>
+                    <p className="text-[10px] text-slate-500">{event.event_type}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-md px-2 py-1 text-[11px] ${
+                      className={`rounded-full px-2.5 py-1 text-[10px] ${
                         getAuditCategory(event.event_type).className
                       }`}
                     >
                       {getAuditCategory(event.event_type).label}
                     </span>
-                    <span className="text-[11px] text-textMuted">{formatDate(event.created_at)}</span>
+                    <span className="text-[11px] text-slate-500">{formatDate(event.created_at)}</span>
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-textMuted">
-                  {AUDIT_LABELS.actor}: {formatAuditActor(event.actor)}
-                </p>
-                <p className="mt-1 text-xs text-textMuted">
-                  {AUDIT_LABELS.target}: {formatAuditTargetType(event.target_type)} {event.target_id ?? "-"}
-                </p>
-                <p className="mt-1 text-xs text-textMuted">{summarizeAuditMetadata(event.metadata)}</p>
+
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  <div className="rounded-lg bg-panel p-2">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                      {AUDIT_LABELS.actor}
+                    </p>
+                    <p className="mt-1 text-sm text-textMain">{formatAuditActor(event.actor)}</p>
+                  </div>
+                  <div className="rounded-lg bg-panel p-2">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                      {AUDIT_LABELS.target}
+                    </p>
+                    <p className="mt-1 text-sm text-textMain">
+                      {formatAuditTargetType(event.target_type)} {event.target_id ?? "-"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 rounded-lg bg-panel p-2">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                    {AUDIT_LABELS.details}
+                  </p>
+                  <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
+                </div>
               </div>
             ))}
           </div>

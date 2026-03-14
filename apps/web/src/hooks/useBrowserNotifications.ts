@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-interface BrowserReminderNotificationInput {
-  occurrenceId: number;
+interface BrowserNotificationInput {
+  itemId: number;
   title: string;
   body: string;
+  tagPrefix: string;
 }
 
 interface NotificationLockRecord {
@@ -14,8 +15,8 @@ interface NotificationLockRecord {
 const LOCK_TTL_MS = 15_000;
 const LOCK_RENEW_INTERVAL_MS = 5_000;
 
-const getNotificationLockKey = (occurrenceId: number) =>
-  `noctification:browser-notification:${occurrenceId}`;
+const getNotificationLockKey = (namespace: string, itemId: number) =>
+  `noctification:browser-notification:${namespace}:${itemId}`;
 
 const getNotificationPermission = (): NotificationPermission | "unsupported" => {
   if (typeof window === "undefined" || typeof Notification === "undefined") {
@@ -25,7 +26,12 @@ const getNotificationPermission = (): NotificationPermission | "unsupported" => 
   return Notification.permission;
 };
 
-export const useBrowserNotifications = (onOpenReminders: () => void) => {
+interface UseBrowserNotificationsOptions {
+  namespace: string;
+  onOpen: () => void;
+}
+
+export const useBrowserNotifications = ({ namespace, onOpen }: UseBrowserNotificationsOptions) => {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     getNotificationPermission
   );
@@ -62,8 +68,8 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
     const renewLocks = () => {
       try {
         const now = Date.now();
-        for (const occurrenceId of openNotificationsRef.current.keys()) {
-          const key = getNotificationLockKey(occurrenceId);
+        for (const itemId of openNotificationsRef.current.keys()) {
+          const key = getNotificationLockKey(namespace, itemId);
           window.localStorage.setItem(
             key,
             JSON.stringify({
@@ -79,7 +85,7 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
 
     const timer = window.setInterval(renewLocks, LOCK_RENEW_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [namespace]);
 
   const requestPermission = useCallback(async () => {
     if (typeof Notification === "undefined") {
@@ -96,20 +102,20 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
     return nextPermission;
   }, []);
 
-  const closeLocalReminderNotification = useCallback((occurrenceId: number) => {
-    const current = openNotificationsRef.current.get(occurrenceId);
+  const closeLocalNotification = useCallback((itemId: number) => {
+    const current = openNotificationsRef.current.get(itemId);
     if (!current) {
       return;
     }
 
     current.onclose = null;
     current.close();
-    openNotificationsRef.current.delete(occurrenceId);
+    openNotificationsRef.current.delete(itemId);
   }, []);
 
-  const releaseNotificationLock = useCallback((occurrenceId: number) => {
+  const releaseNotificationLock = useCallback((itemId: number) => {
     try {
-      const key = getNotificationLockKey(occurrenceId);
+      const key = getNotificationLockKey(namespace, itemId);
       const currentValue = window.localStorage.getItem(key);
       if (!currentValue) {
         return;
@@ -122,19 +128,19 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
     } catch {
       // Ignore storage failures and keep runtime notification cleanup.
     }
-  }, []);
+  }, [namespace]);
 
-  const closeReminderNotification = useCallback(
-    (occurrenceId: number) => {
-      closeLocalReminderNotification(occurrenceId);
-      releaseNotificationLock(occurrenceId);
+  const closeNotification = useCallback(
+    (itemId: number) => {
+      closeLocalNotification(itemId);
+      releaseNotificationLock(itemId);
     },
-    [closeLocalReminderNotification, releaseNotificationLock]
+    [closeLocalNotification, releaseNotificationLock]
   );
 
-  const claimNotificationLock = useCallback((occurrenceId: number) => {
+  const claimNotificationLock = useCallback((itemId: number) => {
     try {
-      const key = getNotificationLockKey(occurrenceId);
+      const key = getNotificationLockKey(namespace, itemId);
       const now = Date.now();
       const currentValue = window.localStorage.getItem(key);
 
@@ -155,10 +161,10 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
     } catch {
       return true;
     }
-  }, []);
+  }, [namespace]);
 
-  const notifyReminderDue = useCallback(
-    (input: BrowserReminderNotificationInput) => {
+  const notify = useCallback(
+    (input: BrowserNotificationInput) => {
       if (typeof Notification === "undefined" || Notification.permission !== "granted") {
         return false;
       }
@@ -167,42 +173,42 @@ export const useBrowserNotifications = (onOpenReminders: () => void) => {
         return false;
       }
 
-      if (!claimNotificationLock(input.occurrenceId)) {
+      if (!claimNotificationLock(input.itemId)) {
         return false;
       }
 
-      closeLocalReminderNotification(input.occurrenceId);
+      closeLocalNotification(input.itemId);
 
       const notification = new Notification(input.title, {
         body: input.body,
-        tag: `reminder-occurrence-${input.occurrenceId}`,
+        tag: `${input.tagPrefix}-${input.itemId}`,
         requireInteraction: true
       });
 
       notification.onclick = () => {
         window.focus();
-        onOpenReminders();
+        onOpen();
         notification.close();
       };
 
       notification.onclose = () => {
-        openNotificationsRef.current.delete(input.occurrenceId);
-        releaseNotificationLock(input.occurrenceId);
+        openNotificationsRef.current.delete(input.itemId);
+        releaseNotificationLock(input.itemId);
       };
 
-      openNotificationsRef.current.set(input.occurrenceId, notification);
+      openNotificationsRef.current.set(input.itemId, notification);
       return true;
     },
-    [claimNotificationLock, closeLocalReminderNotification, onOpenReminders, releaseNotificationLock]
+    [claimNotificationLock, closeLocalNotification, onOpen, releaseNotificationLock]
   );
 
   return useMemo(
     () => ({
       permission,
       requestPermission,
-      notifyReminderDue,
-      closeReminderNotification
+      notify,
+      closeNotification
     }),
-    [closeReminderNotification, notifyReminderDue, permission, requestPermission]
+    [closeNotification, notify, permission, requestPermission]
   );
 };

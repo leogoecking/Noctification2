@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { dispatchNotificationNew, dispatchNotificationReminder } from "../lib/notificationEvents";
-import { playSystemAlert } from "../lib/reminderAudio";
 import { notifySocketErrorOnce } from "../lib/socketError";
 import { acquireSocket, releaseSocket } from "../lib/socket";
 import type { IncomingNotification, IncomingReminder } from "../lib/notificationEvents";
@@ -8,13 +7,11 @@ import type { IncomingNotification, IncomingReminder } from "../lib/notification
 interface UseNotificationSocketOptions {
   enabled: boolean;
   onError: (message: string) => void;
-  onToast: (message: string) => void;
 }
 
 export const useNotificationSocket = ({
   enabled,
-  onError,
-  onToast
+  onError
 }: UseNotificationSocketOptions) => {
   useEffect(() => {
     if (!enabled) {
@@ -29,17 +26,10 @@ export const useNotificationSocket = ({
 
     const onNotificationNew = (payload: IncomingNotification) => {
       dispatchNotificationNew(payload);
-      onToast(`Nova notificacao: ${payload.title}`);
-      void playSystemAlert(
-        payload.id,
-        payload.priority === "critical" ? "critical" : "default"
-      );
     };
 
     const onNotificationReminder = (payload: IncomingReminder) => {
       dispatchNotificationReminder(payload);
-      onToast(`Lembrete (${payload.reminderCount}): ${payload.title} ainda em andamento`);
-      void playSystemAlert(payload.id, "retry");
     };
 
     const onConnectError = () => {
@@ -58,5 +48,5 @@ export const useNotificationSocket = ({
       socket.off("connect_error", onConnectError);
       releaseSocket(socket);
     };
-  }, [enabled, onError, onToast]);
+  }, [enabled, onError]);
 };
