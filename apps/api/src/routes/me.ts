@@ -34,21 +34,27 @@ const toVisualizedAtSql = `COALESCE(nr.visualized_at, nr.read_at)`;
 const toCurrentVisualizedAtSql = `COALESCE(visualized_at, read_at)`;
 
 const toOperationalStatusSql = `
-  COALESCE(nr.operational_status, CASE
+  CASE
     WHEN nr.response_status = 'resolvido' THEN 'resolvida'
+    WHEN nr.response_status = 'assumida' THEN 'assumida'
     WHEN nr.response_status = 'em_andamento' THEN 'em_andamento'
-    WHEN ${toVisualizedAtSql} IS NOT NULL THEN 'visualizada'
-    ELSE 'recebida'
-  END)
+    ELSE COALESCE(nr.operational_status, CASE
+      WHEN ${toVisualizedAtSql} IS NOT NULL THEN 'visualizada'
+      ELSE 'recebida'
+    END)
+  END
 `;
 
 const toCurrentOperationalStatusSql = `
-  COALESCE(operational_status, CASE
+  CASE
     WHEN response_status = 'resolvido' THEN 'resolvida'
+    WHEN response_status = 'assumida' THEN 'assumida'
     WHEN response_status = 'em_andamento' THEN 'em_andamento'
-    WHEN ${toCurrentVisualizedAtSql} IS NOT NULL THEN 'visualizada'
-    ELSE 'recebida'
-  END)
+    ELSE COALESCE(operational_status, CASE
+      WHEN ${toCurrentVisualizedAtSql} IS NOT NULL THEN 'visualizada'
+      ELSE 'recebida'
+    END)
+  END
 `;
 
 const toResponseStatus = (

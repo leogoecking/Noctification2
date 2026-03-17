@@ -155,13 +155,15 @@ const toRecipientVisualizedAtSql = (alias: string): string =>
 
 const toRecipientOperationalStatusSql = (alias: string): string => {
   const visualizedAtSql = toRecipientVisualizedAtSql(alias);
-  return `COALESCE(${alias}.operational_status, CASE
+  return `CASE
     WHEN ${alias}.response_status = 'resolvido' THEN 'resolvida'
     WHEN ${alias}.response_status = 'assumida' THEN 'assumida'
     WHEN ${alias}.response_status = 'em_andamento' THEN 'em_andamento'
-    WHEN ${visualizedAtSql} IS NOT NULL THEN 'visualizada'
-    ELSE 'recebida'
-  END)`;
+    ELSE COALESCE(${alias}.operational_status, CASE
+      WHEN ${visualizedAtSql} IS NOT NULL THEN 'visualizada'
+      ELSE 'recebida'
+    END)
+  END`;
 };
 
 const isUniqueLoginConstraintError = (error: unknown): boolean => {

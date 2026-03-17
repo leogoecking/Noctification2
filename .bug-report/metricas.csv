@@ -1,0 +1,4 @@
+id,tipo,severidade,confianca_diagnostica,risco_de_regressao,arquivo,linha,prioridade,status
+BUG-001,bug_reproduzivel,alta,alta,baixo,apps/api/src/routes/me.ts,36,1,corrigido
+BUG-002,bug_reproduzivel,alta,alta,baixo,apps/api/src/routes/reminders-me.ts,340,2,corrigido
+RISK-001,bug_reproduzivel,media,alta,baixo,apps/web/src/App.tsx,123,3,corrigido

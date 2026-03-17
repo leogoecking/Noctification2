@@ -158,12 +158,15 @@ const emitProgressReminders = (io: Server, db: Database.Database): void => {
         FROM notification_recipients nr
         INNER JOIN notifications n ON n.id = nr.notification_id
         INNER JOIN users sender ON sender.id = n.sender_id
-        WHERE COALESCE(nr.operational_status, CASE
+        WHERE CASE
           WHEN nr.response_status = 'resolvido' THEN 'resolvida'
+          WHEN nr.response_status = 'assumida' THEN 'assumida'
           WHEN nr.response_status = 'em_andamento' THEN 'em_andamento'
-          WHEN COALESCE(nr.visualized_at, nr.read_at) IS NOT NULL THEN 'visualizada'
-          ELSE 'recebida'
-        END) IN ('em_andamento', 'assumida')
+          ELSE COALESCE(nr.operational_status, CASE
+            WHEN COALESCE(nr.visualized_at, nr.read_at) IS NOT NULL THEN 'visualizada'
+            ELSE 'recebida'
+          END)
+        END IN ('em_andamento', 'assumida')
           AND COALESCE(nr.last_reminder_at, nr.response_at, nr.visualized_at, nr.read_at, nr.created_at) <= ?
       `
     )
@@ -181,12 +184,15 @@ const emitProgressReminders = (io: Server, db: Database.Database): void => {
         reminder_count = COALESCE(reminder_count, 0) + 1
       WHERE notification_id = ?
         AND user_id = ?
-        AND COALESCE(operational_status, CASE
+        AND CASE
           WHEN response_status = 'resolvido' THEN 'resolvida'
+          WHEN response_status = 'assumida' THEN 'assumida'
           WHEN response_status = 'em_andamento' THEN 'em_andamento'
-          WHEN COALESCE(visualized_at, read_at) IS NOT NULL THEN 'visualizada'
-          ELSE 'recebida'
-        END) IN ('em_andamento', 'assumida')
+          ELSE COALESCE(operational_status, CASE
+            WHEN COALESCE(visualized_at, read_at) IS NOT NULL THEN 'visualizada'
+            ELSE 'recebida'
+          END)
+        END IN ('em_andamento', 'assumida')
     `
   );
 

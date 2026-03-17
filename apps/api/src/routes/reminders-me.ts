@@ -12,6 +12,7 @@ import {
   parseWeekdays,
   stringifyWeekdays
 } from "../reminders/service";
+import { getZonedParts, parseDateOnly, parseTimeOfDay, zonedDateTimeToUtc } from "../reminders/timezone";
 import { emitReminderUpdated } from "../socket";
 import type { ReminderOccurrenceRow, ReminderRow } from "../reminders/types";
 
@@ -95,6 +96,36 @@ const validateReminderFields = (params: {
   }
 
   return null;
+};
+
+const toDateOnlyString = (dateParts: { year: number; month: number; day: number }): string => {
+  return `${String(dateParts.year).padStart(4, "0")}-${String(dateParts.month).padStart(2, "0")}-${String(
+    dateParts.day
+  ).padStart(2, "0")}`;
+};
+
+const recalculateLastScheduledFor = (params: {
+  currentLastScheduledFor: string | null;
+  nextStartDate: string;
+  nextTimeOfDay: string;
+  nextTimezone: string;
+}): string | null => {
+  if (!params.currentLastScheduledFor) {
+    return null;
+  }
+
+  const anchorDate = getZonedParts(new Date(params.currentLastScheduledFor), params.nextTimezone);
+  const anchorDateOnly = toDateOnlyString(anchorDate);
+
+  if (params.nextStartDate > anchorDateOnly) {
+    return null;
+  }
+
+  return zonedDateTimeToUtc(
+    parseDateOnly(anchorDateOnly),
+    parseTimeOfDay(params.nextTimeOfDay),
+    params.nextTimezone
+  ).toISOString();
 };
 
 export const createReminderMeRouter = (
@@ -301,7 +332,8 @@ export const createReminderMeRouter = (
             time_of_day AS timeOfDay,
             timezone,
             repeat_type AS repeatType,
-            weekdays_json AS weekdaysJson
+            weekdays_json AS weekdaysJson,
+            last_scheduled_for AS lastScheduledFor
           FROM reminders
           WHERE id = ? AND user_id = ?
             AND deleted_at IS NULL
@@ -315,19 +347,38 @@ export const createReminderMeRouter = (
       timezone: string;
       repeatType: string;
       weekdaysJson: string;
+      lastScheduledFor: string | null;
     };
 
     const currentTimezone =
       current.timezone === config.reminderTimezone ? current.timezone : config.reminderTimezone;
     const nextRepeatType = repeatType ?? (current.repeatType as ReturnType<typeof parseReminderRepeatType>);
     const nextWeekdays = weekdays ?? (JSON.parse(current.weekdaysJson) as number[]);
+    const nextStartDate = startDate ?? current.startDate;
+    const nextTimeOfDay = timeOfDay ?? current.timeOfDay;
+    const nextTimezone = timezone ?? currentTimezone;
+    const nextWeekdaysJson = stringifyWeekdays(nextWeekdays);
+    const scheduleChanged =
+      nextStartDate !== current.startDate ||
+      nextTimeOfDay !== current.timeOfDay ||
+      nextTimezone !== currentTimezone ||
+      nextRepeatType !== current.repeatType ||
+      nextWeekdaysJson !== current.weekdaysJson;
+    const nextLastScheduledFor = scheduleChanged
+      ? recalculateLastScheduledFor({
+          currentLastScheduledFor: current.lastScheduledFor,
+          nextStartDate,
+          nextTimeOfDay,
+          nextTimezone
+        })
+      : current.lastScheduledFor;
 
     const validationError = validateReminderFields({
       title: title ?? current.title,
       description: description ?? current.description,
-      startDate: startDate ?? current.startDate,
-      timeOfDay: timeOfDay ?? current.timeOfDay,
-      timezone: timezone ?? currentTimezone,
+      startDate: nextStartDate,
+      timeOfDay: nextTimeOfDay,
+      timezone: nextTimezone,
       supportedTimezone: config.reminderTimezone,
       repeatType: nextRepeatType,
       weekdays: nextWeekdays
@@ -348,6 +399,7 @@ export const createReminderMeRouter = (
           timezone = ?,
           repeat_type = ?,
           weekdays_json = ?,
+          last_scheduled_for = ?,
           updated_at = ?
         WHERE id = ?
           AND user_id = ?
@@ -356,11 +408,12 @@ export const createReminderMeRouter = (
     ).run(
       title ?? current.title,
       description ?? current.description,
-      startDate ?? current.startDate,
-      timeOfDay ?? current.timeOfDay,
-      timezone ?? currentTimezone,
+      nextStartDate,
+      nextTimeOfDay,
+      nextTimezone,
       nextRepeatType,
-      stringifyWeekdays(nextWeekdays),
+      nextWeekdaysJson,
+      nextLastScheduledFor,
       nowIso(),
       reminderId,
       req.authUser.id

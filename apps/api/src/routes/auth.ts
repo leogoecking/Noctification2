@@ -133,6 +133,24 @@ const normalizeRequiredString = (value: unknown): string => {
 
 const normalizeLogin = (value: unknown): string => normalizeRequiredString(value).toLowerCase();
 
+const parseExpectedRole = (value: unknown): "admin" | "user" | null | "invalid" => {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (value === "admin" || value === "user") {
+    return value;
+  }
+
+  return "invalid";
+};
+
+const getRoleMismatchMessage = (expectedRole: "admin" | "user"): string => {
+  return expectedRole === "admin"
+    ? "Use /admin/login para acesso administrativo"
+    : "Use /login para acesso de usuario";
+};
+
 const isFixedAdminLogin = (config: AppConfig, login: string): boolean => {
   return login.toLowerCase() === config.adminSeed.login.toLowerCase();
 };
@@ -210,9 +228,15 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
   router.post("/login", async (req, res) => {
     const login = normalizeLogin(req.body?.login);
     const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const expectedRole = parseExpectedRole(req.body?.expected_role ?? req.body?.expectedRole);
 
     if (!login || !password) {
       res.status(400).json({ error: "Login e senha sao obrigatorios" });
+      return;
+    }
+
+    if (expectedRole === "invalid") {
+      res.status(400).json({ error: "expected_role deve ser admin ou user" });
       return;
     }
 
@@ -269,6 +293,11 @@ export const createAuthRouter = (db: Database.Database, config: AppConfig): Rout
     }
 
     clearFailedAttempts(loginAttempts, attemptKey);
+
+    if (expectedRole && user.role !== expectedRole) {
+      res.status(403).json({ error: getRoleMismatchMessage(expectedRole) });
+      return;
+    }
 
     const token = createAccessToken(config, { userId: user.id, role: user.role });
     res.cookie(config.cookieName, token, authCookieOptions(config));

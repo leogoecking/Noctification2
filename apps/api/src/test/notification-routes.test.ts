@@ -223,4 +223,68 @@ describe("notification routes", () => {
     expect(emittedEvents.some((item) => item.event === "notification:new")).toBe(true);
     expect(emittedEvents.some((item) => item.event === "notification:read_update")).toBe(true);
   });
+
+  it("preserva status assumida de registros legados mesmo com operational_status antigo", () => {
+    const listNotificationsHandler = getRouteHandler(meRouter, "/notifications", "get");
+    const listHistoryHandler = getRouteHandler(adminRouter, "/notifications", "get");
+    const timestamp = nowIso();
+
+    const notificationResult = db
+      .prepare(
+        `
+          INSERT INTO notifications (title, message, priority, sender_id, recipient_mode, created_at)
+          VALUES ('Legado', 'Status assumida antigo', 'normal', ?, 'users', ?)
+        `
+      )
+      .run(adminUser.id, timestamp);
+
+    db.prepare(
+      `
+        INSERT INTO notification_recipients (
+          notification_id,
+          user_id,
+          delivered_at,
+          read_at,
+          visualized_at,
+          created_at,
+          response_status,
+          response_at,
+          response_message,
+          operational_status
+        ) VALUES (?, ?, ?, NULL, NULL, ?, 'assumida', ?, 'Recebido', 'recebida')
+      `
+    ).run(Number(notificationResult.lastInsertRowid), regularUser.id, timestamp, timestamp, timestamp);
+
+    const userRes = createMockResponse();
+    listNotificationsHandler(
+      {
+        authUser: regularUser,
+        query: {}
+      },
+      userRes
+    );
+
+    expect(userRes.statusCode).toBe(200);
+    expect((userRes.body as { notifications: Array<{ operationalStatus: string; responseStatus: string | null }> }).notifications[0])
+      .toMatchObject({
+        operationalStatus: "assumida",
+        responseStatus: "assumida"
+      });
+
+    const adminRes = createMockResponse();
+    listHistoryHandler(
+      {
+        authUser: adminUser,
+        query: {}
+      },
+      adminRes
+    );
+
+    expect(adminRes.statusCode).toBe(200);
+    expect(
+      (adminRes.body as {
+        notifications: Array<{ recipients: Array<{ operationalStatus: string }> }>;
+      }).notifications[0].recipients[0].operationalStatus
+    ).toBe("assumida");
+  });
 });

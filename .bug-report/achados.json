@@ -1,0 +1,114 @@
+[
+  {
+    "id": "BUG-001",
+    "tipo": "bug_reproduzivel",
+    "status": "corrigido",
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/api notificacoes e realtime",
+    "arquivo": "apps/api/src/routes/me.ts",
+    "linha": 36,
+    "componente": "Compatibilidade de notificacoes legadas",
+    "sintoma": "Itens com response_status='assumida' aparecem como recebida para o usuario e perdem o responseStatus derivado.",
+    "evidencia": [
+      "Backfill em apps/api/migrations/005_notification_operational_status.sql nao trata assumida",
+      "Derivacao em apps/api/src/routes/me.ts nao trata assumida",
+      "Consulta de lembretes em apps/api/src/socket.ts nao trata assumida",
+      "Reproducao local retornou operationalStatus='recebida' e responseStatus=null para dado legado assumida"
+    ],
+    "causa_raiz": "O mapeamento legado response_status -> operational_status foi implementado sem o ramo para 'assumida' em mais de um ponto.",
+    "impacto": {
+      "usuario": "alto",
+      "sistema": "medio",
+      "negocio": "medio"
+    },
+    "reproducao": [
+      "Criar banco em memoria com migrations",
+      "Inserir notification_recipient com response_status='assumida' e operational_status NULL",
+      "Executar GET /me/notifications",
+      "Observar retorno como recebida em vez de assumida"
+    ],
+    "correcao_recomendada": "Aplicada: runtime agora prioriza response_status legado e a migration 011 corrige bases ja migradas.",
+    "validacao": [
+      "Teste de rota para GET /me/notifications com response_status legado assumida",
+      "Teste de reminder realtime cobrindo recipient assumida sem operational_status"
+    ],
+    "prioridade": 1,
+    "corrigir_agora": true
+  },
+  {
+    "id": "BUG-002",
+    "tipo": "bug_reproduzivel",
+    "status": "corrigido",
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/api lembretes e scheduler",
+    "arquivo": "apps/api/src/routes/reminders-me.ts",
+    "linha": 340,
+    "componente": "Edicao de lembretes recorrentes",
+    "sintoma": "Editar horario/data/recorrencia de um lembrete nao atualiza o proximo disparo quando last_scheduled_for ja existe.",
+    "evidencia": [
+      "PATCH /me/reminders/:id atualiza os campos editaveis mas preserva last_scheduled_for",
+      "Scheduler em apps/api/src/reminders/scheduler.ts calcula a proxima execucao a partir de last_scheduled_for",
+      "Reproducao local mostrou timeOfDay='20:00' mas occurrence.scheduledFor='2026-03-14T12:00:00.000Z'"
+    ],
+    "causa_raiz": "O ponteiro interno do scheduler nao e recalculado quando o lembrete e editado.",
+    "impacto": {
+      "usuario": "alto",
+      "sistema": "medio",
+      "negocio": "alto"
+    },
+    "reproducao": [
+      "Criar lembrete diario com last_scheduled_for ja preenchido",
+      "Editar timeOfDay via PATCH /me/reminders/:id",
+      "Executar um ciclo do scheduler apos o novo horario",
+      "Observar disparo calculado com o horario antigo"
+    ],
+    "correcao_recomendada": "Aplicada: a rota recalcula last_scheduled_for quando a agenda muda.",
+    "validacao": [
+      "Teste de API para editar lembrete com last_scheduled_for preenchido",
+      "Teste do scheduler garantindo que o novo horario e respeitado"
+    ],
+    "prioridade": 2,
+    "corrigir_agora": true
+  },
+  {
+    "id": "RISK-001",
+    "tipo": "bug_reproduzivel",
+    "status": "corrigido",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/web autenticacao",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 123,
+    "componente": "Fluxo de login por papel",
+    "sintoma": "Sessao do backend pode ser criada antes da validacao de role no frontend.",
+    "evidencia": [
+      "api.login e chamado antes da validacao de papel",
+      "Em role divergente o codigo apenas lanca ApiError e nao limpa sessao",
+      "Teste de verificacao dedicado confirmou que um novo mount autentica a sessao preservada"
+    ],
+    "causa_raiz": "Validacao de role ocorre no cliente apos o login ja ter sido aceito pelo backend, sem logout compensatorio.",
+    "impacto": {
+      "usuario": "medio",
+      "sistema": "baixo",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Montar App em /login com api.me rejeitando e api.login retornando usuario admin",
+      "Submeter login e observar mensagem de erro de role divergente",
+      "Remontar App com api.me retornando o admin autenticado",
+      "Observar entrada no console administrativo"
+    ],
+    "correcao_recomendada": "Aplicada: o backend rejeita expected_role divergente antes do cookie e o frontend mantem logout compensatorio.",
+    "validacao": [
+      "Teste de rota em apps/api/src/test/auth-routes.test.ts",
+      "Teste de App em apps/web/src/App.test.tsx"
+    ],
+    "prioridade": 3,
+    "corrigir_agora": true
+  }
+]

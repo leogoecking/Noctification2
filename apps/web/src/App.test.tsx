@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { api } from "./lib/api";
+import { api, ApiError } from "./lib/api";
 
 vi.mock("./lib/api", () => ({
   api: {
@@ -20,7 +20,19 @@ vi.mock("./lib/api", () => ({
     updateUser: vi.fn(),
     toggleUserStatus: vi.fn(),
     sendNotification: vi.fn(),
-    adminNotifications: vi.fn()
+    adminNotifications: vi.fn(),
+    myReminders: vi.fn(),
+    createMyReminder: vi.fn(),
+    updateMyReminder: vi.fn(),
+    toggleMyReminder: vi.fn(),
+    deleteMyReminder: vi.fn(),
+    myReminderOccurrences: vi.fn(),
+    completeReminderOccurrence: vi.fn(),
+    adminReminders: vi.fn(),
+    adminReminderOccurrences: vi.fn(),
+    adminReminderHealth: vi.fn(),
+    adminReminderLogs: vi.fn(),
+    toggleAdminReminder: vi.fn()
   },
   ApiError: class ApiError extends Error {
     status: number;
@@ -58,5 +70,52 @@ describe("App routing", () => {
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalled());
     expect(screen.getByText("Acesso interno")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Criar conta" })).toBeInTheDocument();
+  });
+
+  it("envia expected_role ao backend e mantem usuario fora da sessao quando a rota diverge", async () => {
+    window.history.replaceState({}, "", "/login");
+    mockedApi.login.mockRejectedValueOnce(
+      new ApiError("Use /login para acesso de usuario", 403)
+    );
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("Login"), { target: { value: "admin" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "admin" } });
+    fireEvent.submit(screen.getByLabelText("Senha").closest("form") as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(mockedApi.login).toHaveBeenCalledWith("admin", "admin", "user");
+    });
+    expect(await screen.findByText("Use /login para acesso de usuario")).toBeInTheDocument();
+    expect(mockedApi.logout).not.toHaveBeenCalled();
+    expect(screen.queryByText("Console Administrativo")).toBeNull();
+  });
+
+  it("faz logout compensatorio se receber usuario com role divergente", async () => {
+    const adminUser = {
+      id: 1,
+      login: "admin",
+      name: "Administrador",
+      role: "admin" as const
+    };
+
+    window.history.replaceState({}, "", "/login");
+    mockedApi.login.mockResolvedValueOnce({ user: adminUser });
+    mockedApi.logout.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("Login"), { target: { value: "admin" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "admin" } });
+    fireEvent.submit(screen.getByLabelText("Senha").closest("form") as HTMLFormElement);
+
+    expect(await screen.findByText("Use /admin/login para acesso administrativo")).toBeInTheDocument();
+    expect(mockedApi.logout).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("AdminDashboardMock")).toBeNull();
   });
 });

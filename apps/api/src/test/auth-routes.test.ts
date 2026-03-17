@@ -219,6 +219,27 @@ describe("auth routes", () => {
     expect((loginRes.body as { user: { login: string } }).user.login).toBe("admin");
   });
 
+  it("rejeita login quando o papel esperado diverge antes de criar cookie", async () => {
+    const loginHandler = getRouteHandler(authRouter, "/login", "post");
+    const loginRes = createMockResponse();
+
+    await loginHandler(
+      {
+        body: {
+          login: "admin",
+          password: "admin",
+          expected_role: "user"
+        },
+        ip: "127.0.0.1"
+      },
+      loginRes
+    );
+
+    expect(loginRes.statusCode).toBe(403);
+    expect((loginRes.body as { error: string }).error).toBe("Use /login para acesso de usuario");
+    expect(loginRes.cookies).toHaveLength(0);
+  });
+
   it("limpa o cookie no logout mesmo com sessao invalida", () => {
     const logoutHandler = getRouteHandler(authRouter, "/logout", "post");
     const logoutRes = createMockResponse();

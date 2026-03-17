@@ -7,6 +7,7 @@ import { connectDatabase, nowIso, runMigrations } from "../db";
 import type { AppConfig } from "../config";
 import { createReminderMeRouter } from "../routes/reminders-me";
 import { createReminderAdminRouter } from "../routes/reminders-admin";
+import { runReminderSchedulerCycle } from "../reminders/scheduler";
 
 const testConfig: AppConfig = {
   nodeEnv: "test",
@@ -347,6 +348,53 @@ describe("reminder routes", () => {
 
     expect(invalidTimezoneCreateRes.statusCode).toBe(400);
     expect((invalidTimezoneCreateRes.body as ErrorResponseBody).error).toMatch(/America\/Bahia/i);
+  });
+
+  it("recalcula o proximo disparo ao editar horario com lastScheduledFor existente", () => {
+    const updateHandler = getRouteHandler(meRouter, "/reminders/:id", "patch");
+    const timestamp = nowIso();
+
+    const reminderResult = db
+      .prepare(
+        `
+          INSERT INTO reminders (
+            user_id, title, description, start_date, time_of_day, timezone,
+            repeat_type, weekdays_json, is_active, last_scheduled_for, created_at, updated_at
+          ) VALUES (?, 'Medicacao', '', '2026-03-13', '09:00', 'America/Bahia', 'daily', '[]', 1, '2026-03-13T12:00:00.000Z', ?, ?)
+        `
+      )
+      .run(regularUser.id, timestamp, timestamp);
+
+    const reminderId = Number(reminderResult.lastInsertRowid);
+    const updateRes = createMockResponse();
+    updateHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(reminderId) },
+        body: { timeOfDay: "20:00" }
+      },
+      updateRes
+    );
+
+    expect(updateRes.statusCode).toBe(200);
+
+    runReminderSchedulerCycle(db, ioStub as unknown as Server, {
+      now: () => new Date("2026-03-14T23:30:00.000Z")
+    });
+
+    const occurrence = db
+      .prepare(
+        `
+          SELECT scheduled_for AS scheduledFor
+          FROM reminder_occurrences
+          WHERE reminder_id = ?
+          ORDER BY id DESC
+          LIMIT 1
+        `
+      )
+      .get(reminderId) as { scheduledFor: string };
+
+    expect(occurrence.scheduledFor).toBe("2026-03-14T23:00:00.000Z");
   });
 
   it("conclui ocorrencia pendente e emite atualizacao realtime", () => {

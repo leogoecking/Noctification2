@@ -1,0 +1,29 @@
+[
+  {
+    "id": "BUG-001",
+    "tipo": "bug_reproduzivel",
+    "severidade": "alta",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/routes/me.ts",
+    "linha": 36,
+    "prioridade": 1
+  },
+  {
+    "id": "BUG-002",
+    "tipo": "bug_reproduzivel",
+    "severidade": "alta",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/routes/reminders-me.ts",
+    "linha": 340,
+    "prioridade": 2
+  },
+  {
+    "id": "RISK-001",
+    "tipo": "bug_reproduzivel",
+    "severidade": "media",
+    "status": "corrigido",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 123,
+    "prioridade": 3
+  }
+]

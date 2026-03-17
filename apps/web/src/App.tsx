@@ -120,10 +120,17 @@ export default function App() {
       setSubmittingAuth(true);
 
       try {
-        const response = await api.login(loginValue, password);
+        const response = await api.login(loginValue, password, expectedRole);
         const user = response.user as AuthUser;
 
         if (user.role !== expectedRole) {
+          try {
+            await api.logout();
+          } catch {
+            // Best-effort cleanup for older API behavior that accepted the session.
+          }
+
+          setCurrentUser(null);
           throw new ApiError(
             expectedRole === "admin"
               ? "Use /login para acesso de usuario"

@@ -1,3 +1,5 @@
+import type { UserRole } from "../types";
+
 const isLoopbackHost = (hostname: string): boolean => {
   return hostname === "localhost" || hostname === "127.0.0.1";
 };
@@ -80,10 +82,14 @@ export const api = {
       bodyJson: { name, login, password }
     }),
 
-  login: (login: string, password: string) =>
+  login: (login: string, password: string, expectedRole?: UserRole) =>
     request<{ user: unknown }>("/auth/login", {
       method: "POST",
-      bodyJson: { login, password }
+      bodyJson: {
+        login,
+        password,
+        ...(expectedRole ? { expected_role: expectedRole } : {})
+      }
     }),
 
   me: () => request<{ user: unknown }>("/auth/me"),
