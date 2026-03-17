@@ -145,16 +145,16 @@ ensure_api_env() {
 }
 
 validate_api_env() {
-  local jwt_secret admin_login admin_password cors_origin allow_insecure
+  local api_secret_value admin_login admin_password cors_origin allow_insecure
 
-  jwt_secret="$(read_env_value JWT_SECRET)"
+  api_secret_value="$(read_env_value JWT_SECRET)"
   admin_login="$(read_env_value ADMIN_LOGIN)"
   admin_password="$(read_env_value ADMIN_PASSWORD)"
   cors_origin="$(read_env_value CORS_ORIGIN)"
   allow_insecure="$(read_env_value ALLOW_INSECURE_FIXED_ADMIN)"
 
-  [[ -n "$jwt_secret" ]] || fail "JWT_SECRET is missing in $SYSTEM_ENV_FILE"
-  [[ "$jwt_secret" != "CHANGE_ME_TO_A_LONG_RANDOM_SECRET" ]] || fail "JWT_SECRET still uses the template placeholder in $SYSTEM_ENV_FILE"
+  [[ -n "$api_secret_value" ]] || fail "JWT_SECRET is missing in $SYSTEM_ENV_FILE"
+  [[ "$api_secret_value" != "CHANGE_ME_TO_A_LONG_RANDOM_SECRET" ]] || fail "JWT_SECRET still uses the template placeholder in $SYSTEM_ENV_FILE"
   [[ -n "$admin_login" ]] || fail "ADMIN_LOGIN is missing in $SYSTEM_ENV_FILE"
   [[ "$admin_login" != "CHANGE_ME_ADMIN_LOGIN" ]] || fail "ADMIN_LOGIN still uses the template placeholder in $SYSTEM_ENV_FILE"
   [[ -n "$admin_password" ]] || fail "ADMIN_PASSWORD is missing in $SYSTEM_ENV_FILE"
