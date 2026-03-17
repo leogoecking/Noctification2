@@ -79,7 +79,7 @@ describe("reminder scheduler", () => {
         INSERT INTO reminders (
           user_id, title, description, start_date, time_of_day, timezone,
           repeat_type, weekdays_json, is_active, last_scheduled_for, created_at, updated_at
-        ) VALUES (1, 'Reuniao', '', '2026-03-09', '08:00', 'America/Bahia', 'weekly', '[1,3,5]', 1, '2026-03-13T08:00:00.000Z', ?, ?)
+        ) VALUES (1, 'Reuniao', '', '2026-03-09', '08:00', 'America/Bahia', 'weekly', '[1,3,5]', 1, '2026-03-13T11:00:00.000Z', ?, ?)
       `
     ).run(timestamp, timestamp);
 
@@ -100,7 +100,7 @@ describe("reminder scheduler", () => {
       )
       .get() as { scheduledFor: string };
 
-    expect(occurrence.scheduledFor).toBe("2026-03-16T08:00:00.000Z");
+    expect(occurrence.scheduledFor).toBe("2026-03-16T11:00:00.000Z");
     db.close();
   });
 

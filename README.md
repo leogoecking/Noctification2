@@ -142,7 +142,14 @@ O fluxo validado no Debian para desenvolvimento é:
 ./run.sh
 ```
 
+Para deploy único em VM Debian, o caminho preferido agora é:
+
+```bash
+sudo APP_ROOT=/home/noctification/noctification bash ops/scripts/deploy-debian.sh
+```
+
 Para serviço de sistema, os exemplos estão em [`ops/systemd`](/home/leo/Noctification2/ops/systemd).
+Para deploy permanente em VM Debian com `systemd` + `nginx`, consulte [`docs/debian-vm-deploy.md`](/home/redes/Documentos/Leandro/Noctification2/docs/debian-vm-deploy.md).
 
 ## Estrutura
 
@@ -150,6 +157,8 @@ Para serviço de sistema, os exemplos estão em [`ops/systemd`](/home/leo/Noctif
 - [`apps/api/src`](/home/leo/Noctification2/apps/api/src): API, auth, realtime e scripts
 - [`apps/web/src`](/home/leo/Noctification2/apps/web/src): frontend React
 - [`ops/systemd`](/home/leo/Noctification2/ops/systemd): exemplos de serviço
+- [`ops/nginx`](/home/redes/Documentos/Leandro/Noctification2/ops/nginx): exemplo de vhost para frontend e proxy da API
+- [`docs/debian-vm-deploy.md`](/home/redes/Documentos/Leandro/Noctification2/docs/debian-vm-deploy.md): passo a passo de deploy em VM Debian
 
 ## Observações
 

@@ -3,6 +3,15 @@ import type { Server } from "socket.io";
 import { nowIso } from "../db";
 import { emitReminderDue, emitReminderUpdated } from "../socket";
 import { logReminderEvent } from "./service";
+import {
+  addDaysToDateParts,
+  addMonthsToDateParts,
+  getWeekdayFromDateParts,
+  getZonedParts,
+  parseDateOnly,
+  parseTimeOfDay,
+  zonedDateTimeToUtc
+} from "./timezone";
 import type { ReminderOccurrenceRow, ReminderRepeatType, ReminderRow } from "./types";
 
 export const MAX_RETRIES = 3;
@@ -22,90 +31,74 @@ const parseWeekdaysJson = (value: string): number[] => {
   }
 };
 
-const combineDateAndTime = (dateValue: string, timeOfDay: string): Date =>
-  new Date(`${dateValue}T${timeOfDay}:00`);
-
-const toIsoFromDate = (date: Date): string => date.toISOString();
-
-const addDays = (date: Date, amount: number): Date => {
-  const next = new Date(date.getTime());
-  next.setDate(next.getDate() + amount);
-  return next;
-};
-
-const addMonths = (date: Date, amount: number): Date => {
-  const next = new Date(date.getTime());
-  const desiredDay = next.getDate();
-  next.setMonth(next.getMonth() + amount, 1);
-  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-  next.setDate(Math.min(desiredDay, lastDay));
-  return next;
-};
-
-const nextWeeklyDate = (base: Date, weekdays: number[]): Date => {
-  const allowed = weekdays.length > 0 ? weekdays : [base.getDay()];
+const nextWeeklyDate = (
+  baseDate: { year: number; month: number; day: number },
+  weekdays: number[]
+): { year: number; month: number; day: number } => {
+  const allowed = weekdays.length > 0 ? weekdays : [getWeekdayFromDateParts(baseDate)];
   for (let offset = 1; offset <= 7; offset += 1) {
-    const candidate = addDays(base, offset);
-    if (allowed.includes(candidate.getDay())) {
+    const candidate = addDaysToDateParts(baseDate, offset);
+    if (allowed.includes(getWeekdayFromDateParts(candidate))) {
       return candidate;
     }
   }
 
-  return addDays(base, 7);
+  return addDaysToDateParts(baseDate, 7);
 };
 
-const nextWeekdayDate = (base: Date): Date => {
+const nextWeekdayDate = (baseDate: { year: number; month: number; day: number }) => {
   for (let offset = 1; offset <= 7; offset += 1) {
-    const candidate = addDays(base, offset);
-    const day = candidate.getDay();
+    const candidate = addDaysToDateParts(baseDate, offset);
+    const day = getWeekdayFromDateParts(candidate);
     if (day >= 1 && day <= 5) {
       return candidate;
     }
   }
 
-  return addDays(base, 1);
+  return addDaysToDateParts(baseDate, 1);
 };
 
 const computeNextScheduledFor = (reminder: ReminderRow): string | null => {
+  const timezone = reminder.timezone;
   const anchor = reminder.lastScheduledFor
-    ? new Date(reminder.lastScheduledFor)
-    : combineDateAndTime(reminder.startDate, reminder.timeOfDay);
+    ? getZonedParts(new Date(reminder.lastScheduledFor), timezone)
+    : {
+        ...parseDateOnly(reminder.startDate),
+        ...parseTimeOfDay(reminder.timeOfDay)
+      };
 
   if (!reminder.lastScheduledFor) {
-    return anchor.toISOString();
+    return zonedDateTimeToUtc(anchor, anchor, timezone).toISOString();
   }
 
   switch (reminder.repeatType as ReminderRepeatType) {
     case "none":
       return null;
     case "daily":
-      return toIsoFromDate(addDays(anchor, 1));
+      return zonedDateTimeToUtc(addDaysToDateParts(anchor, 1), anchor, timezone).toISOString();
     case "weekly":
-      return toIsoFromDate(nextWeeklyDate(anchor, parseWeekdaysJson(reminder.weekdaysJson)));
+      return zonedDateTimeToUtc(
+        nextWeeklyDate(anchor, parseWeekdaysJson(reminder.weekdaysJson)),
+        anchor,
+        timezone
+      ).toISOString();
     case "monthly":
-      return toIsoFromDate(addMonths(anchor, 1));
+      return zonedDateTimeToUtc(addMonthsToDateParts(anchor, 1), anchor, timezone).toISOString();
     case "weekdays":
-      return toIsoFromDate(nextWeekdayDate(anchor));
+      return zonedDateTimeToUtc(nextWeekdayDate(anchor), anchor, timezone).toISOString();
     default:
       return null;
   }
 };
 
-const endOfScheduledDay = (scheduledFor: string): Date => {
-  const scheduled = new Date(scheduledFor);
-  return new Date(
-    scheduled.getFullYear(),
-    scheduled.getMonth(),
-    scheduled.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
-};
-
-const shouldExpireOccurrence = (scheduledFor: string, now: Date): boolean => {
-  return now.getTime() > endOfScheduledDay(scheduledFor).getTime();
+const shouldExpireOccurrence = (scheduledFor: string, timezone: string, now: Date): boolean => {
+  const scheduled = getZonedParts(new Date(scheduledFor), timezone);
+  const nextDayStart = zonedDateTimeToUtc(addDaysToDateParts(scheduled, 1), {
+    hour: 0,
+    minute: 0,
+    second: 0
+  }, timezone);
+  return now.getTime() >= nextDayStart.getTime();
 };
 
 const generateDueOccurrences = (db: Database.Database, now: Date) => {
@@ -208,7 +201,8 @@ const deliverPendingOccurrences = (db: Database.Database, io: Server, now: Date)
           o.created_at AS createdAt,
           o.updated_at AS updatedAt,
           r.title,
-          r.description
+          r.description,
+          r.timezone AS timezone
         FROM reminder_occurrences o
         INNER JOIN reminders r ON r.id = o.reminder_id
         WHERE o.status = 'pending'
@@ -247,7 +241,7 @@ const deliverPendingOccurrences = (db: Database.Database, io: Server, now: Date)
   );
 
   for (const occurrence of occurrences) {
-    if (shouldExpireOccurrence(occurrence.scheduledFor, now) || occurrence.retryCount >= MAX_RETRIES) {
+    if (shouldExpireOccurrence(occurrence.scheduledFor, occurrence.timezone, now) || occurrence.retryCount >= MAX_RETRIES) {
       markExpired.run(nowTimestamp, nowTimestamp, occurrence.id);
       emitReminderUpdated(io, {
         occurrenceId: occurrence.id,

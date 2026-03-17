@@ -25,6 +25,7 @@ export interface ReminderOccurrenceRow {
   userId: number;
   userName?: string;
   userLogin?: string;
+  timezone: string;
   scheduledFor: string;
   triggeredAt: string | null;
   status: ReminderOccurrenceStatus;

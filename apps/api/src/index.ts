@@ -6,17 +6,7 @@ import { startReminderScheduler } from "./reminders/scheduler";
 import { setupSocket } from "./socket";
 import { createApp } from "./app";
 
-const assertReminderTimezoneEnvironment = () => {
-  const runtimeTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  if (runtimeTimezone !== config.reminderTimezone) {
-    throw new Error(
-      `Timezone do processo incompatível com lembretes. Esperado ${config.reminderTimezone}, recebido ${runtimeTimezone || "indefinido"}.`
-    );
-  }
-};
-
 const boot = () => {
-  assertReminderTimezoneEnvironment();
   const db = connectDatabase(config.dbPath);
   runMigrations(db, apiMigrationsDir);
 
@@ -28,7 +18,7 @@ const boot = () => {
     : () => undefined;
 
   console.log(
-    `[reminders] scheduler ${config.enableReminderScheduler ? "enabled" : "disabled"} (timezone=${config.reminderTimezone})`
+    `[reminders] scheduler ${config.enableReminderScheduler ? "enabled" : "disabled"} (timezone=${config.reminderTimezone}, explicit=true)`
   );
 
   httpServer.on("request", app);
