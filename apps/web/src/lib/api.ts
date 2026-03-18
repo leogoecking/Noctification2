@@ -1,41 +1,10 @@
 import type { UserRole } from "../types";
+import { resolveRuntimeApiBase } from "./runtimeUrls";
 
-const isLoopbackHost = (hostname: string): boolean => {
-  return hostname === "localhost" || hostname === "127.0.0.1";
-};
-
-const resolveDefaultApiBase = (): string => {
-  if (typeof window === "undefined") {
-    return "http://localhost:4000/api/v1";
-  }
-
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:4000/api/v1`;
-};
-
-const resolveApiBase = (): string => {
-  const configuredValue = import.meta.env.VITE_API_BASE;
-  if (!configuredValue || typeof window === "undefined") {
-    return resolveDefaultApiBase();
-  }
-
-  try {
-    const configuredUrl = new URL(configuredValue);
-    const pageHostname = window.location.hostname;
-
-    if (!isLoopbackHost(pageHostname) && isLoopbackHost(configuredUrl.hostname)) {
-      configuredUrl.hostname = pageHostname;
-      return configuredUrl.toString();
-    }
-
-    return configuredUrl.toString();
-  } catch {
-    return configuredValue;
-  }
-};
-
-const API_BASE = resolveApiBase().replace(/\/+$/, "");
+const API_BASE = resolveRuntimeApiBase(
+  import.meta.env.VITE_API_BASE,
+  typeof window === "undefined" ? undefined : window.location
+).replace(/\/+$/, "");
 
 interface RequestOptions extends RequestInit {
   bodyJson?: unknown;

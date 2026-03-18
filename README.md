@@ -31,7 +31,8 @@ Se você abrir de fora da VM, use o IP da máquina:
 - frontend: `http://IP_DA_VM:5173`
 - API: `http://IP_DA_VM:4000`
 
-O frontend já resolve a API e o Socket.IO usando o mesmo host da página, na porta `4000`, quando `VITE_API_BASE` e `VITE_SOCKET_URL` não são definidos.
+No dev com Vite em `:5173`, o frontend resolve a API e o Socket.IO usando o mesmo host da página na porta `4000`.
+Quando servido pelo `nginx`, sem `VITE_API_BASE` e `VITE_SOCKET_URL`, o frontend usa o mesmo `origin` da página e aproveita o proxy reverso de `/api` e `/socket.io`.
 
 ## Login inicial
 
@@ -42,10 +43,12 @@ Admin local de desenvolvimento:
 
 Usuários comuns podem ser criados pela tela de cadastro em `/login`.
 
-Para ambientes fora de desenvolvimento, ajuste [`apps/api/.env.example`](/home/leo/Noctification2/apps/api/.env.example) como base:
+Para ambientes fora de desenvolvimento, ajuste [`apps/api/.env.example`](apps/api/.env.example) como base:
 
 - defina `ADMIN_LOGIN`, `ADMIN_PASSWORD` e `ADMIN_NAME`
 - use `ALLOW_INSECURE_FIXED_ADMIN=false`
+- use `COOKIE_SECURE=true` quando houver HTTPS
+- use `COOKIE_SECURE=false` apenas em deploy HTTP controlado
 - controle a ativacao de lembretes com `ENABLE_REMINDER_SCHEDULER`
 - a timezone operacional dos lembretes e fixa em `America/Bahia`
 
@@ -145,20 +148,22 @@ O fluxo validado no Debian para desenvolvimento é:
 Para deploy único em VM Debian, o caminho preferido agora é:
 
 ```bash
-sudo APP_ROOT=/home/noctification/noctification bash ops/scripts/deploy-debian.sh
+sudo APP_ROOT="$(pwd)" bash ops/scripts/deploy-debian.sh
 ```
 
-Para serviço de sistema, os exemplos estão em [`ops/systemd`](/home/leo/Noctification2/ops/systemd).
-Para deploy permanente em VM Debian com `systemd` + `nginx`, consulte [`docs/debian-vm-deploy.md`](/home/redes/Documentos/Leandro/Noctification2/docs/debian-vm-deploy.md).
+Se o projeto estiver clonado em outro caminho, basta ajustar `APP_ROOT` para o diretório real do clone.
+
+Para serviço de sistema, os exemplos estão em [`ops/systemd`](ops/systemd).
+Para deploy permanente em VM Debian com `systemd` + `nginx`, consulte [`docs/debian-vm-deploy.md`](docs/debian-vm-deploy.md).
 
 ## Estrutura
 
-- [`apps/api/migrations`](/home/leo/Noctification2/apps/api/migrations): migrações SQL
-- [`apps/api/src`](/home/leo/Noctification2/apps/api/src): API, auth, realtime e scripts
-- [`apps/web/src`](/home/leo/Noctification2/apps/web/src): frontend React
-- [`ops/systemd`](/home/leo/Noctification2/ops/systemd): exemplos de serviço
-- [`ops/nginx`](/home/redes/Documentos/Leandro/Noctification2/ops/nginx): exemplo de vhost para frontend e proxy da API
-- [`docs/debian-vm-deploy.md`](/home/redes/Documentos/Leandro/Noctification2/docs/debian-vm-deploy.md): passo a passo de deploy em VM Debian
+- [`apps/api/migrations`](apps/api/migrations): migrações SQL
+- [`apps/api/src`](apps/api/src): API, auth, realtime e scripts
+- [`apps/web/src`](apps/web/src): frontend React
+- [`ops/systemd`](ops/systemd): exemplos de serviço
+- [`ops/nginx`](ops/nginx): exemplo de vhost para frontend e proxy da API
+- [`docs/debian-vm-deploy.md`](docs/debian-vm-deploy.md): passo a passo de deploy em VM Debian
 
 ## Observações
 

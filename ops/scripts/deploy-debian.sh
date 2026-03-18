@@ -17,6 +17,10 @@ NGINX_SITE_ENABLED="${NGINX_SITE_ENABLED:-/etc/nginx/sites-enabled/${NGINX_SITE_
 CRON_FILE_PATH="${CRON_FILE_PATH:-/etc/cron.d/noctification-db-backup}"
 NODE_REQUIRED_MAJOR="${NODE_REQUIRED_MAJOR:-20}"
 NPM_REQUIRED_MAJOR="${NPM_REQUIRED_MAJOR:-10}"
+APP_ROOT_PLACEHOLDER="__APP_ROOT__"
+SYSTEM_USER_PLACEHOLDER="__SYSTEM_USER__"
+SYSTEM_GROUP_PLACEHOLDER="__SYSTEM_GROUP__"
+SYSTEM_ENV_FILE_PLACEHOLDER="__SYSTEM_ENV_FILE__"
 
 SKIP_APT=0
 SKIP_NPM_INSTALL=0
@@ -63,7 +67,7 @@ Environment overrides:
   NGINX_SITE_NAME       nginx site name (default: noctification)
 
 Examples:
-  sudo APP_ROOT=/home/noctification/noctification bash ops/scripts/deploy-debian.sh
+  sudo APP_ROOT=/caminho/do/clone bash ops/scripts/deploy-debian.sh
   sudo bash ops/scripts/deploy-debian.sh --skip-apt
 EOF
 }
@@ -141,7 +145,11 @@ ensure_api_env() {
     log "Using existing env file: $SYSTEM_ENV_FILE"
   fi
 
-  grep -q '^APP_ROOT=' "$SYSTEM_ENV_FILE" || printf '\nAPP_ROOT=%s\n' "$APP_ROOT" >> "$SYSTEM_ENV_FILE"
+  if grep -q '^APP_ROOT=' "$SYSTEM_ENV_FILE"; then
+    sed -i "s|^APP_ROOT=.*|APP_ROOT=$APP_ROOT|" "$SYSTEM_ENV_FILE"
+  else
+    printf '\nAPP_ROOT=%s\n' "$APP_ROOT" >> "$SYSTEM_ENV_FILE"
+  fi
 }
 
 validate_api_env() {
@@ -164,12 +172,45 @@ validate_api_env() {
   if [[ "$allow_insecure" != "false" ]]; then
     fail "ALLOW_INSECURE_FIXED_ADMIN must be false in production env file: $SYSTEM_ENV_FILE"
   fi
+
+  if [[ "$admin_login" == "admin" && "$admin_password" == "admin" ]]; then
+    fail "ADMIN_LOGIN/ADMIN_PASSWORD still use the insecure default pair in $SYSTEM_ENV_FILE"
+  fi
+}
+
+render_template() {
+  local template_path="$1"
+  local target_path="$2"
+
+  cp "$template_path" "$target_path"
+  sed -i "s|$APP_ROOT_PLACEHOLDER|$APP_ROOT|g" "$target_path"
+  sed -i "s|$SYSTEM_USER_PLACEHOLDER|$SYSTEM_USER|g" "$target_path"
+  sed -i "s|$SYSTEM_GROUP_PLACEHOLDER|$SYSTEM_GROUP|g" "$target_path"
+  sed -i "s|$SYSTEM_ENV_FILE_PLACEHOLDER|$SYSTEM_ENV_FILE|g" "$target_path"
+}
+
+validate_app_root_access() {
+  [[ -x "$APP_ROOT" ]] || fail "APP_ROOT is not traversable: $APP_ROOT"
+  [[ -f "$APP_ROOT/apps/api/dist/index.js" ]] || fail "API build artifact missing: $APP_ROOT/apps/api/dist/index.js"
+  [[ -f "$APP_ROOT/apps/web/dist/index.html" ]] || fail "Web build artifact missing: $APP_ROOT/apps/web/dist/index.html"
+
+  if ! runuser -u "$SYSTEM_USER" -- test -x "$APP_ROOT"; then
+    fail "System user '$SYSTEM_USER' cannot access APP_ROOT=$APP_ROOT"
+  fi
+
+  if ! runuser -u "$SYSTEM_USER" -- test -r "$APP_ROOT/apps/api/dist/index.js"; then
+    fail "System user '$SYSTEM_USER' cannot read $APP_ROOT/apps/api/dist/index.js"
+  fi
+
+  if ! runuser -u "$SYSTEM_USER" -- test -r "$APP_ROOT/apps/web/dist/index.html"; then
+    fail "System user '$SYSTEM_USER' cannot read $APP_ROOT/apps/web/dist/index.html"
+  fi
 }
 
 run_apt() {
   log "Installing system packages"
   apt update
-  apt install -y nginx sqlite3
+  apt install -y curl nginx sqlite3
 }
 
 run_npm_install() {
@@ -194,11 +235,7 @@ run_bootstrap() {
 
 install_systemd_unit() {
   log "Installing systemd service"
-  cp "$APP_ROOT/ops/systemd/noctification-api.service" "$SYSTEMD_UNIT_PATH"
-  sed -i "s|/home/noctification/noctification|$APP_ROOT|g" "$SYSTEMD_UNIT_PATH"
-  sed -i "s|User=noctification|User=$SYSTEM_USER|g" "$SYSTEMD_UNIT_PATH"
-  sed -i "s|Group=noctification|Group=$SYSTEM_GROUP|g" "$SYSTEMD_UNIT_PATH"
-  sed -i "s|EnvironmentFile=/etc/noctification/api.env|EnvironmentFile=$SYSTEM_ENV_FILE|g" "$SYSTEMD_UNIT_PATH"
+  render_template "$APP_ROOT/ops/systemd/noctification-api.service" "$SYSTEMD_UNIT_PATH"
 
   chown -R "$SYSTEM_USER:$SYSTEM_GROUP" "$APP_ROOT"
 
@@ -210,8 +247,7 @@ install_systemd_unit() {
 
 install_nginx_site() {
   log "Installing nginx site"
-  cp "$APP_ROOT/ops/nginx/noctification.conf" "$NGINX_SITE_AVAILABLE"
-  sed -i "s|/home/noctification/noctification|$APP_ROOT|g" "$NGINX_SITE_AVAILABLE"
+  render_template "$APP_ROOT/ops/nginx/noctification.conf" "$NGINX_SITE_AVAILABLE"
 
   ln -sfn "$NGINX_SITE_AVAILABLE" "$NGINX_SITE_ENABLED"
   rm -f /etc/nginx/sites-enabled/default
@@ -222,9 +258,7 @@ install_nginx_site() {
 
 install_backup_cron() {
   log "Installing DB backup cron"
-  cp "$APP_ROOT/ops/cron/noctification-db-backup.cron" "$CRON_FILE_PATH"
-  sed -i "s|/home/noctification/noctification|$APP_ROOT|g" "$CRON_FILE_PATH"
-  sed -i "s| noctification | ${SYSTEM_USER} |g" "$CRON_FILE_PATH"
+  render_template "$APP_ROOT/ops/cron/noctification-db-backup.cron" "$CRON_FILE_PATH"
   chmod 644 "$CRON_FILE_PATH"
 }
 
@@ -284,6 +318,7 @@ done
 require_root
 require_cmd sed
 require_cmd grep
+require_cmd runuser
 require_cmd systemctl
 check_project_root
 check_node_and_npm
@@ -304,6 +339,8 @@ fi
 if (( SKIP_BUILD == 0 )); then
   run_build
 fi
+
+validate_app_root_access
 
 if (( SKIP_MIGRATE == 0 )); then
   run_migrate

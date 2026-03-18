@@ -53,6 +53,7 @@ export interface AppConfig {
   corsOrigin: string;
   corsOrigins: string[];
   cookieName: string;
+  cookieSecure: boolean;
   allowInsecureFixedAdmin: boolean;
   enableReminderScheduler: boolean;
   adminSeed: {
@@ -94,6 +95,7 @@ export const config: AppConfig = {
   corsOrigin,
   corsOrigins: allowAnyDevOrigin ? ["*"] : parseCsv(corsOrigin, [defaultCorsOrigin]),
   cookieName: "nc_access",
+  cookieSecure: toBoolean(process.env.COOKIE_SECURE, nodeEnv === "production"),
   allowInsecureFixedAdmin,
   enableReminderScheduler: toBoolean(
     process.env.ENABLE_REMINDER_SCHEDULER,

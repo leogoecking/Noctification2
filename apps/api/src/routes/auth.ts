@@ -24,7 +24,7 @@ const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_BLOCK_DURATION_MS = 15 * 60 * 1000;
 
-const isSecureCookie = (config: AppConfig): boolean => config.nodeEnv === "production";
+const isSecureCookie = (config: AppConfig): boolean => config.cookieSecure;
 
 const authCookieOptions = (config: AppConfig) => ({
   httpOnly: true,

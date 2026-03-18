@@ -58,6 +58,16 @@ read_cors_origin_from_env() {
   sed -n -e 's/^\xEF\xBB\xBFCORS_ORIGIN=//p' -e 's/^CORS_ORIGIN=//p' "$ENV_FILE" | tail -n1 | tr -d '\r'
 }
 
+read_env_value() {
+  local key="$1"
+
+  if [[ ! -f "$ENV_FILE" ]]; then
+    return
+  fi
+
+  sed -n -e "s/^\xEF\xBB\xBF${key}=//p" -e "s/^${key}=//p" "$ENV_FILE" | tail -n1 | tr -d '\r'
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --api-base)
@@ -102,6 +112,16 @@ if [[ -z "$ORIGIN" ]]; then
   ORIGIN="$(read_cors_origin_from_env || true)"
 fi
 
+if [[ "$LOGIN" == "admin" ]]; then
+  LOGIN="$(read_env_value ADMIN_LOGIN || true)"
+  LOGIN="${LOGIN:-admin}"
+fi
+
+if [[ "$PASSWORD" == "admin" ]]; then
+  PASSWORD="$(read_env_value ADMIN_PASSWORD || true)"
+  PASSWORD="${PASSWORD:-admin}"
+fi
+
 if [[ -z "$ORIGIN" ]]; then
   fail "Could not determine origin. Pass --origin or configure CORS_ORIGIN in $ENV_FILE"
 fi
@@ -117,6 +137,7 @@ cleanup() {
 trap cleanup EXIT
 
 log "Env file used: $ENV_FILE"
+log "Login used: $LOGIN"
 log "Checking health endpoint..."
 curl -fsS --max-time "$TIMEOUT_SECONDS" "$API_BASE/api/v1/health" >/dev/null
 

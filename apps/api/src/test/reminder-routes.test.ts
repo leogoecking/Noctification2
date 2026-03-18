@@ -19,6 +19,7 @@ const testConfig: AppConfig = {
   corsOrigin: "http://localhost:5173",
   corsOrigins: ["http://localhost:5173"],
   cookieName: "nc_access",
+  cookieSecure: false,
   allowInsecureFixedAdmin: true,
   enableReminderScheduler: false,
   adminSeed: {

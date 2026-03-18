@@ -7,3 +7,8 @@ apps/api/data/
 apps/api/dist/
 apps/web/dist/
 coverage/
+.deploy/shared/api.env
+.deploy/shared/backups/*
+!.deploy/shared/backups/.gitkeep
+.deploy/shared/logs/*
+!.deploy/shared/logs/.gitkeep

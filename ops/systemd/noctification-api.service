@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=noctification
-Group=noctification
-Environment=APP_ROOT=/home/noctification/noctification
-EnvironmentFile=/etc/noctification/api.env
+User=__SYSTEM_USER__
+Group=__SYSTEM_GROUP__
+Environment=APP_ROOT=__APP_ROOT__
+EnvironmentFile=__SYSTEM_ENV_FILE__
 ExecStart=/usr/bin/bash -lc 'cd "${APP_ROOT}/apps/api" && exec /usr/bin/node dist/index.js'
 Restart=always
 RestartSec=5

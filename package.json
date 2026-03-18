@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "setup": "node scripts/setup.cjs",
+    "prepare:deploy": "node scripts/prepare-deploy.cjs",
+    "check:deploy": "node scripts/check-deploy.cjs",
     "dev": "node scripts/dev.cjs",
     "dev:api": "npm run dev --workspace @noctification/api",
     "dev:web": "npm run dev --workspace @noctification/web",
