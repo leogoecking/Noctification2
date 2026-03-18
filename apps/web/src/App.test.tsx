@@ -58,7 +58,7 @@ describe("App routing", () => {
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalled());
     expect(screen.getByText("Acesso administrativo")).toBeInTheDocument();
-    const loginInput = screen.getByLabelText("Login") as HTMLInputElement;
+    const loginInput = (await screen.findByLabelText("Login")) as HTMLInputElement;
     expect(loginInput.value).toBe("admin");
   });
 
@@ -82,9 +82,12 @@ describe("App routing", () => {
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText("Login"), { target: { value: "admin" } });
-    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "admin" } });
-    fireEvent.submit(screen.getByLabelText("Senha").closest("form") as HTMLFormElement);
+    const loginInput = await screen.findByLabelText("Login");
+    const passwordInput = await screen.findByLabelText("Senha");
+
+    fireEvent.change(loginInput, { target: { value: "admin" } });
+    fireEvent.change(passwordInput, { target: { value: "admin" } });
+    fireEvent.submit(passwordInput.closest("form") as HTMLFormElement);
 
     await waitFor(() => {
       expect(mockedApi.login).toHaveBeenCalledWith("admin", "admin", "user");
@@ -110,12 +113,22 @@ describe("App routing", () => {
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText("Login"), { target: { value: "admin" } });
-    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "admin" } });
-    fireEvent.submit(screen.getByLabelText("Senha").closest("form") as HTMLFormElement);
+    const loginInput = await screen.findByLabelText("Login");
+    const passwordInput = await screen.findByLabelText("Senha");
 
-    expect(await screen.findByText("Use /admin/login para acesso administrativo")).toBeInTheDocument();
-    expect(mockedApi.logout).toHaveBeenCalledTimes(1);
+    fireEvent.change(loginInput, { target: { value: "admin" } });
+    fireEvent.change(passwordInput, { target: { value: "admin" } });
+    fireEvent.submit(passwordInput.closest("form") as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(mockedApi.login).toHaveBeenCalledWith("admin", "admin", "user");
+    });
+    await waitFor(() => {
+      expect(mockedApi.logout).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Use /admin/login para acesso administrativo")).toBeInTheDocument();
+    });
     expect(screen.queryByText("AdminDashboardMock")).toBeNull();
   });
 });
