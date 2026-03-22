@@ -122,6 +122,7 @@ describe("ReminderUserPanel", () => {
     const formPanel = screen.getByText("Novo lembrete").closest("article");
     expect(formPanel).not.toBeNull();
 
+    fireEvent.click(screen.getByRole("button", { name: /Abrir formulario/ }));
     fireEvent.change(screen.getByPlaceholderText("Titulo"), {
       target: { value: "Alongar" }
     });

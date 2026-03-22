@@ -25,5 +25,95 @@
     "arquivo": "apps/web/src/App.tsx",
     "linha": 123,
     "prioridade": 3
+  },
+  {
+    "id": "MEL-001",
+    "tipo": "melhoria",
+    "severidade": "media",
+    "status": "corrigido",
+    "arquivo": "apps/api/migrations/012_tasks_foundation.sql",
+    "linha": 1,
+    "prioridade": 4
+  },
+  {
+    "id": "MEL-002",
+    "tipo": "melhoria",
+    "severidade": "alta",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/routes/tasks-me.ts",
+    "linha": 1,
+    "prioridade": 5
+  },
+  {
+    "id": "MEL-003",
+    "tipo": "melhoria",
+    "severidade": "alta",
+    "status": "corrigido",
+    "arquivo": "apps/web/src/components/TaskUserPanel.tsx",
+    "linha": 42,
+    "prioridade": 6
+  },
+  {
+    "id": "MEL-004",
+    "tipo": "melhoria",
+    "severidade": "alta",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/tasks/notifications.ts",
+    "linha": 1,
+    "prioridade": 7
+  },
+  {
+    "id": "MEL-005",
+    "tipo": "melhoria",
+    "severidade": "alta",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/tasks/automation.ts",
+    "linha": 1,
+    "prioridade": 8
+  },
+  {
+    "id": "MEL-006",
+    "tipo": "melhoria",
+    "severidade": "alta",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/tasks/automation.ts",
+    "linha": 453,
+    "prioridade": 9
+  },
+  {
+    "id": "MEL-007",
+    "tipo": "melhoria",
+    "severidade": "media",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/app.ts",
+    "linha": 42,
+    "prioridade": 10
+  },
+  {
+    "id": "MEL-008",
+    "tipo": "melhoria",
+    "severidade": "media",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/routes/tasks-me.ts",
+    "linha": 229,
+    "prioridade": 11
+  },
+  {
+    "id": "MEL-009",
+    "tipo": "melhoria",
+    "severidade": "media",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/tasks/service.ts",
+    "linha": 436,
+    "prioridade": 12
+  },
+  {
+    "id": "MEL-010",
+    "tipo": "melhoria",
+    "severidade": "baixa",
+    "status": "corrigido",
+    "arquivo": "apps/api/src/routes/tasks-me.ts",
+    "linha": 221,
+    "prioridade": 13
   }
 ]

@@ -172,24 +172,45 @@ export const NotificationAlertCenter = ({
     });
   }, [handleIncomingNotification, onUpdated]);
 
-  const retryAlertSound = async (alert: NotificationVisualAlert) => {
-    const played = await playSystemAlert(
-      alert.notification.id,
-      alert.reminderCount > 0 ? "retry" : alert.notification.priority === "critical" ? "critical" : "default"
-    );
+  const retryBlockedAlertSounds = async () => {
+    const blockedAlerts = alerts.filter((item) => !item.dismissed && item.audioBlocked);
 
-    setAlerts((prev) =>
-      prev.map((item) =>
-        item.notification.id === alert.notification.id ? { ...item, audioBlocked: !played } : item
-      )
-    );
-
-    if (played) {
-      onToast("Som da notificacao reproduzido");
+    if (blockedAlerts.length === 0) {
       return;
     }
 
-    onError("O navegador ainda bloqueou o som da notificacao");
+    let playedCount = 0;
+    for (const alert of blockedAlerts) {
+      const played = await playSystemAlert(
+        alert.notification.id,
+        alert.reminderCount > 0
+          ? "retry"
+          : alert.notification.priority === "critical"
+            ? "critical"
+            : "default"
+      );
+
+      if (played) {
+        playedCount += 1;
+      }
+
+      setAlerts((prev) =>
+        prev.map((item) =>
+          item.notification.id === alert.notification.id ? { ...item, audioBlocked: !played } : item
+        )
+      );
+    }
+
+    if (playedCount > 0) {
+      onToast(
+        playedCount === blockedAlerts.length
+          ? "Som das notificacoes reproduzido"
+          : `Som reproduzido em ${playedCount} notificacao(oes)`
+      );
+      return;
+    }
+
+    onError("O navegador ainda bloqueou o som das notificacoes");
   };
 
   const markAsVisualized = async (alert: NotificationVisualAlert) => {
@@ -209,6 +230,7 @@ export const NotificationAlertCenter = ({
   };
 
   const visibleAlerts = alerts.filter((item) => !item.dismissed);
+  const hasBlockedAudio = visibleAlerts.some((item) => item.audioBlocked);
 
   if (!isVisible || visibleAlerts.length === 0) {
     return null;
@@ -216,6 +238,59 @@ export const NotificationAlertCenter = ({
 
   return (
     <aside className="fixed bottom-20 right-4 z-40 flex w-full max-w-md flex-col gap-3">
+      {permission === "default" && (
+        <article className="rounded-2xl border border-accent/40 bg-panel p-4 shadow-lg shadow-black/30">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-display text-sm text-textMain">Notificacoes do navegador</p>
+              <p className="mt-1 text-xs text-textMuted">
+                Ative para continuar recebendo alertas quando a aba estiver em segundo plano.
+              </p>
+            </div>
+            <button
+              className="rounded-lg border border-accent/60 px-3 py-2 text-xs text-accent"
+              onClick={() => {
+                void requestPermission();
+              }}
+              type="button"
+            >
+              Ativar
+            </button>
+          </div>
+        </article>
+      )}
+
+      {permission === "denied" && (
+        <article className="rounded-2xl border border-warning/40 bg-panel p-4 shadow-lg shadow-black/30">
+          <p className="font-display text-sm text-textMain">Permissao do navegador bloqueada</p>
+          <p className="mt-1 text-xs text-warning">
+            Os pop-ups nativos estao bloqueados. O alerta visual continua ativo.
+          </p>
+        </article>
+      )}
+
+      {hasBlockedAudio && (
+        <article className="rounded-2xl border border-warning/40 bg-panel p-4 shadow-lg shadow-black/30">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-display text-sm text-textMain">Som bloqueado</p>
+              <p className="mt-1 text-xs text-warning">
+                O navegador bloqueou o audio de uma ou mais notificacoes.
+              </p>
+            </div>
+            <button
+              className="rounded-lg border border-warning/60 px-3 py-2 text-xs text-warning"
+              onClick={() => {
+                void retryBlockedAlertSounds();
+              }}
+              type="button"
+            >
+              Tentar som novamente
+            </button>
+          </div>
+        </article>
+      )}
+
       {visibleAlerts.map((alert) => (
         <article
           key={alert.notification.id}
@@ -234,43 +309,6 @@ export const NotificationAlertCenter = ({
                 Recebida em {new Date(alert.notification.createdAt).toLocaleString("pt-BR")}
                 {alert.reminderCount > 0 ? ` | Reenvios: ${alert.reminderCount}` : ""}
               </p>
-              {permission === "default" && (
-                <div className="mt-2 space-y-2">
-                  <p className="text-xs text-textMuted">
-                    Ative notificacoes do navegador para receber alertas quando a aba estiver em segundo plano.
-                  </p>
-                  <button
-                    className="rounded-lg border border-accent/60 px-3 py-2 text-xs text-accent"
-                    onClick={() => {
-                      void requestPermission();
-                    }}
-                    type="button"
-                  >
-                    Ativar notificacoes do navegador
-                  </button>
-                </div>
-              )}
-              {permission === "denied" && (
-                <p className="mt-2 text-xs text-warning">
-                  A permissao de notificacoes do navegador esta bloqueada. O alerta visual continua ativo.
-                </p>
-              )}
-              {alert.audioBlocked && (
-                <div className="mt-2 space-y-2">
-                  <p className="text-xs text-warning">
-                    O navegador bloqueou o som. O alerta visual continua ativo.
-                  </p>
-                  <button
-                    className="rounded-lg border border-warning/60 px-3 py-2 text-xs text-warning"
-                    onClick={() => {
-                      void retryAlertSound(alert);
-                    }}
-                    type="button"
-                  >
-                    Tentar som novamente
-                  </button>
-                </div>
-              )}
             </div>
             <div className="flex flex-col gap-2">
               <span
@@ -284,6 +322,11 @@ export const NotificationAlertCenter = ({
               >
                 {alert.notification.priority}
               </span>
+              {alert.audioBlocked && (
+                <span className="rounded-full bg-warning/20 px-2 py-1 text-[10px] text-warning">
+                  Som bloqueado
+                </span>
+              )}
             </div>
           </div>
 

@@ -396,7 +396,7 @@ export const UserDashboard = ({
               <div data-testid="notif-dropdown" className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-slate-700 bg-panel p-3 shadow-glow">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-semibold text-textMain">Ultimas 10 notificacoes</p>
-                  <span className="text-xs text-textMuted">Nao lidas: {unreadCount}</span>
+                  <span className="text-xs text-textMuted">{unreadCount} pendentes</span>
                 </div>
 
                 {dropdownItems.length === 0 && (
@@ -460,23 +460,20 @@ export const UserDashboard = ({
         </div>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Pendentes</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{unreadCount}</p>
-          <p className="mt-1 text-xs text-textMuted">Notificacoes ainda nao visualizadas</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-accent">Em andamento</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{inProgressCount}</p>
-          <p className="mt-1 text-xs text-textMuted">Itens que ainda exigem acompanhamento</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-danger">Criticas</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{criticalCount}</p>
-          <p className="mt-1 text-xs text-textMuted">Notificacoes criticas nao visualizadas</p>
-        </article>
-      </section>
+      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Visao rapida</p>
+            <h3 className="mt-1 font-display text-base text-textMain">Estado das notificacoes</h3>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-panelAlt px-3 py-1.5 text-textMain">{items.length} no total</span>
+            <span className="rounded-full bg-accent/10 px-3 py-1.5 text-accent">{unreadCount} pendentes</span>
+            <span className="rounded-full bg-warning/20 px-3 py-1.5 text-warning">{inProgressCount} em andamento</span>
+            <span className="rounded-full bg-danger/20 px-3 py-1.5 text-danger">{criticalCount} criticas</span>
+          </div>
+        </div>
+      </article>
 
       <div className="flex flex-wrap gap-2">
         {!isNotificationsPage && (
@@ -640,7 +637,7 @@ export const UserDashboard = ({
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="font-display text-lg text-textMain">Pendencias recentes</h3>
-              <p className="text-sm text-textMuted">Resumo rapido do que ainda precisa de acao</p>
+              <p className="text-sm text-textMuted">Resumo do que ainda precisa de acao</p>
             </div>
             <button className="btn-primary" onClick={onOpenAllNotifications} type="button">
               Ver central completa

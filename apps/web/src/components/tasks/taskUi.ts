@@ -1,4 +1,4 @@
-import type { TaskEventItem, TaskPriority, TaskRepeatType, TaskStatus } from "../../types";
+import type { TaskEventItem, TaskPriority, TaskRepeatType, TaskStatus, TaskTimelineItem } from "../../types";
 
 export const TASK_BOARD_COLUMNS: TaskStatus[] = [
   "new",
@@ -125,6 +125,28 @@ export const buildTaskEventSummary = (event: TaskEventItem): string => {
 
   return TASK_EVENT_LABELS[event.eventType] ?? event.eventType;
 };
+
+export const buildTaskTimelineSummary = (item: TaskTimelineItem): string => {
+  if (item.kind === "comment") {
+    return "Comentario";
+  }
+
+  return buildTaskEventSummary({
+    id: Number(item.id.split(":")[1] ?? 0),
+    taskId: item.taskId,
+    actorUserId: item.actorUserId,
+    actorName: item.actorName,
+    actorLogin: item.actorLogin,
+    eventType: item.eventType ?? "updated",
+    fromStatus: item.fromStatus,
+    toStatus: item.toStatus,
+    metadata: item.metadata,
+    createdAt: item.createdAt
+  });
+};
+
+export const isTaskTimelineAutomatic = (item: TaskTimelineItem): boolean =>
+  item.kind === "event" && typeof item.eventType === "string" && item.eventType.startsWith("automation_");
 
 export const buildTaskRecurrenceSummary = (
   repeatType: TaskRepeatType,

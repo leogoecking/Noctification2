@@ -27,11 +27,15 @@ describe("task foundation migrations", () => {
     const appliedTaskRecurrenceMigration = db
       .prepare("SELECT filename FROM schema_migrations WHERE filename = ?")
       .get("015_task_recurrence.sql") as { filename: string } | undefined;
+    const appliedTaskCommentsMigration = db
+      .prepare("SELECT filename FROM schema_migrations WHERE filename = ?")
+      .get("016_task_comments.sql") as { filename: string } | undefined;
 
     expect(appliedMigration?.filename).toBe("012_tasks_foundation.sql");
     expect(appliedNotificationLinkMigration?.filename).toBe("013_notification_task_links.sql");
     expect(appliedTaskAutomationMigration?.filename).toBe("014_task_automation_logs.sql");
     expect(appliedTaskRecurrenceMigration?.filename).toBe("015_task_recurrence.sql");
+    expect(appliedTaskCommentsMigration?.filename).toBe("016_task_comments.sql");
 
     const tasksTable = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tasks'")
@@ -42,10 +46,14 @@ describe("task foundation migrations", () => {
     const taskAutomationLogsTable = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'task_automation_logs'")
       .get() as { name: string } | undefined;
+    const taskCommentsTable = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'task_comments'")
+      .get() as { name: string } | undefined;
 
     expect(tasksTable?.name).toBe("tasks");
     expect(taskEventsTable?.name).toBe("task_events");
     expect(taskAutomationLogsTable?.name).toBe("task_automation_logs");
+    expect(taskCommentsTable?.name).toBe("task_comments");
 
     const timestamp = nowIso();
 
@@ -161,6 +169,24 @@ describe("task foundation migrations", () => {
       timestamp
     );
 
+    db.prepare(
+      `
+        INSERT INTO task_comments (
+          task_id,
+          author_user_id,
+          body,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?)
+      `
+    ).run(
+      Number(taskResult.lastInsertRowid),
+      regularUser.id,
+      "Primeiro comentario operacional",
+      timestamp,
+      timestamp
+    );
+
     const linkedNotificationResult = db
       .prepare(
         `
@@ -189,14 +215,16 @@ describe("task foundation migrations", () => {
       notifications: (db.prepare("SELECT COUNT(*) AS count FROM notifications").get() as { count: number }).count,
       reminders: (db.prepare("SELECT COUNT(*) AS count FROM reminders").get() as { count: number }).count,
       tasks: (db.prepare("SELECT COUNT(*) AS count FROM tasks").get() as { count: number }).count,
-      taskEvents: (db.prepare("SELECT COUNT(*) AS count FROM task_events").get() as { count: number }).count
+      taskEvents: (db.prepare("SELECT COUNT(*) AS count FROM task_events").get() as { count: number }).count,
+      taskComments: (db.prepare("SELECT COUNT(*) AS count FROM task_comments").get() as { count: number }).count
     };
 
     expect(counts).toEqual({
       notifications: 2,
       reminders: 1,
       tasks: 1,
-      taskEvents: 1
+      taskEvents: 1,
+      taskComments: 1
     });
 
     const insertedTask = db

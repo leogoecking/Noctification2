@@ -7,8 +7,7 @@ vi.mock("../../lib/api", () => ({
   api: {
     adminTasks: vi.fn(),
     adminTask: vi.fn(),
-    adminTaskHealth: vi.fn(),
-    adminTaskAutomationLogs: vi.fn(),
+    createAdminTaskComment: vi.fn(),
     adminUsers: vi.fn(),
     createAdminTask: vi.fn(),
     updateAdminTask: vi.fn(),
@@ -29,39 +28,9 @@ const mockedApi = vi.mocked(api);
 describe("AdminTasksPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedApi.adminTaskHealth.mockResolvedValue({
-      health: {
-        schedulerEnabled: true,
-        dueSoonWindowMinutes: 120,
-        staleWindowHours: 24,
-        activeTasks: 3,
-        dueSoonEligible: 1,
-        overdueEligible: 2,
-        staleEligible: 1,
-        recurringEligible: 1,
-        dueSoonSentToday: 2,
-        overdueSentToday: 1,
-        staleSentToday: 1,
-        recurringCreatedToday: 1
-      }
-    });
-    mockedApi.adminTaskAutomationLogs.mockResolvedValue({
-      logs: [
-        {
-          id: 1,
-          taskId: 9,
-          taskTitle: "Escalar incidente",
-          automationType: "due_soon",
-          dedupeKey: "due_soon:2026-03-30T10:00:00.000Z",
-          notificationId: 77,
-          metadata: null,
-          createdAt: "2026-03-21T12:00:00.000Z"
-        }
-      ]
-    });
   });
 
-  it("carrega tarefas e usuarios ativos", async () => {
+  it("abre o detalhe administrativo da tarefa pelo board", async () => {
     mockedApi.adminTasks.mockResolvedValue({
       tasks: [
         {
@@ -131,22 +100,36 @@ describe("AdminTasksPanel", () => {
         updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: []
+      timeline: [
+        {
+          id: "comment:1",
+          kind: "comment",
+          taskId: 9,
+          actorUserId: 1,
+          actorName: "Admin",
+          actorLogin: "admin",
+          eventType: null,
+          fromStatus: null,
+          toStatus: null,
+          body: "Acompanhar escalonamento",
+          metadata: null,
+          createdAt: "2026-03-21T12:10:00.000Z",
+          updatedAt: "2026-03-21T12:10:00.000Z"
+        }
+      ]
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
 
     await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(mockedApi.adminTaskHealth).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(mockedApi.adminTaskAutomationLogs).toHaveBeenCalledWith("?limit=20"));
     await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Escalar incidente" }));
     await waitFor(() => expect(mockedApi.adminTask).toHaveBeenCalledWith(9));
 
     expect(screen.getByText("Fila de tarefas")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Escalar incidente" })).toBeInTheDocument();
     expect(screen.getAllByText("Operador").length).toBeGreaterThan(0);
-    expect(screen.getByText("Logs de automacao")).toBeInTheDocument();
-    expect(screen.getByText(/Prazo proximo na tarefa #9/)).toBeInTheDocument();
+    expect(screen.getByText("Acompanhar escalonamento")).toBeInTheDocument();
   });
 
   it("cria tarefa administrativa com responsavel selecionado", async () => {
@@ -224,7 +207,7 @@ describe("AdminTasksPanel", () => {
         updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: []
+      timeline: []
     });
     mockedApi.createAdminTask.mockResolvedValue({
       task: { id: 44 }
@@ -351,14 +334,12 @@ describe("AdminTasksPanel", () => {
         updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: []
+      timeline: []
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
 
     await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "Board" }));
 
     const newColumn = screen.getByLabelText("Coluna Nova");
     const waitingColumn = screen.getByLabelText("Coluna Aguardando");
@@ -449,7 +430,7 @@ describe("AdminTasksPanel", () => {
         id: 11,
         title: "Em espera admin",
         description: "",
-        status: "in_progress",
+        status: "waiting",
         priority: "normal",
         creatorUserId: 1,
         creatorName: "Admin",
@@ -466,10 +447,10 @@ describe("AdminTasksPanel", () => {
         recurrenceSourceTaskId: null,
         sourceNotificationId: null,
         createdAt: "2026-03-21T12:00:00.000Z",
-        updatedAt: "2026-03-21T12:05:00.000Z",
+        updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: []
+      timeline: []
     });
     mockedApi.updateAdminTask.mockResolvedValue({
       task: { id: 11 }
@@ -478,26 +459,293 @@ describe("AdminTasksPanel", () => {
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
 
     await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "Board" }));
-    fireEvent.click(within(screen.getByLabelText("Coluna Aguardando")).getByRole("button", { name: "Em andamento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Em espera admin" }));
+    await waitFor(() => expect(mockedApi.adminTask).toHaveBeenCalledWith(11));
+    fireEvent.click(screen.getByRole("button", { name: "Em andamento" }));
 
     await waitFor(() => expect(mockedApi.updateAdminTask).toHaveBeenCalledWith(11, { status: "in_progress" }));
   });
 
-  it("aplica filtro de logs de automacao ao consultar a API", async () => {
+  it("permite atualizar manualmente a fila e o detalhe", async () => {
+    mockedApi.adminTasks
+      .mockResolvedValueOnce({
+        tasks: [
+          {
+            id: 13,
+            title: "Fila antiga",
+            description: "",
+            status: "new",
+            priority: "normal",
+            creatorUserId: 1,
+            creatorName: "Admin",
+            creatorLogin: "admin",
+            assigneeUserId: 2,
+            assigneeName: "Operador",
+            assigneeLogin: "operador",
+            dueAt: null,
+            repeatType: "none",
+            repeatWeekdays: [],
+            startedAt: null,
+            completedAt: null,
+            cancelledAt: null,
+            recurrenceSourceTaskId: null,
+            sourceNotificationId: null,
+            createdAt: "2026-03-21T12:00:00.000Z",
+            updatedAt: "2026-03-21T12:00:00.000Z",
+            archivedAt: null
+          }
+        ],
+        pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
+      })
+      .mockResolvedValueOnce({
+        tasks: [
+          {
+            id: 13,
+            title: "Fila atualizada",
+            description: "",
+            status: "in_progress",
+            priority: "normal",
+            creatorUserId: 1,
+            creatorName: "Admin",
+            creatorLogin: "admin",
+            assigneeUserId: 2,
+            assigneeName: "Operador",
+            assigneeLogin: "operador",
+            dueAt: null,
+            repeatType: "none",
+            repeatWeekdays: [],
+            startedAt: null,
+            completedAt: null,
+            cancelledAt: null,
+            recurrenceSourceTaskId: null,
+            sourceNotificationId: null,
+            createdAt: "2026-03-21T12:00:00.000Z",
+            updatedAt: "2026-03-21T12:05:00.000Z",
+            archivedAt: null
+          }
+        ],
+        pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
+      });
+    mockedApi.adminUsers.mockResolvedValue({
+      users: [
+        {
+          id: 2,
+          name: "Operador",
+          login: "operador",
+          department: "Suporte",
+          jobTitle: "Analista",
+          role: "user",
+          isActive: true,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z"
+        }
+      ]
+    });
+    mockedApi.adminTask
+      .mockResolvedValueOnce({
+        task: {
+          id: 13,
+          title: "Fila antiga",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 1,
+          creatorName: "Admin",
+          creatorLogin: "admin",
+          assigneeUserId: 2,
+          assigneeName: "Operador",
+          assigneeLogin: "operador",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z",
+          archivedAt: null
+        },
+        timeline: []
+      })
+      .mockResolvedValueOnce({
+        task: {
+          id: 13,
+          title: "Fila atualizada",
+          description: "",
+          status: "in_progress",
+          priority: "normal",
+          creatorUserId: 1,
+          creatorName: "Admin",
+          creatorLogin: "admin",
+          assigneeUserId: 2,
+          assigneeName: "Operador",
+          assigneeLogin: "operador",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:05:00.000Z",
+          archivedAt: null
+        },
+        timeline: []
+      });
+
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
 
-    await waitFor(() => expect(mockedApi.adminTaskAutomationLogs).toHaveBeenCalledWith("?limit=20"));
+    await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Fila antiga" }));
+    await waitFor(() => expect(mockedApi.adminTask).toHaveBeenCalledWith(13));
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar tarefas" }));
 
-    fireEvent.change(screen.getByLabelText("Filtro de automacao de tarefa"), {
-      target: { value: "overdue" }
+    await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockedApi.adminTask).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText("Fila atualizada").length).toBeGreaterThan(0);
+  });
+
+  it("permite registrar comentario administrativo no detalhe", async () => {
+    mockedApi.adminTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: 12,
+          title: "Task com comentario",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 1,
+          creatorName: "Admin",
+          creatorLogin: "admin",
+          assigneeUserId: 2,
+          assigneeName: "Operador",
+          assigneeLogin: "operador",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z",
+          archivedAt: null
+        }
+      ],
+      pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
+    });
+    mockedApi.adminUsers.mockResolvedValue({
+      users: [
+        {
+          id: 2,
+          name: "Operador",
+          login: "operador",
+          department: "Suporte",
+          jobTitle: "Analista",
+          role: "user",
+          isActive: true,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z"
+        }
+      ]
+    });
+    mockedApi.adminTask
+      .mockResolvedValueOnce({
+        task: {
+          id: 12,
+          title: "Task com comentario",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 1,
+          creatorName: "Admin",
+          creatorLogin: "admin",
+          assigneeUserId: 2,
+          assigneeName: "Operador",
+          assigneeLogin: "operador",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z",
+          archivedAt: null
+        },
+        timeline: []
+      })
+      .mockResolvedValueOnce({
+        task: {
+          id: 12,
+          title: "Task com comentario",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 1,
+          creatorName: "Admin",
+          creatorLogin: "admin",
+          assigneeUserId: 2,
+          assigneeName: "Operador",
+          assigneeLogin: "operador",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:06:00.000Z",
+          archivedAt: null
+        },
+        timeline: [
+          {
+            id: "comment:70",
+            kind: "comment",
+            taskId: 12,
+            actorUserId: 1,
+            actorName: "Admin",
+            actorLogin: "admin",
+            eventType: null,
+            fromStatus: null,
+            toStatus: null,
+            body: "Direcionar para equipe correta",
+            metadata: null,
+            createdAt: "2026-03-21T12:06:00.000Z",
+            updatedAt: "2026-03-21T12:06:00.000Z"
+          }
+        ]
+      });
+    mockedApi.createAdminTaskComment.mockResolvedValue({
+      comment: { id: 70 }
     });
 
+    render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Task com comentario" }));
+    await waitFor(() => expect(mockedApi.adminTask).toHaveBeenCalledWith(12));
+
+    fireEvent.change(screen.getByLabelText("Comentario administrativo da tarefa"), {
+      target: { value: "Direcionar para equipe correta" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar comentario" }));
+
     await waitFor(() =>
-      expect(mockedApi.adminTaskAutomationLogs).toHaveBeenLastCalledWith(
-        "?automation_type=overdue&limit=20"
-      )
+      expect(mockedApi.createAdminTaskComment).toHaveBeenCalledWith(12, {
+        body: "Direcionar para equipe correta"
+      })
     );
+    await waitFor(() => expect(mockedApi.adminTask).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText("Direcionar para equipe correta").length).toBeGreaterThan(0);
   });
 });

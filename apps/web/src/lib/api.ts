@@ -115,7 +115,13 @@ export const api = {
     }>(`/admin/tasks${query}`),
 
   adminTask: (id: number) =>
-    request<{ task: unknown; events: unknown[] }>(`/admin/tasks/${id}`),
+    request<{ task: unknown; timeline: unknown[] }>(`/admin/tasks/${id}`),
+
+  createAdminTaskComment: (id: number, payload: unknown) =>
+    request<{ comment: unknown }>(`/admin/tasks/${id}/comments`, {
+      method: "POST",
+      bodyJson: payload
+    }),
 
   adminTaskHealth: () =>
     request<{ health: unknown }>("/admin/tasks/health"),
@@ -154,7 +160,13 @@ export const api = {
     }>(`/me/tasks${query}`),
 
   myTask: (id: number) =>
-    request<{ task: unknown; events: unknown[] }>(`/me/tasks/${id}`),
+    request<{ task: unknown; timeline: unknown[] }>(`/me/tasks/${id}`),
+
+  createMyTaskComment: (id: number, payload: unknown) =>
+    request<{ comment: unknown }>(`/me/tasks/${id}/comments`, {
+      method: "POST",
+      bodyJson: payload
+    }),
 
   createMyTask: (payload: unknown) =>
     request<{ task: unknown }>("/me/tasks", {

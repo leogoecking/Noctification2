@@ -68,6 +68,15 @@ export interface TaskEventRecord {
   createdAt: string;
 }
 
+export interface TaskCommentRecord {
+  id: number;
+  taskId: number;
+  authorUserId: number;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuthUser {
   id: number;
   login: string;

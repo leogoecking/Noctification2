@@ -173,6 +173,33 @@ export interface TaskEventItem {
   createdAt: string;
 }
 
+export interface TaskCommentItem {
+  id: number;
+  taskId: number;
+  authorUserId: number;
+  authorName: string;
+  authorLogin: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskTimelineItem {
+  id: string;
+  kind: "event" | "comment";
+  taskId: number;
+  actorUserId: number | null;
+  actorName: string | null;
+  actorLogin: string | null;
+  eventType: TaskEventType | string | null;
+  fromStatus: TaskStatus | null;
+  toStatus: TaskStatus | null;
+  body: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export interface TaskAutomationHealthItem {
   schedulerEnabled: boolean;
   dueSoonWindowMinutes: number;

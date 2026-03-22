@@ -46,6 +46,33 @@ export interface TaskEventRow {
   createdAt: string;
 }
 
+export interface TaskCommentRow {
+  id: number;
+  taskId: number;
+  authorUserId: number;
+  authorName: string;
+  authorLogin: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskTimelineItem {
+  id: string;
+  kind: "event" | "comment";
+  taskId: number;
+  actorUserId: number | null;
+  actorName: string | null;
+  actorLogin: string | null;
+  eventType: string | null;
+  fromStatus: TaskStatus | null;
+  toStatus: TaskStatus | null;
+  body: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export const taskSelectSql = `
   SELECT
     t.id,
@@ -89,6 +116,20 @@ const taskEventsSelectSql = `
     e.created_at AS createdAt
   FROM task_events e
   LEFT JOIN users actor ON actor.id = e.actor_user_id
+`;
+
+const taskCommentsSelectSql = `
+  SELECT
+    c.id,
+    c.task_id AS taskId,
+    c.author_user_id AS authorUserId,
+    author.name AS authorName,
+    author.login AS authorLogin,
+    c.body,
+    c.created_at AS createdAt,
+    c.updated_at AS updatedAt
+  FROM task_comments c
+  INNER JOIN users author ON author.id = c.author_user_id
 `;
 
 const parseMetadata = (value: string | null): Record<string, unknown> | null => {
@@ -152,6 +193,17 @@ export const normalizeTaskEventRow = (row: TaskEventRow) => ({
   toStatus: row.toStatus,
   metadata: parseMetadata(row.metadataJson),
   createdAt: row.createdAt
+});
+
+export const normalizeTaskCommentRow = (row: TaskCommentRow) => ({
+  id: row.id,
+  taskId: row.taskId,
+  authorUserId: row.authorUserId,
+  authorName: row.authorName,
+  authorLogin: row.authorLogin,
+  body: row.body,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt
 });
 
 export const toNullableString = (value: unknown): string | null => {
@@ -316,6 +368,15 @@ export const validateTaskDescription = (value: unknown): string => {
   return value.trim().slice(0, 4000);
 };
 
+export const validateTaskCommentBody = (value: unknown): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const body = value.trim().slice(0, 4000);
+  return body.length > 0 ? body : null;
+};
+
 export const activeUserExists = (db: Database.Database, userId: number): boolean => {
   const row = db.prepare("SELECT id FROM users WHERE id = ? AND is_active = 1").get(userId) as
     | { id: number }
@@ -350,6 +411,91 @@ export const listTaskEvents = (db: Database.Database, taskId: number) =>
       )
       .all(taskId) as TaskEventRow[]
   ).map(normalizeTaskEventRow);
+
+export const listTaskComments = (db: Database.Database, taskId: number) =>
+  (
+    db
+      .prepare(
+        `${taskCommentsSelectSql}
+         WHERE c.task_id = ?
+         ORDER BY c.created_at DESC, c.id DESC`
+      )
+      .all(taskId) as TaskCommentRow[]
+  ).map(normalizeTaskCommentRow);
+
+export const createTaskComment = (
+  db: Database.Database,
+  params: {
+    taskId: number;
+    authorUserId: number;
+    body: string;
+    createdAt?: string;
+  }
+) => {
+  const timestamp = params.createdAt ?? nowIso();
+  const result = db
+    .prepare(
+      `
+        INSERT INTO task_comments (
+          task_id,
+          author_user_id,
+          body,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?)
+      `
+    )
+    .run(params.taskId, params.authorUserId, params.body, timestamp, timestamp);
+
+  return db
+    .prepare(
+      `${taskCommentsSelectSql}
+       WHERE c.id = ?`
+    )
+    .get(Number(result.lastInsertRowid)) as TaskCommentRow;
+};
+
+export const listTaskTimeline = (db: Database.Database, taskId: number): TaskTimelineItem[] => {
+  const events = listTaskEvents(db, taskId).map((event) => ({
+    id: `event:${event.id}`,
+    kind: "event" as const,
+    taskId: event.taskId,
+    actorUserId: event.actorUserId,
+    actorName: event.actorName ?? null,
+    actorLogin: event.actorLogin ?? null,
+    eventType: event.eventType,
+    fromStatus: event.fromStatus,
+    toStatus: event.toStatus,
+    body: null,
+    metadata: event.metadata,
+    createdAt: event.createdAt,
+    updatedAt: null
+  }));
+  const comments = listTaskComments(db, taskId).map((comment) => ({
+    id: `comment:${comment.id}`,
+    kind: "comment" as const,
+    taskId: comment.taskId,
+    actorUserId: comment.authorUserId,
+    actorName: comment.authorName,
+    actorLogin: comment.authorLogin,
+    eventType: null,
+    fromStatus: null,
+    toStatus: null,
+    body: comment.body,
+    metadata: null,
+    createdAt: comment.createdAt,
+    updatedAt: comment.updatedAt
+  }));
+
+  return [...events, ...comments].sort((left, right) => {
+    const createdAtCompare = right.createdAt.localeCompare(left.createdAt);
+    if (createdAtCompare !== 0) {
+      return createdAtCompare;
+    }
+
+    return right.id.localeCompare(left.id);
+  });
+};
 
 export const logTaskEvent = (
   db: Database.Database,

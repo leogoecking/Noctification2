@@ -6,9 +6,10 @@ import { nowIso } from "../db";
 import { authenticate } from "../middleware/auth";
 import { createTaskLinkedNotification, dispatchTaskLinkedNotification } from "../tasks/notifications";
 import {
+  createTaskComment,
   fetchTaskForUser,
   isTaskTerminal,
-  listTaskEvents,
+  listTaskTimeline,
   logTaskAudit,
   logTaskEvent,
   normalizeTaskRow,
@@ -24,6 +25,7 @@ import {
   stringifyTaskWeekdays,
   taskSelectSql,
   toNullableString,
+  validateTaskCommentBody,
   validateTaskDescription,
   validateTaskRecurrence,
   validateTaskTitle,
@@ -218,7 +220,51 @@ export const createTaskMeRouterWithIo = (
 
     res.json({
       task: normalizeTaskRow(task),
-      events: listTaskEvents(db, task.id)
+      timeline: listTaskTimeline(db, task.id)
+    });
+  });
+
+  router.post("/tasks/:id/comments", (req, res) => {
+    if (!req.authUser) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return;
+    }
+
+    const taskId = Number(req.params.id);
+    if (!Number.isInteger(taskId) || taskId <= 0) {
+      res.status(400).json({ error: "ID invalido" });
+      return;
+    }
+
+    const task = fetchTaskForUser(db, taskId, req.authUser.id);
+    if (!task || task.archivedAt) {
+      res.status(404).json({ error: "Tarefa nao encontrada" });
+      return;
+    }
+
+    const body = validateTaskCommentBody(req.body?.body);
+    if (!body) {
+      res.status(400).json({ error: "body e obrigatorio e deve ter ate 4000 caracteres" });
+      return;
+    }
+
+    const comment = createTaskComment(db, {
+      taskId: task.id,
+      authorUserId: req.authUser.id,
+      body
+    });
+
+    logTaskAudit(db, {
+      actorUserId: req.authUser.id,
+      taskId: task.id,
+      eventType: "task.comment.created",
+      metadata: {
+        commentId: comment.id
+      }
+    });
+
+    res.status(201).json({
+      comment
     });
   });
 

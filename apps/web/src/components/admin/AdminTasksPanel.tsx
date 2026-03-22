@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { api, ApiError } from "../../lib/api";
 import type {
-  TaskAutomationHealthItem,
-  TaskAutomationLogItem,
-  TaskEventItem,
   TaskItem,
   TaskPriority,
   TaskRepeatType,
   TaskStatus,
+  TaskTimelineItem,
   UserItem
 } from "../../types";
 import {
   TASK_BOARD_COLUMNS,
-  buildTaskEventSummary,
+  buildTaskTimelineSummary,
   buildTaskRecurrenceSummary,
   formatTaskDateTime,
+  isTaskTimelineAutomatic,
   TASK_PRIORITY_BADGES,
   TASK_PRIORITY_LABELS,
   TASK_REPEAT_LABELS,
@@ -32,8 +31,6 @@ interface AdminTasksPanelProps {
 
 type AdminTaskFilterStatus = "" | TaskStatus;
 type AdminTaskFilterPriority = "" | TaskPriority;
-type TaskViewMode = "list" | "board";
-type TaskAutomationFilter = "" | TaskAutomationLogItem["automationType"];
 
 type TaskAdminFormState = {
   id: number;
@@ -61,17 +58,15 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
-  const [taskEvents, setTaskEvents] = useState<TaskEventItem[]>([]);
-  const [automationHealth, setAutomationHealth] = useState<TaskAutomationHealthItem | null>(null);
-  const [automationLogs, setAutomationLogs] = useState<TaskAutomationLogItem[]>([]);
+  const [taskTimeline, setTaskTimeline] = useState<TaskTimelineItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentBody, setCommentBody] = useState("");
   const [form, setForm] = useState<TaskAdminFormState>(EMPTY_FORM);
   const [statusFilter, setStatusFilter] = useState<AdminTaskFilterStatus>("");
   const [priorityFilter, setPriorityFilter] = useState<AdminTaskFilterPriority>("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
-  const [viewMode, setViewMode] = useState<TaskViewMode>("list");
-  const [automationFilter, setAutomationFilter] = useState<TaskAutomationFilter>("");
   const loadRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
 
@@ -94,30 +89,13 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
     return query ? `?${query}` : "";
   }, [assigneeFilter, priorityFilter, statusFilter]);
 
-  const buildAutomationLogsQuery = useCallback(() => {
-    const params = new URLSearchParams();
-
-    if (automationFilter) {
-      params.set("automation_type", automationFilter);
-    }
-
-    params.set("limit", "20");
-    const query = params.toString();
-    return query ? `?${query}` : "";
-  }, [automationFilter]);
-
   const loadTasks = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
     setLoading(true);
 
     try {
-      const [tasksResponse, usersResponse, healthResponse, logsResponse] = await Promise.all([
-        api.adminTasks(buildQuery()),
-        api.adminUsers(),
-        api.adminTaskHealth(),
-        api.adminTaskAutomationLogs(buildAutomationLogsQuery())
-      ]);
+      const [tasksResponse, usersResponse] = await Promise.all([api.adminTasks(buildQuery()), api.adminUsers()]);
       if (requestId !== loadRequestIdRef.current) {
         return;
       }
@@ -125,11 +103,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
       const nextTasks = tasksResponse.tasks as TaskItem[];
       setTasks(nextTasks);
       setUsers((usersResponse.users as UserItem[]).filter((user) => user.isActive));
-      setAutomationHealth(healthResponse.health as TaskAutomationHealthItem);
-      setAutomationLogs(logsResponse.logs as TaskAutomationLogItem[]);
-      setSelectedTask((current) =>
-        current ? nextTasks.find((task) => task.id === current.id) ?? null : nextTasks[0] ?? null
-      );
+      setSelectedTask((current) => (current ? nextTasks.find((task) => task.id === current.id) ?? null : null));
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) {
         return;
@@ -141,7 +115,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
         setLoading(false);
       }
     }
-  }, [buildAutomationLogsQuery, buildQuery, onError]);
+  }, [buildQuery, onError]);
 
   const loadTaskDetail = useCallback(
     async (taskId: number) => {
@@ -155,8 +129,14 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           return;
         }
 
-        setSelectedTask(response.task as TaskItem);
-        setTaskEvents(response.events as TaskEventItem[]);
+        const nextTask = response.task as TaskItem;
+        setSelectedTask(nextTask);
+        setTasks((current) =>
+          current.some((task) => task.id === nextTask.id)
+            ? current.map((task) => (task.id === nextTask.id ? nextTask : task))
+            : current
+        );
+        setTaskTimeline(response.timeline as TaskTimelineItem[]);
       } catch (error) {
         if (requestId !== detailRequestIdRef.current) {
           return;
@@ -172,18 +152,56 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
     [onError]
   );
 
+  const refreshTaskViews = useCallback(async () => {
+    await loadTasks();
+
+    if (selectedTask) {
+      await loadTaskDetail(selectedTask.id);
+    }
+  }, [loadTaskDetail, loadTasks, selectedTask]);
+
   useEffect(() => {
     void loadTasks();
   }, [loadTasks]);
 
   useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshTaskViews();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [refreshTaskViews]);
+
+  useEffect(() => {
     if (!selectedTask) {
-      setTaskEvents([]);
+      setTaskTimeline([]);
+      setCommentBody("");
       return;
     }
 
     void loadTaskDetail(selectedTask.id);
   }, [loadTaskDetail, selectedTask?.id]);
+
+  useEffect(() => {
+    if (!selectedTask) {
+      return;
+    }
+
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedTask(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedTask]);
 
   const taskStats = useMemo(
     () => ({
@@ -204,23 +222,6 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
       })),
     [tasks]
   );
-
-  const automationStats = useMemo(
-    () => ({
-      dueSoonSentToday: automationHealth?.dueSoonSentToday ?? 0,
-      overdueSentToday: automationHealth?.overdueSentToday ?? 0,
-      staleSentToday: automationHealth?.staleSentToday ?? 0,
-      recurringCreatedToday: automationHealth?.recurringCreatedToday ?? 0
-    }),
-    [automationHealth]
-  );
-
-  const formatAutomationType = (value: TaskAutomationLogItem["automationType"]): string => {
-    if (value === "due_soon") return "Prazo proximo";
-    if (value === "overdue") return "Atraso";
-    if (value === "stale_task") return "Tarefa parada";
-    return "Recorrencia";
-  };
 
   const startEditing = useCallback((task: TaskItem) => {
     setForm({
@@ -316,6 +317,30 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
     [onError, reloadAndSelect]
   );
 
+  const submitComment = useCallback(async () => {
+    if (!selectedTask) {
+      return;
+    }
+
+    const body = commentBody.trim();
+    if (!body) {
+      onError("Informe um comentario antes de enviar");
+      return;
+    }
+
+    setCommentSaving(true);
+    try {
+      await api.createAdminTaskComment(selectedTask.id, { body });
+      setCommentBody("");
+      await loadTaskDetail(selectedTask.id);
+      onToast("Comentario registrado");
+    } catch (error) {
+      onError(error instanceof ApiError ? error.message : "Falha ao registrar comentario");
+    } finally {
+      setCommentSaving(false);
+    }
+  }, [commentBody, loadTaskDetail, onError, onToast, selectedTask]);
+
   const runBoardAction = useCallback(
     (event: MouseEvent<HTMLButtonElement>, action: () => void) => {
       event.stopPropagation();
@@ -339,81 +364,33 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
     <section className="space-y-4">
       <header className="rounded-2xl border border-slate-700 bg-panel p-4">
         <h3 className="font-display text-lg text-textMain">Tarefas</h3>
-        <p className="text-sm text-textMuted">Lista administrativa inicial de tarefas operacionais</p>
+        <p className="text-sm text-textMuted">Operacao, atribuicao e acompanhamento de tarefas</p>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Total</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.total}</p>
-          <p className="mt-1 text-xs text-textMuted">Itens no filtro atual</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-accent">Abertas</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.open}</p>
-          <p className="mt-1 text-xs text-textMuted">Demandam acompanhamento</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-success">Concluidas</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.done}</p>
-          <p className="mt-1 text-xs text-textMuted">Finalizadas no filtro atual</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-warning">Sem responsavel</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.unassigned}</p>
-          <p className="mt-1 text-xs text-textMuted">Aguardando atribuicao</p>
-        </article>
-      </section>
+      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Visao rapida</p>
+            <h4 className="mt-1 font-display text-base text-textMain">Fila atual</h4>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-panelAlt px-3 py-1.5 text-textMain">{taskStats.total} no filtro</span>
+            <span className="rounded-full bg-accent/10 px-3 py-1.5 text-accent">{taskStats.open} abertas</span>
+            <span className="rounded-full bg-success/20 px-3 py-1.5 text-success">{taskStats.done} concluidas</span>
+            <span className="rounded-full bg-warning/20 px-3 py-1.5 text-warning">
+              {taskStats.unassigned} sem responsavel
+            </span>
+          </div>
+        </div>
+      </article>
 
-      {automationHealth && !automationHealth.schedulerEnabled && (
-        <article className="rounded-2xl border border-warning/50 bg-warning/10 p-4">
-          <p className="font-display text-base text-textMain">Automacao de tarefas desativada</p>
-          <p className="mt-1 text-sm text-textMuted">
-            O scheduler operacional depende de `ENABLE_TASK_AUTOMATION_SCHEDULER` ligado na API.
-          </p>
-        </article>
-      )}
-
-      <section className="grid gap-3 md:grid-cols-4">
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-accent">Prazo proximo hoje</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{automationStats.dueSoonSentToday}</p>
-          <p className="mt-1 text-xs text-textMuted">
-            Elegiveis agora: {automationHealth?.dueSoonEligible ?? 0}
-          </p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-danger">Atrasos hoje</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{automationStats.overdueSentToday}</p>
-          <p className="mt-1 text-xs text-textMuted">
-            Elegiveis agora: {automationHealth?.overdueEligible ?? 0}
-          </p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-warning">Paradas hoje</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{automationStats.staleSentToday}</p>
-          <p className="mt-1 text-xs text-textMuted">
-            Elegiveis agora: {automationHealth?.staleEligible ?? 0}
-          </p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-success">Recorrencias hoje</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{automationStats.recurringCreatedToday}</p>
-          <p className="mt-1 text-xs text-textMuted">
-            Ativas: {automationHealth?.recurringEligible ?? 0} | janela stale:{" "}
-            {automationHealth?.staleWindowHours ?? 0}h
-          </p>
-        </article>
-      </section>
-
-      <div className="grid gap-4 xl:grid-cols-[1.1fr,0.9fr]">
-        <div className="space-y-4">
+      <div className="space-y-4">
           <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
             <div>
               <h4 className="font-display text-base text-textMain">
                 {form.id > 0 ? "Editar tarefa" : "Nova tarefa administrativa"}
               </h4>
-              <p className="text-sm text-textMuted">Criacao e atribuicao inicial sem board</p>
+              <p className="text-sm text-textMuted">Cadastro e atribuicao da tarefa</p>
             </div>
 
             <input
@@ -533,68 +510,55 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="font-display text-base text-textMain">Fila de tarefas</h4>
-                <p className="text-sm text-textMuted">
-                  Operacao inicial com filtros, atribuicao e visao em board por status
-                </p>
+                <p className="text-sm text-textMuted">Filtros e visao por status</p>
               </div>
-              <div className="space-y-2">
-                <div className="flex rounded-xl border border-slate-600 bg-panelAlt/40 p-1">
-                  <button
-                    className={`rounded-lg px-3 py-1.5 text-xs transition ${
-                      viewMode === "list" ? "bg-accent text-slate-900" : "text-textMuted"
-                    }`}
-                    onClick={() => setViewMode("list")}
-                    type="button"
-                  >
-                    Lista
-                  </button>
-                  <button
-                    className={`rounded-lg px-3 py-1.5 text-xs transition ${
-                      viewMode === "board" ? "bg-accent text-slate-900" : "text-textMuted"
-                    }`}
-                    onClick={() => setViewMode("board")}
-                    type="button"
-                  >
-                    Board
-                  </button>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <select
-                    className="input min-w-36"
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as AdminTaskFilterStatus)}
-                  >
-                    <option value="">Todos os status</option>
-                    <option value="new">Nova</option>
-                    <option value="in_progress">Em andamento</option>
-                    <option value="waiting">Aguardando</option>
-                    <option value="done">Concluida</option>
-                    <option value="cancelled">Cancelada</option>
-                  </select>
-                  <select
-                    className="input min-w-36"
-                    value={priorityFilter}
-                    onChange={(event) => setPriorityFilter(event.target.value as AdminTaskFilterPriority)}
-                  >
-                    <option value="">Todas as prioridades</option>
-                    <option value="low">Baixa</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">Alta</option>
-                    <option value="critical">Critica</option>
-                  </select>
-                  <select
-                    className="input min-w-36"
-                    value={assigneeFilter}
-                    onChange={(event) => setAssigneeFilter(event.target.value)}
-                  >
-                    <option value="">Todos os responsaveis</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <span className="rounded-full bg-accent/10 px-3 py-1.5 text-xs text-accent">Board</span>
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <button
+                className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                onClick={() => void refreshTaskViews()}
+                type="button"
+              >
+                Atualizar tarefas
+              </button>
+              <div className="grid flex-1 gap-2 sm:grid-cols-3">
+                <select
+                  className="input min-w-36"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as AdminTaskFilterStatus)}
+                >
+                  <option value="">Todos os status</option>
+                  <option value="new">Nova</option>
+                  <option value="in_progress">Em andamento</option>
+                  <option value="waiting">Aguardando</option>
+                  <option value="done">Concluida</option>
+                  <option value="cancelled">Cancelada</option>
+                </select>
+                <select
+                  className="input min-w-36"
+                  value={priorityFilter}
+                  onChange={(event) => setPriorityFilter(event.target.value as AdminTaskFilterPriority)}
+                >
+                  <option value="">Todas as prioridades</option>
+                  <option value="low">Baixa</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">Alta</option>
+                  <option value="critical">Critica</option>
+                </select>
+                <select
+                  className="input min-w-36"
+                  value={assigneeFilter}
+                  onChange={(event) => setAssigneeFilter(event.target.value)}
+                >
+                  <option value="">Todos os responsaveis</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -603,160 +567,146 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
               <p className="text-sm text-textMuted">Nenhuma tarefa encontrada para os filtros atuais.</p>
             )}
 
-            {viewMode === "list" ? (
-              <div className="space-y-2">
-                {tasks.map((task) => (
-                  <button
-                    key={task.id}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
-                      selectedTask?.id === task.id
-                        ? "border-accent bg-accent/10"
-                        : "border-slate-700 bg-panelAlt/70 hover:border-slate-500"
-                    }`}
-                    onClick={() => setSelectedTask(task)}
-                    type="button"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium text-textMain">{task.title}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[task.status]}`}>
-                          {TASK_STATUS_LABELS[task.status]}
-                        </span>
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_PRIORITY_BADGES[task.priority]}`}>
-                          {TASK_PRIORITY_LABELS[task.priority]}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
-                      <span>Responsavel: {task.assigneeName || "Nao atribuido"}</span>
-                      <span>Prazo: {formatTaskDateTime(task.dueAt)}</span>
-                      <span>Recorrencia: {buildTaskRecurrenceSummary(task.repeatType, task.repeatWeekdays)}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-3 xl:grid-cols-5">
-                {boardColumns.map((column) => (
-                  <section
-                    key={column.status}
-                    aria-label={`Coluna ${column.label}`}
-                    className="min-h-40 rounded-2xl border border-slate-700 bg-panelAlt/50 p-3"
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[column.status]}`}>
-                        {column.label}
-                      </span>
-                      <span className="text-xs text-textMuted">{column.tasks.length}</span>
-                    </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {boardColumns.map((column) => (
+                <section
+                  key={column.status}
+                  aria-label={`Coluna ${column.label}`}
+                  className="min-h-40 min-w-[240px] flex-1 rounded-2xl border border-slate-700 bg-panelAlt/50 p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[column.status]}`}>
+                      {column.label}
+                    </span>
+                    <span className="text-xs text-textMuted">{column.tasks.length}</span>
+                  </div>
 
-                    <div className="space-y-2">
-                      {column.tasks.length === 0 && (
-                        <p className="rounded-xl border border-dashed border-slate-600 px-3 py-4 text-xs text-textMuted">
-                          Nenhuma tarefa nesta coluna.
-                        </p>
-                      )}
+                  <div className="space-y-2">
+                    {column.tasks.length === 0 && (
+                      <p className="rounded-xl border border-dashed border-slate-600 px-3 py-4 text-xs text-textMuted">
+                        Nenhuma tarefa nesta coluna.
+                      </p>
+                    )}
 
-                      {column.tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          aria-label={`Abrir tarefa ${task.title}`}
-                          className={`w-full rounded-xl border p-3 text-left transition ${
-                            selectedTask?.id === task.id
-                              ? "border-accent bg-accent/10"
-                              : "border-slate-700 bg-panel hover:border-slate-500"
-                          }`}
-                          onClick={() => openTaskFromBoard(task)}
-                          onKeyDown={(event) => onBoardCardKeyDown(event, task)}
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-medium text-textMain">{task.title}</p>
-                            <span
-                              className={`rounded-full px-2 py-1 text-[10px] ${TASK_PRIORITY_BADGES[task.priority]}`}
-                            >
-                              {TASK_PRIORITY_LABELS[task.priority]}
-                            </span>
-                          </div>
-                          <div className="mt-2 space-y-1 text-[11px] text-textMuted">
-                            <p>Responsavel: {task.assigneeName || "Nao atribuido"}</p>
-                            <p>Prazo: {formatTaskDateTime(task.dueAt)}</p>
-                            <p>Recorrencia: {buildTaskRecurrenceSummary(task.repeatType, task.repeatWeekdays)}</p>
-                          </div>
-                          {task.status !== "done" && task.status !== "cancelled" && (
-                            <div className="mt-3 flex flex-wrap gap-1.5">
-                              {task.status !== "new" && (
-                                <button
-                                  className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
-                                  onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "new"))}
-                                  type="button"
-                                >
-                                  Nova
-                                </button>
-                              )}
-                              {task.status !== "in_progress" && (
-                                <button
-                                  className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] text-warning"
-                                  onClick={(event) =>
-                                    runBoardAction(event, () => updateTaskStatus(task.id, "in_progress"))
-                                  }
-                                  type="button"
-                                >
-                                  Em andamento
-                                </button>
-                              )}
-                              {task.status !== "waiting" && (
-                                <button
-                                  className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
-                                  onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "waiting"))}
-                                  type="button"
-                                >
-                                  Aguardar
-                                </button>
-                              )}
-                              <button
-                                className="rounded-md bg-success px-2 py-1 text-[10px] font-semibold text-slate-900"
-                                onClick={(event) => runBoardAction(event, () => completeTask(task.id))}
-                                type="button"
-                              >
-                                Concluir
-                              </button>
-                              <button
-                                className="rounded-md border border-danger/50 bg-danger/10 px-2 py-1 text-[10px] text-danger"
-                                onClick={(event) => runBoardAction(event, () => cancelTask(task.id))}
-                                type="button"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          )}
+                    {column.tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        aria-label={`Abrir tarefa ${task.title}`}
+                        className={`w-full cursor-pointer rounded-xl border p-3 text-left transition ${
+                          selectedTask?.id === task.id
+                            ? "border-accent bg-accent/10"
+                            : "border-slate-700 bg-panel hover:border-slate-500"
+                        }`}
+                        onClick={() => openTaskFromBoard(task)}
+                        onKeyDown={(event) => onBoardCardKeyDown(event, task)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="min-w-0 flex-1 break-words text-sm font-medium text-textMain">{task.title}</p>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-1 text-[10px] ${TASK_PRIORITY_BADGES[task.priority]}`}
+                          >
+                            {TASK_PRIORITY_LABELS[task.priority]}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-textMuted">
+                          <span>Responsavel: {task.assigneeName || "Nao atribuido"}</span>
+                          <span>Prazo: {formatTaskDateTime(task.dueAt)}</span>
+                        </div>
+                        <p className="mt-2 text-[11px] text-textMuted">
+                          {selectedTask?.id === task.id ? "Aberta no detalhe" : "Clique para abrir"}
+                        </p>
+                        {selectedTask?.id === task.id && task.status !== "done" && task.status !== "cancelled" && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {task.status !== "new" && (
+                              <button
+                                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
+                                onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "new"))}
+                                type="button"
+                              >
+                                Nova
+                              </button>
+                            )}
+                            {task.status !== "in_progress" && (
+                              <button
+                                className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] text-warning"
+                                onClick={(event) =>
+                                  runBoardAction(event, () => updateTaskStatus(task.id, "in_progress"))
+                                }
+                                type="button"
+                              >
+                                Em andamento
+                              </button>
+                            )}
+                            {task.status !== "waiting" && (
+                              <button
+                                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
+                                onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "waiting"))}
+                                type="button"
+                              >
+                                Aguardar
+                              </button>
+                            )}
+                            <button
+                              className="rounded-md bg-success px-2 py-1 text-[10px] font-semibold text-slate-900"
+                              onClick={(event) => runBoardAction(event, () => completeTask(task.id))}
+                              type="button"
+                            >
+                              Concluir
+                            </button>
+                            <button
+                              className="rounded-md border border-danger/50 bg-danger/10 px-2 py-1 text-[10px] text-danger"
+                              onClick={(event) => runBoardAction(event, () => cancelTask(task.id))}
+                              type="button"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           </article>
-        </div>
+      </div>
 
-        <aside className="rounded-2xl border border-slate-700 bg-panel p-4">
-          {!selectedTask && <p className="text-sm text-textMuted">Selecione uma tarefa.</p>}
-          {selectedTask && (
+      {selectedTask && (
+        <div
+          aria-label="Overlay de detalhe da tarefa"
+          className="fixed inset-0 z-40 flex justify-end bg-slate-950/70 p-3 sm:p-6"
+          onClick={() => setSelectedTask(null)}
+        >
+          <aside
+            aria-label="Detalhe da tarefa"
+            aria-modal="true"
+            className="h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-panel p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
             <div className="space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-accent">Detalhe da tarefa</p>
                   <h4 className="mt-1 font-display text-lg text-textMain">{selectedTask.title}</h4>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[selectedTask.status]}`}>
                     {TASK_STATUS_LABELS[selectedTask.status]}
                   </span>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_PRIORITY_BADGES[selectedTask.priority]}`}>
                     {TASK_PRIORITY_LABELS[selectedTask.priority]}
                   </span>
+                  <button
+                    aria-label="Fechar detalhe da tarefa"
+                    className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain"
+                    onClick={() => setSelectedTask(null)}
+                    type="button"
+                  >
+                    Fechar
+                  </button>
                 </div>
               </div>
 
@@ -764,29 +714,21 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                 {selectedTask.description || "Sem descricao registrada"}
               </p>
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Responsavel</p>
-                  <p className="mt-1 text-sm text-textMain">{selectedTask.assigneeName || "Nao atribuido"}</p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Criada por</p>
-                  <p className="mt-1 text-sm text-textMain">{selectedTask.creatorName || "-"}</p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Prazo</p>
-                  <p className="mt-1 text-sm text-textMain">{formatTaskDateTime(selectedTask.dueAt)}</p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Recorrencia</p>
-                  <p className="mt-1 text-sm text-textMain">
+              <div className="rounded-2xl bg-panelAlt/70 p-4">
+                <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,120px),1fr]">
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Responsavel</dt>
+                  <dd className="text-sm text-textMain">{selectedTask.assigneeName || "Nao atribuido"}</dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Criada por</dt>
+                  <dd className="text-sm text-textMain">{selectedTask.creatorName || "-"}</dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Prazo</dt>
+                  <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.dueAt)}</dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Recorrencia</dt>
+                  <dd className="text-sm text-textMain">
                     {buildTaskRecurrenceSummary(selectedTask.repeatType, selectedTask.repeatWeekdays)}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Atualizada em</p>
-                  <p className="mt-1 text-sm text-textMain">{formatTaskDateTime(selectedTask.updatedAt)}</p>
-                </div>
+                  </dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Atualizada em</dt>
+                  <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.updatedAt)}</dd>
+                </dl>
               </div>
 
               {selectedTask.status !== "done" && selectedTask.status !== "cancelled" && (
@@ -833,100 +775,69 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
               )}
 
               <div className="space-y-2">
+                <div className="rounded-2xl border border-slate-700 bg-panelAlt/60 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Comentarios</p>
+                    {commentSaving && <span className="text-[11px] text-textMuted">Enviando...</span>}
+                  </div>
+                  <textarea
+                    aria-label="Comentario administrativo da tarefa"
+                    className="input mt-3 min-h-24"
+                    placeholder="Registrar contexto administrativo"
+                    value={commentBody}
+                    onChange={(event) => setCommentBody(event.target.value)}
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button className="btn-primary" onClick={() => void submitComment()} type="button">
+                      Adicionar comentario
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Timeline inicial</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Historico da tarefa</p>
                   {detailLoading && <span className="text-[11px] text-textMuted">Atualizando...</span>}
                 </div>
-                {taskEvents.length === 0 && !detailLoading && (
-                  <p className="text-sm text-textMuted">Nenhum evento registrado ainda.</p>
+                {taskTimeline.length === 0 && !detailLoading && (
+                  <p className="text-sm text-textMuted">Nenhum historico registrado ainda.</p>
                 )}
                 <div className="space-y-2">
-                  {taskEvents.map((event) => (
-                    <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt/70 p-3">
+                  {taskTimeline.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt/70 p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-textMain">{buildTaskEventSummary(event)}</p>
-                        <span className="text-[11px] text-textMuted">{formatTaskDateTime(event.createdAt)}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-textMain">{buildTaskTimelineSummary(item)}</p>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] ${
+                              item.kind === "comment"
+                                ? "bg-accent/10 text-accent"
+                                : isTaskTimelineAutomatic(item)
+                                  ? "bg-warning/20 text-warning"
+                                  : "bg-panel text-textMuted"
+                            }`}
+                          >
+                            {item.kind === "comment" ? "Comentario" : isTaskTimelineAutomatic(item) ? "Automatico" : "Evento"}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-textMuted">{formatTaskDateTime(item.createdAt)}</span>
                       </div>
                       <p className="mt-1 text-xs text-textMuted">
-                        {event.actorName ? `Por ${event.actorName}` : "Evento automatico/sem ator"}
+                        {item.actorName ? `Por ${item.actorName}` : "Evento automatico/sem ator"}
                       </p>
+                      {item.kind === "comment" && item.body && (
+                        <p className="mt-2 whitespace-pre-wrap text-sm text-textMain">{item.body}</p>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          )}
-        </aside>
-      </div>
-
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h4 className="font-display text-base text-textMain">Logs de automacao</h4>
-            <p className="text-sm text-textMuted">
-              Eventos recentes de prazo, atraso, inatividade e recorrencia
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <select
-              aria-label="Filtro de automacao de tarefa"
-              className="input min-w-44"
-              value={automationFilter}
-              onChange={(event) => setAutomationFilter(event.target.value as TaskAutomationFilter)}
-            >
-              <option value="">Todas as automacoes</option>
-              <option value="due_soon">Prazo proximo</option>
-              <option value="overdue">Atraso</option>
-              <option value="stale_task">Tarefa parada</option>
-              <option value="recurring_task">Recorrencia</option>
-            </select>
-            <button
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
-              onClick={() => void loadTasks()}
-              type="button"
-            >
-              Atualizar logs
-            </button>
-          </div>
+          </aside>
         </div>
+      )}
 
-        {automationHealth && (
-          <p className="mb-3 text-xs text-textMuted">
-            Tarefas ativas: {automationHealth.activeTasks} | janela prazo:{" "}
-            {automationHealth.dueSoonWindowMinutes} min
-          </p>
-        )}
-
-        {automationLogs.length === 0 ? (
-          <p className="text-sm text-textMuted">Nenhum log de automacao encontrado para o filtro atual.</p>
-        ) : (
-          <div className="space-y-2">
-            {automationLogs.map((item) => (
-              <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt/70 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-textMain">
-                      {formatAutomationType(item.automationType)} na tarefa #{item.taskId}: {item.taskTitle}
-                    </p>
-                    <p className="mt-1 text-xs text-textMuted">
-                      {formatTaskDateTime(item.createdAt)} | dedupe `{item.dedupeKey}`
-                    </p>
-                  </div>
-                  {item.notificationId ? (
-                    <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[11px] text-accent">
-                      Notificacao #{item.notificationId}
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-panel px-2.5 py-1 text-[11px] text-textMuted">
-                      Sem notificacao
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
     </section>
   );
 };

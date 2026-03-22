@@ -104,6 +104,7 @@ describe("task routes", () => {
     const createHandler = getRouteHandler(meRouter, "/tasks", "post");
     const listHandler = getRouteHandler(meRouter, "/tasks", "get");
     const getHandler = getRouteHandler(meRouter, "/tasks/:id", "get");
+    const commentHandler = getRouteHandler(meRouter, "/tasks/:id/comments", "post");
     const updateHandler = getRouteHandler(meRouter, "/tasks/:id", "patch");
     const completeHandler = getRouteHandler(meRouter, "/tasks/:id/complete", "post");
 
@@ -173,9 +174,28 @@ describe("task routes", () => {
     );
 
     expect(getRes.statusCode).toBe(200);
-    const getBody = getRes.body as { events: Array<{ eventType: string }> };
-    expect(getBody.events.some((event) => event.eventType === "created")).toBe(true);
-    expect(getBody.events.some((event) => event.eventType === "status_changed")).toBe(true);
+    const getBody = getRes.body as {
+      timeline: Array<{ kind: string; eventType: string | null }>;
+    };
+    expect(getBody.timeline.some((item) => item.kind === "event" && item.eventType === "created")).toBe(true);
+    expect(getBody.timeline.some((item) => item.kind === "event" && item.eventType === "status_changed")).toBe(true);
+
+    const commentRes = createMockResponse();
+    commentHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(createdTaskId) },
+        body: {
+          body: "Validando comentario operacional"
+        }
+      },
+      commentRes
+    );
+
+    expect(commentRes.statusCode).toBe(201);
+    expect((commentRes.body as { comment: { body: string } }).comment.body).toBe(
+      "Validando comentario operacional"
+    );
 
     const completeRes = createMockResponse();
     completeHandler(
@@ -188,6 +208,22 @@ describe("task routes", () => {
 
     expect(completeRes.statusCode).toBe(200);
     expect((completeRes.body as { task: { status: string } }).task.status).toBe("done");
+
+    const getAfterCommentRes = createMockResponse();
+    getHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(createdTaskId) }
+      },
+      getAfterCommentRes
+    );
+
+    expect(getAfterCommentRes.statusCode).toBe(200);
+    expect(
+      (getAfterCommentRes.body as { timeline: Array<{ kind: string; body: string | null }> }).timeline.some(
+        (item) => item.kind === "comment" && item.body === "Validando comentario operacional"
+      )
+    ).toBe(true);
   });
 
   it("impede o usuario comum de atribuir tarefa a outro usuario", () => {
@@ -212,6 +248,8 @@ describe("task routes", () => {
   it("permite ao admin criar para outro usuario, filtrar e cancelar", () => {
     const createHandler = getRouteHandler(adminRouter, "/tasks", "post");
     const listHandler = getRouteHandler(adminRouter, "/tasks", "get");
+    const getHandler = getRouteHandler(adminRouter, "/tasks/:id", "get");
+    const commentHandler = getRouteHandler(adminRouter, "/tasks/:id/comments", "post");
     const cancelHandler = getRouteHandler(adminRouter, "/tasks/:id/cancel", "post");
     const healthHandler = getRouteHandler(adminRouter, "/tasks/health", "get");
     const logsHandler = getRouteHandler(adminRouter, "/tasks/automation-logs", "get");
@@ -253,6 +291,36 @@ describe("task routes", () => {
 
     expect(listRes.statusCode).toBe(200);
     expect((listRes.body as { tasks: Array<{ id: number }> }).tasks).toHaveLength(1);
+
+    const commentRes = createMockResponse();
+    commentHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(task.id) },
+        body: {
+          body: "Acionar equipe de campo"
+        }
+      },
+      commentRes
+    );
+
+    expect(commentRes.statusCode).toBe(201);
+
+    const getRes = createMockResponse();
+    getHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(task.id) }
+      },
+      getRes
+    );
+
+    expect(getRes.statusCode).toBe(200);
+    expect(
+      (getRes.body as { timeline: Array<{ kind: string; body: string | null }> }).timeline.some(
+        (item) => item.kind === "comment" && item.body === "Acionar equipe de campo"
+      )
+    ).toBe(true);
 
     const cancelRes = createMockResponse();
     cancelHandler(

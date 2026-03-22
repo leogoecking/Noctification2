@@ -7,6 +7,7 @@ vi.mock("../lib/api", () => ({
   api: {
     myTasks: vi.fn(),
     myTask: vi.fn(),
+    createMyTaskComment: vi.fn(),
     createMyTask: vi.fn(),
     updateMyTask: vi.fn(),
     completeMyTask: vi.fn(),
@@ -28,7 +29,7 @@ describe("TaskUserPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("carrega lista inicial e detalhe da primeira tarefa", async () => {
+  it("abre o detalhe da tarefa pelo board", async () => {
     mockedApi.myTasks.mockResolvedValue({
       tasks: [
         {
@@ -83,9 +84,25 @@ describe("TaskUserPanel", () => {
         updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: [
+      timeline: [
         {
-          id: 10,
+          id: "comment:1",
+          kind: "comment",
+          taskId: 1,
+          actorUserId: 2,
+          actorName: "Usuario",
+          actorLogin: "user",
+          eventType: null,
+          fromStatus: null,
+          toStatus: null,
+          body: "Primeiro comentario",
+          metadata: null,
+          createdAt: "2026-03-21T12:10:00.000Z",
+          updatedAt: "2026-03-21T12:10:00.000Z"
+        },
+        {
+          id: "event:10",
+          kind: "event",
           taskId: 1,
           actorUserId: 2,
           actorName: "Usuario",
@@ -93,8 +110,10 @@ describe("TaskUserPanel", () => {
           eventType: "created",
           fromStatus: null,
           toStatus: "new",
+          body: null,
           metadata: null,
-          createdAt: "2026-03-21T12:00:00.000Z"
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: null
         }
       ]
     });
@@ -108,10 +127,12 @@ describe("TaskUserPanel", () => {
     );
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Investigar falha" }));
     await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(1));
 
     expect(screen.getByRole("heading", { name: "Investigar falha" })).toBeInTheDocument();
-    expect(screen.getByText("Timeline inicial")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Primeiro comentario")).toBeInTheDocument());
+    expect(screen.getByText("Historico da tarefa")).toBeInTheDocument();
     expect(screen.getByText("Criacao")).toBeInTheDocument();
   });
 
@@ -175,7 +196,7 @@ describe("TaskUserPanel", () => {
         updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: []
+      timeline: []
     });
     mockedApi.createMyTask.mockResolvedValue({
       task: {
@@ -193,6 +214,7 @@ describe("TaskUserPanel", () => {
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
 
+    fireEvent.click(screen.getByRole("button", { name: /Abrir formulario/ }));
     fireEvent.change(screen.getByPlaceholderText("Titulo da tarefa"), {
       target: { value: "Nova tarefa" }
     });
@@ -294,7 +316,7 @@ describe("TaskUserPanel", () => {
         updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: []
+      timeline: []
     });
 
     render(
@@ -306,8 +328,6 @@ describe("TaskUserPanel", () => {
     );
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "Board" }));
 
     const newColumn = screen.getByLabelText("Coluna Nova");
     const inProgressColumn = screen.getByLabelText("Coluna Em andamento");
@@ -383,7 +403,7 @@ describe("TaskUserPanel", () => {
         id: 3,
         title: "Aguardando retorno",
         description: "",
-        status: "in_progress",
+        status: "waiting",
         priority: "normal",
         creatorUserId: 2,
         creatorName: "Usuario",
@@ -400,10 +420,10 @@ describe("TaskUserPanel", () => {
         recurrenceSourceTaskId: null,
         sourceNotificationId: null,
         createdAt: "2026-03-21T12:00:00.000Z",
-        updatedAt: "2026-03-21T12:05:00.000Z",
+        updatedAt: "2026-03-21T12:00:00.000Z",
         archivedAt: null
       },
-      events: []
+      timeline: []
     });
     mockedApi.updateMyTask.mockResolvedValue({
       task: { id: 3 }
@@ -418,10 +438,275 @@ describe("TaskUserPanel", () => {
     );
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "Board" }));
-    fireEvent.click(within(screen.getByLabelText("Coluna Aguardando")).getByRole("button", { name: "Em andamento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Aguardando retorno" }));
+    await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(3));
+    fireEvent.click(screen.getByRole("button", { name: "Em andamento" }));
 
     await waitFor(() => expect(mockedApi.updateMyTask).toHaveBeenCalledWith(3, { status: "in_progress" }));
+  });
+
+  it("permite atualizar manualmente a lista e o detalhe", async () => {
+    mockedApi.myTasks
+      .mockResolvedValueOnce({
+        tasks: [
+          {
+            id: 5,
+            title: "Status antigo",
+            description: "",
+            status: "new",
+            priority: "normal",
+            creatorUserId: 2,
+            creatorName: "Usuario",
+            creatorLogin: "user",
+            assigneeUserId: 2,
+            assigneeName: "Usuario",
+            assigneeLogin: "user",
+            dueAt: null,
+            repeatType: "none",
+            repeatWeekdays: [],
+            startedAt: null,
+            completedAt: null,
+            cancelledAt: null,
+            recurrenceSourceTaskId: null,
+            sourceNotificationId: null,
+            createdAt: "2026-03-21T12:00:00.000Z",
+            updatedAt: "2026-03-21T12:00:00.000Z",
+            archivedAt: null
+          }
+        ],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      })
+      .mockResolvedValueOnce({
+        tasks: [
+          {
+            id: 5,
+            title: "Status novo",
+            description: "",
+            status: "in_progress",
+            priority: "normal",
+            creatorUserId: 2,
+            creatorName: "Usuario",
+            creatorLogin: "user",
+            assigneeUserId: 2,
+            assigneeName: "Usuario",
+            assigneeLogin: "user",
+            dueAt: null,
+            repeatType: "none",
+            repeatWeekdays: [],
+            startedAt: null,
+            completedAt: null,
+            cancelledAt: null,
+            recurrenceSourceTaskId: null,
+            sourceNotificationId: null,
+            createdAt: "2026-03-21T12:00:00.000Z",
+            updatedAt: "2026-03-21T12:05:00.000Z",
+            archivedAt: null
+          }
+        ],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      });
+    mockedApi.myTask
+      .mockResolvedValueOnce({
+        task: {
+          id: 5,
+          title: "Status antigo",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 2,
+          creatorName: "Usuario",
+          creatorLogin: "user",
+          assigneeUserId: 2,
+          assigneeName: "Usuario",
+          assigneeLogin: "user",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z",
+          archivedAt: null
+        },
+        timeline: []
+      })
+      .mockResolvedValueOnce({
+        task: {
+          id: 5,
+          title: "Status novo",
+          description: "",
+          status: "in_progress",
+          priority: "normal",
+          creatorUserId: 2,
+          creatorName: "Usuario",
+          creatorLogin: "user",
+          assigneeUserId: 2,
+          assigneeName: "Usuario",
+          assigneeLogin: "user",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:05:00.000Z",
+          archivedAt: null
+        },
+        timeline: []
+      });
+
+    render(
+      <TaskUserPanel
+        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+        onError={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Status antigo" }));
+    await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(5));
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar tarefas" }));
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText("Status novo").length).toBeGreaterThan(0);
+  });
+
+  it("permite registrar comentario no detalhe da tarefa", async () => {
+    mockedApi.myTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: 7,
+          title: "Registrar contexto",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 2,
+          creatorName: "Usuario",
+          creatorLogin: "user",
+          assigneeUserId: 2,
+          assigneeName: "Usuario",
+          assigneeLogin: "user",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z",
+          archivedAt: null
+        }
+      ],
+      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+    });
+    mockedApi.myTask
+      .mockResolvedValueOnce({
+        task: {
+          id: 7,
+          title: "Registrar contexto",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 2,
+          creatorName: "Usuario",
+          creatorLogin: "user",
+          assigneeUserId: 2,
+          assigneeName: "Usuario",
+          assigneeLogin: "user",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z",
+          archivedAt: null
+        },
+        timeline: []
+      })
+      .mockResolvedValueOnce({
+        task: {
+          id: 7,
+          title: "Registrar contexto",
+          description: "",
+          status: "new",
+          priority: "normal",
+          creatorUserId: 2,
+          creatorName: "Usuario",
+          creatorLogin: "user",
+          assigneeUserId: 2,
+          assigneeName: "Usuario",
+          assigneeLogin: "user",
+          dueAt: null,
+          repeatType: "none",
+          repeatWeekdays: [],
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          recurrenceSourceTaskId: null,
+          sourceNotificationId: null,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:05:00.000Z",
+          archivedAt: null
+        },
+        timeline: [
+          {
+            id: "comment:91",
+            kind: "comment",
+            taskId: 7,
+            actorUserId: 2,
+            actorName: "Usuario",
+            actorLogin: "user",
+            eventType: null,
+            fromStatus: null,
+            toStatus: null,
+            body: "Comentario de acompanhamento",
+            metadata: null,
+            createdAt: "2026-03-21T12:05:00.000Z",
+            updatedAt: "2026-03-21T12:05:00.000Z"
+          }
+        ]
+      });
+    mockedApi.createMyTaskComment.mockResolvedValue({
+      comment: { id: 91 }
+    });
+
+    render(
+      <TaskUserPanel
+        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+        onError={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Registrar contexto" }));
+    await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(7));
+
+    fireEvent.change(screen.getByLabelText("Comentario da tarefa"), {
+      target: { value: "Comentario de acompanhamento" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar comentario" }));
+
+    await waitFor(() =>
+      expect(mockedApi.createMyTaskComment).toHaveBeenCalledWith(7, {
+        body: "Comentario de acompanhamento"
+      })
+    );
+    await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText("Comentario de acompanhamento").length).toBeGreaterThan(0);
   });
 });

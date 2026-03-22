@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { api, ApiError } from "../lib/api";
-import type { AuthUser, TaskEventItem, TaskItem, TaskPriority, TaskRepeatType, TaskStatus } from "../types";
+import type {
+  AuthUser,
+  TaskItem,
+  TaskPriority,
+  TaskRepeatType,
+  TaskStatus,
+  TaskTimelineItem
+} from "../types";
 import {
   TASK_BOARD_COLUMNS,
-  buildTaskEventSummary,
+  buildTaskTimelineSummary,
   buildTaskRecurrenceSummary,
   formatTaskDateTime,
+  isTaskTimelineAutomatic,
   TASK_PRIORITY_BADGES,
   TASK_PRIORITY_LABELS,
   TASK_REPEAT_LABELS,
@@ -24,7 +32,6 @@ interface TaskUserPanelProps {
 
 type UserTaskFilterStatus = "" | TaskStatus;
 type UserTaskFilterPriority = "" | TaskPriority;
-type TaskViewMode = "list" | "board";
 
 type TaskFormState = {
   id: number;
@@ -51,13 +58,15 @@ const EMPTY_FORM: TaskFormState = {
 export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) => {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
-  const [taskEvents, setTaskEvents] = useState<TaskEventItem[]>([]);
+  const [taskTimeline, setTaskTimeline] = useState<TaskTimelineItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentBody, setCommentBody] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [form, setForm] = useState<TaskFormState>(EMPTY_FORM);
   const [statusFilter, setStatusFilter] = useState<UserTaskFilterStatus>("");
   const [priorityFilter, setPriorityFilter] = useState<UserTaskFilterPriority>("");
-  const [viewMode, setViewMode] = useState<TaskViewMode>("list");
   const loadRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
 
@@ -89,9 +98,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
 
       const nextTasks = response.tasks as TaskItem[];
       setTasks(nextTasks);
-      setSelectedTask((current) =>
-        current ? nextTasks.find((task) => task.id === current.id) ?? null : nextTasks[0] ?? null
-      );
+      setSelectedTask((current) => (current ? nextTasks.find((task) => task.id === current.id) ?? null : null));
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) {
         return;
@@ -117,8 +124,14 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
           return;
         }
 
-        setSelectedTask(response.task as TaskItem);
-        setTaskEvents(response.events as TaskEventItem[]);
+        const nextTask = response.task as TaskItem;
+        setSelectedTask(nextTask);
+        setTasks((current) =>
+          current.some((task) => task.id === nextTask.id)
+            ? current.map((task) => (task.id === nextTask.id ? nextTask : task))
+            : current
+        );
+        setTaskTimeline(response.timeline as TaskTimelineItem[]);
       } catch (error) {
         if (requestId !== detailRequestIdRef.current) {
           return;
@@ -134,18 +147,56 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
     [onError]
   );
 
+  const refreshTaskViews = useCallback(async () => {
+    await loadTasks();
+
+    if (selectedTask) {
+      await loadTaskDetail(selectedTask.id);
+    }
+  }, [loadTaskDetail, loadTasks, selectedTask]);
+
   useEffect(() => {
     void loadTasks();
   }, [loadTasks]);
 
   useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshTaskViews();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [refreshTaskViews]);
+
+  useEffect(() => {
     if (!selectedTask) {
-      setTaskEvents([]);
+      setTaskTimeline([]);
+      setCommentBody("");
       return;
     }
 
     void loadTaskDetail(selectedTask.id);
   }, [loadTaskDetail, selectedTask?.id]);
+
+  useEffect(() => {
+    if (!selectedTask) {
+      return;
+    }
+
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedTask(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedTask]);
 
   const taskStats = useMemo(
     () => ({
@@ -263,6 +314,30 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
     [onError, reloadAndSelect]
   );
 
+  const submitComment = useCallback(async () => {
+    if (!selectedTask) {
+      return;
+    }
+
+    const body = commentBody.trim();
+    if (!body) {
+      onError("Informe um comentario antes de enviar");
+      return;
+    }
+
+    setCommentSaving(true);
+    try {
+      await api.createMyTaskComment(selectedTask.id, { body });
+      setCommentBody("");
+      await loadTaskDetail(selectedTask.id);
+      onToast("Comentario registrado");
+    } catch (error) {
+      onError(error instanceof ApiError ? error.message : "Falha ao registrar comentario");
+    } finally {
+      setCommentSaving(false);
+    }
+  }, [commentBody, loadTaskDetail, onError, onToast, selectedTask]);
+
   const runBoardAction = useCallback(
     (event: MouseEvent<HTMLButtonElement>, action: () => void) => {
       event.stopPropagation();
@@ -286,180 +361,174 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
     <section className="space-y-4">
       <header className="rounded-2xl border border-slate-700 bg-panel p-4">
         <h3 className="font-display text-lg text-textMain">Tarefas</h3>
-        <p className="text-sm text-textMuted">Lista inicial de trabalho operacional do usuario</p>
+        <p className="text-sm text-textMuted">Acompanhamento da sua fila operacional</p>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Total</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.total}</p>
-          <p className="mt-1 text-xs text-textMuted">Tarefas no filtro atual</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-accent">Abertas</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.open}</p>
-          <p className="mt-1 text-xs text-textMuted">Novas, em andamento ou aguardando</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-success">Concluidas</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.done}</p>
-          <p className="mt-1 text-xs text-textMuted">Execucao finalizada</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-danger">Criticas</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{taskStats.critical}</p>
-          <p className="mt-1 text-xs text-textMuted">Prioridade critica pendente</p>
-        </article>
-      </section>
+      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Visao rapida</p>
+            <h4 className="mt-1 font-display text-base text-textMain">Minhas tarefas</h4>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-panelAlt px-3 py-1.5 text-textMain">{taskStats.total} no filtro</span>
+            <span className="rounded-full bg-accent/10 px-3 py-1.5 text-accent">{taskStats.open} abertas</span>
+            <span className="rounded-full bg-success/20 px-3 py-1.5 text-success">{taskStats.done} concluidas</span>
+            <span className="rounded-full bg-danger/20 px-3 py-1.5 text-danger">{taskStats.critical} criticas</span>
+          </div>
+        </div>
+      </article>
 
-      <div className="grid gap-4 xl:grid-cols-[1.05fr,0.95fr]">
-        <div className="space-y-4">
-          <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
-            <div>
-              <h4 className="font-display text-base text-textMain">
-                {form.id > 0 ? "Editar tarefa" : "Nova tarefa"}
-              </h4>
-              <p className="text-sm text-textMuted">Cadastro inicial sem board e sem automacoes</p>
-            </div>
+      <div className="space-y-4">
+          <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+            <button
+              aria-expanded={composerOpen || form.id > 0}
+              className="flex w-full items-start justify-between gap-3 text-left"
+              onClick={() => setComposerOpen((current) => !current)}
+              type="button"
+            >
+              <div>
+                <h4 className="font-display text-base text-textMain">
+                  {form.id > 0 ? "Editar tarefa" : "Nova tarefa"}
+                </h4>
+                <p className="text-sm text-textMuted">Cadastro rapido da tarefa</p>
+              </div>
+              <span className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain">
+                {composerOpen || form.id > 0 ? "Ocultar" : "Abrir formulario"}
+              </span>
+            </button>
 
-            <input
-              className="input"
-              placeholder="Titulo da tarefa"
-              value={form.title}
-              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-            />
-            <textarea
-              className="input min-h-24"
-              placeholder="Descricao opcional"
-              value={form.description}
-              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-            />
+            {(composerOpen || form.id > 0) && (
+              <div className="mt-4 space-y-3">
+                <input
+                  className="input"
+                  placeholder="Titulo da tarefa"
+                  value={form.title}
+                  onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                />
+                <textarea
+                  className="input min-h-24"
+                  placeholder="Descricao opcional"
+                  value={form.description}
+                  onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                />
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <select
-                className="input"
-                aria-label="Prioridade da tarefa"
-                value={form.priority}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, priority: event.target.value as TaskPriority }))
-                }
-              >
-                <option value="low">Baixa</option>
-                <option value="normal">Normal</option>
-                <option value="high">Alta</option>
-                <option value="critical">Critica</option>
-              </select>
-              <input
-                className="input"
-                aria-label="Prazo da tarefa"
-                type="datetime-local"
-                value={form.dueAt}
-                onChange={(event) => setForm((prev) => ({ ...prev, dueAt: event.target.value }))}
-              />
-            </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <select
+                    className="input"
+                    aria-label="Prioridade da tarefa"
+                    value={form.priority}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, priority: event.target.value as TaskPriority }))
+                    }
+                  >
+                    <option value="low">Baixa</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">Alta</option>
+                    <option value="critical">Critica</option>
+                  </select>
+                  <input
+                    className="input"
+                    aria-label="Prazo da tarefa"
+                    type="datetime-local"
+                    value={form.dueAt}
+                    onChange={(event) => setForm((prev) => ({ ...prev, dueAt: event.target.value }))}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <select
-                aria-label="Recorrencia da tarefa"
-                className="input"
-                value={form.repeatType}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    repeatType: event.target.value as TaskRepeatType,
-                    weekdays: event.target.value === "weekly" ? prev.weekdays : []
-                  }))
-                }
-              >
-                <option value="none">{TASK_REPEAT_LABELS.none}</option>
-                <option value="daily">{TASK_REPEAT_LABELS.daily}</option>
-                <option value="weekly">{TASK_REPEAT_LABELS.weekly}</option>
-                <option value="monthly">{TASK_REPEAT_LABELS.monthly}</option>
-                <option value="weekdays">{TASK_REPEAT_LABELS.weekdays}</option>
-              </select>
+                <div className="space-y-2">
+                  <select
+                    aria-label="Recorrencia da tarefa"
+                    className="input"
+                    value={form.repeatType}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        repeatType: event.target.value as TaskRepeatType,
+                        weekdays: event.target.value === "weekly" ? prev.weekdays : []
+                      }))
+                    }
+                  >
+                    <option value="none">{TASK_REPEAT_LABELS.none}</option>
+                    <option value="daily">{TASK_REPEAT_LABELS.daily}</option>
+                    <option value="weekly">{TASK_REPEAT_LABELS.weekly}</option>
+                    <option value="monthly">{TASK_REPEAT_LABELS.monthly}</option>
+                    <option value="weekdays">{TASK_REPEAT_LABELS.weekdays}</option>
+                  </select>
 
-              {form.repeatType === "weekly" && (
+                  {form.repeatType === "weekly" && (
+                    <div className="flex flex-wrap gap-2">
+                      {WEEKDAY_SHORT_LABELS.map((item) => (
+                        <button
+                          key={item.value}
+                          aria-label={`Dia da recorrencia ${item.full}`}
+                          className={`rounded-lg border px-3 py-2 text-xs ${
+                            form.weekdays.includes(item.value)
+                              ? "border-accent bg-accent/10 text-accent"
+                              : "border-slate-600 text-textMuted"
+                          }`}
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              weekdays: prev.weekdays.includes(item.value)
+                                ? prev.weekdays.filter((value) => value !== item.value)
+                                : [...prev.weekdays, item.value].sort((a, b) => a - b)
+                            }))
+                          }
+                          type="button"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-textMain">
+                  <input
+                    checked={form.assignToMe}
+                    onChange={(event) => setForm((prev) => ({ ...prev, assignToMe: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  Atribuir a mim
+                </label>
+
                 <div className="flex flex-wrap gap-2">
-                  {WEEKDAY_SHORT_LABELS.map((item) => (
+                  <button className="btn-primary" onClick={saveTask} type="button">
+                    {form.id > 0 ? "Salvar tarefa" : "Criar tarefa"}
+                  </button>
+                  {form.id > 0 && (
                     <button
-                      key={item.value}
-                      aria-label={`Dia da recorrencia ${item.full}`}
-                      className={`rounded-lg border px-3 py-2 text-xs ${
-                        form.weekdays.includes(item.value)
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-slate-600 text-textMuted"
-                      }`}
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          weekdays: prev.weekdays.includes(item.value)
-                            ? prev.weekdays.filter((value) => value !== item.value)
-                            : [...prev.weekdays, item.value].sort((a, b) => a - b)
-                        }))
-                      }
+                      className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                      onClick={resetForm}
                       type="button"
                     >
-                      {item.label}
+                      Cancelar edicao
                     </button>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
-
-            <label className="flex items-center gap-2 text-sm text-textMain">
-              <input
-                checked={form.assignToMe}
-                onChange={(event) => setForm((prev) => ({ ...prev, assignToMe: event.target.checked }))}
-                type="checkbox"
-              />
-              Atribuir a mim
-            </label>
-
-            <div className="flex flex-wrap gap-2">
-              <button className="btn-primary" onClick={saveTask} type="button">
-                {form.id > 0 ? "Salvar tarefa" : "Criar tarefa"}
-              </button>
-              {form.id > 0 && (
-                <button
-                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
-                  onClick={resetForm}
-                  type="button"
-                >
-                  Cancelar edicao
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </article>
 
           <article className="rounded-2xl border border-slate-700 bg-panel p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="font-display text-base text-textMain">Minhas tarefas</h4>
-                <p className="text-sm text-textMuted">
-                  Operacao inicial com filtros por status, prioridade e visao em board
-                </p>
+                <p className="text-sm text-textMuted">Filtros e visao por status</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <div className="flex rounded-xl border border-slate-600 bg-panelAlt/40 p-1">
-                  <button
-                    className={`rounded-lg px-3 py-1.5 text-xs transition ${
-                      viewMode === "list" ? "bg-accent text-slate-900" : "text-textMuted"
-                    }`}
-                    onClick={() => setViewMode("list")}
-                    type="button"
-                  >
-                    Lista
-                  </button>
-                  <button
-                    className={`rounded-lg px-3 py-1.5 text-xs transition ${
-                      viewMode === "board" ? "bg-accent text-slate-900" : "text-textMuted"
-                    }`}
-                    onClick={() => setViewMode("board")}
-                    type="button"
-                  >
-                    Board
-                  </button>
-                </div>
+              <span className="rounded-full bg-accent/10 px-3 py-1.5 text-xs text-accent">Board</span>
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <button
+                className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                onClick={() => void refreshTaskViews()}
+                type="button"
+              >
+                Atualizar tarefas
+              </button>
+              <div className="grid flex-1 gap-2 sm:grid-cols-2">
                 <select
                   className="input min-w-36"
                   value={statusFilter}
@@ -491,163 +560,146 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
               <p className="text-sm text-textMuted">Nenhuma tarefa encontrada para os filtros atuais.</p>
             )}
 
-            {viewMode === "list" ? (
-              <div className="space-y-2">
-                {tasks.map((task) => (
-                  <button
-                    key={task.id}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
-                      selectedTask?.id === task.id
-                        ? "border-accent bg-accent/10"
-                        : "border-slate-700 bg-panelAlt/70 hover:border-slate-500"
-                    }`}
-                    onClick={() => setSelectedTask(task)}
-                    type="button"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium text-textMain">{task.title}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[task.status]}`}>
-                          {TASK_STATUS_LABELS[task.status]}
-                        </span>
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_PRIORITY_BADGES[task.priority]}`}>
-                          {TASK_PRIORITY_LABELS[task.priority]}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-sm text-textMuted">{task.description || "Sem descricao"}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
-                      <span>Prazo: {formatTaskDateTime(task.dueAt)}</span>
-                      <span>Recorrencia: {buildTaskRecurrenceSummary(task.repeatType, task.repeatWeekdays)}</span>
-                      <span>Criada: {formatTaskDateTime(task.createdAt)}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-3 xl:grid-cols-5">
-                {boardColumns.map((column) => (
-                  <section
-                    key={column.status}
-                    aria-label={`Coluna ${column.label}`}
-                    className="min-h-40 rounded-2xl border border-slate-700 bg-panelAlt/50 p-3"
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[column.status]}`}>
-                        {column.label}
-                      </span>
-                      <span className="text-xs text-textMuted">{column.tasks.length}</span>
-                    </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {boardColumns.map((column) => (
+                <section
+                  key={column.status}
+                  aria-label={`Coluna ${column.label}`}
+                  className="min-h-40 min-w-[240px] flex-1 rounded-2xl border border-slate-700 bg-panelAlt/50 p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[column.status]}`}>
+                      {column.label}
+                    </span>
+                    <span className="text-xs text-textMuted">{column.tasks.length}</span>
+                  </div>
 
-                    <div className="space-y-2">
-                      {column.tasks.length === 0 && (
-                        <p className="rounded-xl border border-dashed border-slate-600 px-3 py-4 text-xs text-textMuted">
-                          Nenhuma tarefa nesta coluna.
-                        </p>
-                      )}
+                  <div className="space-y-2">
+                    {column.tasks.length === 0 && (
+                      <p className="rounded-xl border border-dashed border-slate-600 px-3 py-4 text-xs text-textMuted">
+                        Nenhuma tarefa nesta coluna.
+                      </p>
+                    )}
 
-                      {column.tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          aria-label={`Abrir tarefa ${task.title}`}
-                          className={`w-full rounded-xl border p-3 text-left transition ${
-                            selectedTask?.id === task.id
-                              ? "border-accent bg-accent/10"
-                              : "border-slate-700 bg-panel hover:border-slate-500"
-                          }`}
-                          onClick={() => openTaskFromBoard(task)}
-                          onKeyDown={(event) => onBoardCardKeyDown(event, task)}
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-medium text-textMain">{task.title}</p>
-                            <span
-                              className={`rounded-full px-2 py-1 text-[10px] ${TASK_PRIORITY_BADGES[task.priority]}`}
-                            >
-                              {TASK_PRIORITY_LABELS[task.priority]}
-                            </span>
-                          </div>
-                          <p className="mt-2 line-clamp-3 text-xs text-textMuted">
-                            {task.description || "Sem descricao"}
-                          </p>
-                          <div className="mt-2 space-y-1 text-[11px] text-textMuted">
-                            <p>Prazo: {formatTaskDateTime(task.dueAt)}</p>
-                            <p>Responsavel: {task.assigneeName || "Nao atribuido"}</p>
-                          </div>
-                          {task.status !== "done" && task.status !== "cancelled" && (
-                            <div className="mt-3 flex flex-wrap gap-1.5">
-                              {task.status !== "new" && (
-                                <button
-                                  className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
-                                  onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "new"))}
-                                  type="button"
-                                >
-                                  Nova
-                                </button>
-                              )}
-                              {task.status !== "in_progress" && (
-                                <button
-                                  className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] text-warning"
-                                  onClick={(event) =>
-                                    runBoardAction(event, () => updateTaskStatus(task.id, "in_progress"))
-                                  }
-                                  type="button"
-                                >
-                                  Em andamento
-                                </button>
-                              )}
-                              {task.status !== "waiting" && (
-                                <button
-                                  className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
-                                  onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "waiting"))}
-                                  type="button"
-                                >
-                                  Aguardar
-                                </button>
-                              )}
-                              <button
-                                className="rounded-md bg-success px-2 py-1 text-[10px] font-semibold text-slate-900"
-                                onClick={(event) => runBoardAction(event, () => completeTask(task.id))}
-                                type="button"
-                              >
-                                Concluir
-                              </button>
-                              <button
-                                className="rounded-md border border-danger/50 bg-danger/10 px-2 py-1 text-[10px] text-danger"
-                                onClick={(event) => runBoardAction(event, () => cancelTask(task.id))}
-                                type="button"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          )}
+                    {column.tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        aria-label={`Abrir tarefa ${task.title}`}
+                        className={`w-full cursor-pointer rounded-xl border p-3 text-left transition ${
+                          selectedTask?.id === task.id
+                            ? "border-accent bg-accent/10"
+                            : "border-slate-700 bg-panel hover:border-slate-500"
+                        }`}
+                        onClick={() => openTaskFromBoard(task)}
+                        onKeyDown={(event) => onBoardCardKeyDown(event, task)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="min-w-0 flex-1 break-words text-sm font-medium text-textMain">{task.title}</p>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-1 text-[10px] ${TASK_PRIORITY_BADGES[task.priority]}`}
+                          >
+                            {TASK_PRIORITY_LABELS[task.priority]}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-textMuted">
+                          <span>Prazo: {formatTaskDateTime(task.dueAt)}</span>
+                          <span>Responsavel: {task.assigneeName || "Nao atribuido"}</span>
+                        </div>
+                        <p className="mt-2 text-[11px] text-textMuted">
+                          {selectedTask?.id === task.id ? "Aberta no detalhe" : "Clique para abrir"}
+                        </p>
+                        {selectedTask?.id === task.id && task.status !== "done" && task.status !== "cancelled" && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {task.status !== "new" && (
+                              <button
+                                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
+                                onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "new"))}
+                                type="button"
+                              >
+                                Nova
+                              </button>
+                            )}
+                            {task.status !== "in_progress" && (
+                              <button
+                                className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] text-warning"
+                                onClick={(event) =>
+                                  runBoardAction(event, () => updateTaskStatus(task.id, "in_progress"))
+                                }
+                                type="button"
+                              >
+                                Em andamento
+                              </button>
+                            )}
+                            {task.status !== "waiting" && (
+                              <button
+                                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-textMuted"
+                                onClick={(event) => runBoardAction(event, () => updateTaskStatus(task.id, "waiting"))}
+                                type="button"
+                              >
+                                Aguardar
+                              </button>
+                            )}
+                            <button
+                              className="rounded-md bg-success px-2 py-1 text-[10px] font-semibold text-slate-900"
+                              onClick={(event) => runBoardAction(event, () => completeTask(task.id))}
+                              type="button"
+                            >
+                              Concluir
+                            </button>
+                            <button
+                              className="rounded-md border border-danger/50 bg-danger/10 px-2 py-1 text-[10px] text-danger"
+                              onClick={(event) => runBoardAction(event, () => cancelTask(task.id))}
+                              type="button"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           </article>
-        </div>
+      </div>
 
-        <aside className="rounded-2xl border border-slate-700 bg-panel p-4">
-          {!selectedTask && <p className="text-sm text-textMuted">Selecione uma tarefa.</p>}
-          {selectedTask && (
+      {selectedTask && (
+        <div
+          aria-label="Overlay de detalhe da tarefa"
+          className="fixed inset-0 z-40 flex justify-end bg-slate-950/70 p-3 sm:p-6"
+          onClick={() => setSelectedTask(null)}
+        >
+          <aside
+            aria-label="Detalhe da tarefa"
+            aria-modal="true"
+            className="h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-panel p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
             <div className="space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-accent">Detalhe da tarefa</p>
                   <h4 className="mt-1 font-display text-lg text-textMain">{selectedTask.title}</h4>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[selectedTask.status]}`}>
                     {TASK_STATUS_LABELS[selectedTask.status]}
                   </span>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_PRIORITY_BADGES[selectedTask.priority]}`}>
                     {TASK_PRIORITY_LABELS[selectedTask.priority]}
                   </span>
+                  <button
+                    aria-label="Fechar detalhe da tarefa"
+                    className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain"
+                    onClick={() => setSelectedTask(null)}
+                    type="button"
+                  >
+                    Fechar
+                  </button>
                 </div>
               </div>
 
@@ -655,31 +707,21 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
                 {selectedTask.description || "Sem descricao registrada"}
               </p>
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Responsavel</p>
-                  <p className="mt-1 text-sm text-textMain">
-                    {selectedTask.assigneeName || "Nao atribuido"}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Prazo</p>
-                  <p className="mt-1 text-sm text-textMain">{formatTaskDateTime(selectedTask.dueAt)}</p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Recorrencia</p>
-                  <p className="mt-1 text-sm text-textMain">
+              <div className="rounded-2xl bg-panelAlt/70 p-4">
+                <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,120px),1fr]">
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Responsavel</dt>
+                  <dd className="text-sm text-textMain">{selectedTask.assigneeName || "Nao atribuido"}</dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Prazo</dt>
+                  <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.dueAt)}</dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Recorrencia</dt>
+                  <dd className="text-sm text-textMain">
                     {buildTaskRecurrenceSummary(selectedTask.repeatType, selectedTask.repeatWeekdays)}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Criada por</p>
-                  <p className="mt-1 text-sm text-textMain">{selectedTask.creatorName ?? "-"}</p>
-                </div>
-                <div className="rounded-xl bg-panelAlt/70 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Atualizada em</p>
-                  <p className="mt-1 text-sm text-textMain">{formatTaskDateTime(selectedTask.updatedAt)}</p>
-                </div>
+                  </dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Criada por</dt>
+                  <dd className="text-sm text-textMain">{selectedTask.creatorName ?? "-"}</dd>
+                  <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Atualizada em</dt>
+                  <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.updatedAt)}</dd>
+                </dl>
               </div>
 
               {selectedTask.status !== "done" && selectedTask.status !== "cancelled" && (
@@ -726,31 +768,68 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
               )}
 
               <div className="space-y-2">
+                <div className="rounded-2xl border border-slate-700 bg-panelAlt/60 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Comentarios</p>
+                    {commentSaving && <span className="text-[11px] text-textMuted">Enviando...</span>}
+                  </div>
+                  <textarea
+                    aria-label="Comentario da tarefa"
+                    className="input mt-3 min-h-24"
+                    placeholder="Registrar contexto operacional"
+                    value={commentBody}
+                    onChange={(event) => setCommentBody(event.target.value)}
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button className="btn-primary" onClick={() => void submitComment()} type="button">
+                      Adicionar comentario
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Timeline inicial</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Historico da tarefa</p>
                   {detailLoading && <span className="text-[11px] text-textMuted">Atualizando...</span>}
                 </div>
-                {taskEvents.length === 0 && !detailLoading && (
-                  <p className="text-sm text-textMuted">Nenhum evento registrado ainda.</p>
+                {taskTimeline.length === 0 && !detailLoading && (
+                  <p className="text-sm text-textMuted">Nenhum historico registrado ainda.</p>
                 )}
                 <div className="space-y-2">
-                  {taskEvents.map((event) => (
-                    <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt/70 p-3">
+                  {taskTimeline.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt/70 p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-textMain">{buildTaskEventSummary(event)}</p>
-                        <span className="text-[11px] text-textMuted">{formatTaskDateTime(event.createdAt)}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-textMain">{buildTaskTimelineSummary(item)}</p>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] ${
+                              item.kind === "comment"
+                                ? "bg-accent/10 text-accent"
+                                : isTaskTimelineAutomatic(item)
+                                  ? "bg-warning/20 text-warning"
+                                  : "bg-panel text-textMuted"
+                            }`}
+                          >
+                            {item.kind === "comment" ? "Comentario" : isTaskTimelineAutomatic(item) ? "Automatico" : "Evento"}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-textMuted">{formatTaskDateTime(item.createdAt)}</span>
                       </div>
                       <p className="mt-1 text-xs text-textMuted">
-                        {event.actorName ? `Por ${event.actorName}` : "Evento automatico/sem ator"}
+                        {item.actorName ? `Por ${item.actorName}` : "Evento automatico/sem ator"}
                       </p>
+                      {item.kind === "comment" && item.body && (
+                        <p className="mt-2 whitespace-pre-wrap text-sm text-textMain">{item.body}</p>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          )}
-        </aside>
-      </div>
+          </aside>
+        </div>
+      )}
     </section>
   );
 };
