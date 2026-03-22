@@ -56,6 +56,9 @@ export interface AppConfig {
   cookieSecure: boolean;
   allowInsecureFixedAdmin: boolean;
   enableReminderScheduler: boolean;
+  enableTaskAutomationScheduler?: boolean;
+  taskAutomationDueSoonMinutes?: number;
+  taskAutomationStaleHours?: number;
   adminSeed: {
     login: string;
     password: string;
@@ -101,6 +104,12 @@ export const config: AppConfig = {
     process.env.ENABLE_REMINDER_SCHEDULER,
     nodeEnv !== "production"
   ),
+  enableTaskAutomationScheduler: toBoolean(process.env.ENABLE_TASK_AUTOMATION_SCHEDULER, false),
+  taskAutomationDueSoonMinutes: toNumber(
+    process.env.TASK_AUTOMATION_DUE_SOON_MINUTES,
+    120
+  ),
+  taskAutomationStaleHours: toNumber(process.env.TASK_AUTOMATION_STALE_HOURS, 24),
   adminSeed
 };
 

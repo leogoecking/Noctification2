@@ -39,6 +39,17 @@ const IconUsers = () => (
   </svg>
 );
 
+const IconChecklist = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M9 6h11" />
+    <path d="M9 12h11" />
+    <path d="M9 18h11" />
+    <path d="m3 6 1.5 1.5L7 5" />
+    <path d="m3 12 1.5 1.5L7 11" />
+    <path d="m3 18 1.5 1.5L7 17" />
+  </svg>
+);
+
 const IconArchive = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="3" y="4" width="18" height="4" rx="1" />
@@ -80,6 +91,11 @@ export const AdminSidebar = ({ menu, onSelect }: AdminSidebarProps) => {
         <button className={menuButtonClass(menu === "users")} onClick={() => onSelect("users")}>
           <IconUsers />
           Usuarios
+        </button>
+
+        <button className={menuButtonClass(menu === "tasks")} onClick={() => onSelect("tasks")}>
+          <IconChecklist />
+          Tarefas
         </button>
 
         <button

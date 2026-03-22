@@ -105,6 +105,86 @@ Mudancas entregues nesta rodada:
 5. Reutilizar o scheduler de lembretes para automacoes de tarefa, evitando criar um novo motor paralelo neste momento.
 6. Fortalecer testes, validacoes e rollout seguro no escopo de tarefas, mantendo a estrategia incremental ja adotada no projeto.
 
+## Frente de evolucao prioritaria: tarefas, notificacoes vinculadas e automacoes
+
+Esta frente detalha como a transicao para `task` deve acontecer sem regressao nos modulos ja entregues de notificacoes e lembretes. Ela complementa a feature de Gestao de Tarefas abaixo e define a ordem segura de rollout.
+
+### Objetivo operacional da frente
+
+- fazer `task` nascer como nucleo do trabalho operacional
+- manter notificacoes como canal de alerta e comunicacao
+- manter lembretes pessoais como modulo separado
+- reaproveitar o scheduler atual para automacoes de tarefa somente depois de existir base de dominio e rastreabilidade
+
+### Regra de compatibilidade desta frente
+
+- nenhuma etapa inicial pode exigir migracao em massa de notificacoes legadas
+- notificacoes legadas permanecem validas sem `task`
+- vinculacao entre notificacao e tarefa deve ser opcional durante o periodo de coexistencia
+- automacoes de tarefa devem nascer desligadas ou passivas ate haver CRUD e observabilidade minima
+
+### Etapas desta frente
+
+#### Etapa 1: fundacao passiva do dominio de tarefas
+
+Status: concluida em 2026-03-21
+
+- criar schema inicial de `tasks` e trilha minima de eventos de tarefa
+- introduzir enums e tipos passivos de tarefa no backend e no frontend
+- nao alterar rotas, telas, scheduler nem o fluxo atual de notificacoes e lembretes
+- validar que a migracao nova convive com o schema atual
+
+Criterio de aceite:
+- banco preparado para tarefas sem qualquer mudanca de comportamento nas features atuais
+
+#### Etapa 2: CRUD e lista inicial de tarefas
+
+Status: concluida em 2026-03-21
+
+- expor CRUD basico `user/admin`
+- listar tarefas com filtros por status, prioridade, responsavel e vencimento
+- disponibilizar lista/detalhe simples no frontend para user e admin
+- auditar criacao, atribuicao, conclusao e cancelamento
+
+Criterio de aceite:
+- tarefas podem ser operadas por lista sem depender de notificacoes como item principal
+
+#### Etapa 3: notificacoes vinculadas a tarefa
+
+Status: concluida em 2026-03-21
+
+- adicionar referencia opcional de origem de tarefa em notificacoes novas
+- emitir notificacoes de atribuicao e mudanca relevante de status
+- preservar notificacoes legadas sem origem vinculada
+
+Criterio de aceite:
+- novas notificacoes operacionais apontam para a tarefa correta sem quebrar o historico legado
+
+#### Etapa 4: automacoes operacionais de tarefa
+
+Status: concluida em 2026-03-21
+
+- reaproveitar o scheduler atual para `due_soon`, `overdue`, `stale_task` e recorrencia de tarefa
+- emitir notificacoes de proximidade de prazo e atraso com `source_task_id`
+- manter logs, idempotencia e protecao contra duplicidade
+- separar semanticamente automacao de tarefa de lembrete pessoal
+
+Mudancas entregues nesta rodada:
+- scheduler operacional compartilhado com flags separadas para lembretes e automacoes de tarefa
+- primeira fatia de automacoes `due_soon`, `overdue` e `stale_task`
+- logs dedicados de automacao, idempotencia por `dedupe_key` e `task_events` especificos
+- observabilidade administrativa inicial com `tasks/health` e `tasks/automation-logs`
+- recorrencia de tarefa com geracao automatica da proxima tarefa apos conclusao
+
+Criterio de aceite:
+- regras automaticas de tarefa funcionam sem criar um motor paralelo nem degradar lembretes pessoais
+
+### Proxima etapa recomendada agora
+
+- executar rollout controlado em ambiente real usando o checklist e a documentacao operacional ja entregues
+- manter `ENABLE_TASK_AUTOMATION_SCHEDULER` sob observacao antes de ativacao ampla
+- so depois ampliar a experiencia para board, comentarios e checklist/subtarefas
+
 ## Feature: Aba de Lembretes
 
 Status: em andamento  
@@ -445,12 +525,20 @@ Criterio de aceite:
 
 #### Fase 8
 
+Status: em andamento em 2026-03-21
+
 - hardening
 - testes
 - checklist final de rollout
 - documentacao operacional
 - estrategia de rollback
 - validacao de regressao em notificacoes e lembretes
+
+Mudancas entregues nesta rodada:
+- `/api/v1/health` passou a explicitar estado dos schedulers e janelas da automacao de tarefa
+- `ops/systemd/api.env.example` passou a documentar flags e janelas de automacao
+- `docs/task-automation-rollout.md` consolidou checklist, sinais de aceite e rollback
+- `ops/scripts/validate-debian-login.sh` passou a validar a presenca e coerencia das flags no health
 
 ### Ordem pratica de implementacao
 

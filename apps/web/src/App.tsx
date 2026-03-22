@@ -6,6 +6,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { NotificationAlertCenter } from "./components/NotificationAlertCenter";
 import { ReminderUserPanel } from "./components/ReminderUserPanel";
 import { ReminderAlertCenter } from "./components/ReminderAlertCenter";
+import { TaskUserPanel } from "./components/TaskUserPanel";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
 import { primeReminderAudio } from "./lib/reminderAudio";
 import type { AuthUser } from "./types";
@@ -16,7 +17,7 @@ interface Toast {
   tone: "ok" | "error";
 }
 
-type AppPath = "/" | "/login" | "/admin/login" | "/notifications" | "/reminders";
+type AppPath = "/" | "/login" | "/admin/login" | "/notifications" | "/reminders" | "/tasks";
 
 const normalizePath = (rawPath: string): AppPath => {
   if (rawPath === "/login") {
@@ -33,6 +34,10 @@ const normalizePath = (rawPath: string): AppPath => {
 
   if (rawPath === "/reminders") {
     return "/reminders";
+  }
+
+  if (rawPath === "/tasks") {
+    return "/tasks";
   }
 
   return "/";
@@ -214,6 +219,10 @@ export default function App() {
       return "Lembretes";
     }
 
+    if (currentPath === "/tasks") {
+      return "Tarefas";
+    }
+
     return "Painel Operacional";
   }, [currentPath, currentUser]);
 
@@ -306,6 +315,17 @@ export default function App() {
               </button>
               <button
                 className={`rounded-xl px-4 py-2 text-sm transition ${
+                  currentPath === "/tasks"
+                    ? "bg-accent text-slate-900"
+                    : "text-textMuted hover:bg-panelAlt hover:text-textMain"
+                }`}
+                onClick={() => navigate("/tasks")}
+                type="button"
+              >
+                Tarefas
+              </button>
+              <button
+                className={`rounded-xl px-4 py-2 text-sm transition ${
                   currentPath === "/reminders"
                     ? "bg-accent text-slate-900"
                     : "text-textMuted hover:bg-panelAlt hover:text-textMain"
@@ -331,7 +351,9 @@ export default function App() {
               onOpenReminders={() => navigate("/reminders")}
             />
 
-            {currentPath === "/reminders" ? (
+            {currentPath === "/tasks" ? (
+              <TaskUserPanel user={currentUser} onError={handleErrorToast} onToast={handleOkToast} />
+            ) : currentPath === "/reminders" ? (
               <ReminderUserPanel onError={handleErrorToast} onToast={handleOkToast} />
             ) : (
               <UserDashboard

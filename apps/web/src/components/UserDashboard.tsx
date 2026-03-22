@@ -69,6 +69,7 @@ const toLocalNotification = (payload: IncomingNotification): NotificationItem =>
   title: payload.title,
   message: payload.message,
   priority: payload.priority,
+  sourceTaskId: payload.sourceTaskId ?? null,
   createdAt: payload.createdAt,
   senderId: payload.sender.id,
   senderName: payload.sender.name,
@@ -87,6 +88,18 @@ const BellIcon = () => (
     <path d="M10 20a2 2 0 0 0 4 0" />
   </svg>
 );
+
+const renderTaskLinkChip = (sourceTaskId: number | null | undefined) => {
+  if (!sourceTaskId) {
+    return null;
+  }
+
+  return (
+    <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+      Tarefa #{sourceTaskId}
+    </span>
+  );
+};
 
 export const UserDashboard = ({
   user,
@@ -404,9 +417,10 @@ export const UserDashboard = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-textMain">{item.title}</p>
-                        <div className="flex items-center gap-1">
-                          {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
-                          <span
+                      <div className="flex items-center gap-1">
+                        {renderTaskLinkChip(item.sourceTaskId)}
+                        {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
+                        <span
                             className={`rounded-full px-2 py-0.5 text-[10px] ${
                               item.priority === "critical"
                                 ? "bg-danger/20 text-danger"
@@ -536,6 +550,7 @@ export const UserDashboard = ({
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-textMain">{item.title}</p>
                   <div className="flex items-center gap-2">
+                    {renderTaskLinkChip(item.sourceTaskId)}
                     {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] ${
@@ -566,6 +581,9 @@ export const UserDashboard = ({
               <div className="space-y-3">
                 <p className="text-xs uppercase tracking-wider text-accent">Detalhe da notificacao</p>
                 <h3 className="font-display text-lg text-textMain">{selected.title}</h3>
+                {selected.sourceTaskId ? (
+                  <p className="text-xs text-accent">Tarefa vinculada #{selected.sourceTaskId}</p>
+                ) : null}
                 <p className="whitespace-pre-wrap text-sm text-textMain">{selected.message}</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="rounded-xl bg-panelAlt/70 p-3">
@@ -657,6 +675,7 @@ export const UserDashboard = ({
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
                   <span>{formatDate(item.createdAt)}</span>
                   <span>Prioridade: {PRIORITY_LABELS[item.priority]}</span>
+                  {item.sourceTaskId ? <span>Tarefa #{item.sourceTaskId}</span> : null}
                   {!item.isVisualized && <span>Nao visualizada</span>}
                 </div>
               </div>

@@ -52,6 +52,7 @@ interface NotificationRow {
   message: string;
   priority: NotificationPriority;
   recipientMode: RecipientMode;
+  sourceTaskId: number | null;
   createdAt: string;
   senderId: number;
   senderName: string;
@@ -721,6 +722,11 @@ export const createAdminRouter = (
     const priority = req.body?.priority as NotificationPriority;
     const recipientMode = req.body?.recipient_mode as RecipientMode;
     const requestedRecipientIds = parseUserIds(req.body?.recipient_ids);
+    const sourceTaskIdRaw = req.body?.source_task_id ?? req.body?.sourceTaskId;
+    const sourceTaskId =
+      sourceTaskIdRaw === undefined || sourceTaskIdRaw === null || sourceTaskIdRaw === ""
+        ? null
+        : Number(sourceTaskIdRaw);
 
     if (!title || !message || !PRIORITIES.includes(priority)) {
       res.status(400).json({ error: "title, message e priority validos sao obrigatorios" });
@@ -729,6 +735,16 @@ export const createAdminRouter = (
 
     if (recipientMode !== "all" && recipientMode !== "users") {
       res.status(400).json({ error: "recipient_mode deve ser all ou users" });
+      return;
+    }
+
+    if (
+      sourceTaskId !== null &&
+      (!Number.isInteger(sourceTaskId) ||
+        sourceTaskId <= 0 ||
+        !db.prepare("SELECT id FROM tasks WHERE id = ? AND archived_at IS NULL").get(sourceTaskId))
+    ) {
+      res.status(400).json({ error: "source_task_id deve referenciar uma tarefa valida" });
       return;
     }
 
@@ -781,11 +797,12 @@ export const createAdminRouter = (
               priority,
               sender_id,
               recipient_mode,
+              source_task_id,
               created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
           `
         )
-        .run(title, message, priority, req.authUser!.id, recipientMode, createdAt);
+        .run(title, message, priority, req.authUser!.id, recipientMode, sourceTaskId, createdAt);
 
       const notificationId = Number(notificationResult.lastInsertRowid);
 
@@ -846,6 +863,7 @@ export const createAdminRouter = (
       message,
       priority,
       recipient_mode: recipientMode,
+      source_task_id: sourceTaskId,
       created_at: createdAt,
       sender,
       recipients,
@@ -870,6 +888,7 @@ export const createAdminRouter = (
         title,
         message,
         priority,
+        sourceTaskId: sourceTaskId,
         createdAt,
         sender
       });
@@ -887,6 +906,7 @@ export const createAdminRouter = (
         recipientIds: validRecipientIds,
         recipientCount: validRecipientIds.length,
         priority,
+        sourceTaskId,
         sentAt: createdAt
       }
     });
@@ -1021,6 +1041,7 @@ export const createAdminRouter = (
             n.message,
             n.priority,
             n.recipient_mode AS recipientMode,
+            n.source_task_id AS sourceTaskId,
             n.created_at AS createdAt,
             n.sender_id AS senderId,
             sender.name AS senderName,
@@ -1110,6 +1131,7 @@ export const createAdminRouter = (
           message: notification.message,
           priority: notification.priority,
           recipient_mode: notification.recipientMode,
+          source_task_id: notification.sourceTaskId,
           created_at: notification.createdAt,
           sender: {
             id: notification.senderId,

@@ -108,7 +108,75 @@ export const api = {
       pagination: { page: number; limit: number; total: number; totalPages: number };
     }>(`/admin/notifications${query}`),
 
+  adminTasks: (query = "") =>
+    request<{
+      tasks: unknown[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/admin/tasks${query}`),
+
+  adminTask: (id: number) =>
+    request<{ task: unknown; events: unknown[] }>(`/admin/tasks/${id}`),
+
+  adminTaskHealth: () =>
+    request<{ health: unknown }>("/admin/tasks/health"),
+
+  adminTaskAutomationLogs: (query = "") =>
+    request<{ logs: unknown[] }>(`/admin/tasks/automation-logs${query}`),
+
+  createAdminTask: (payload: unknown) =>
+    request<{ task: unknown }>("/admin/tasks", {
+      method: "POST",
+      bodyJson: payload
+    }),
+
+  updateAdminTask: (id: number, payload: unknown) =>
+    request<{ task: unknown }>(`/admin/tasks/${id}`, {
+      method: "PATCH",
+      bodyJson: payload
+    }),
+
+  completeAdminTask: (id: number) =>
+    request<{ task: unknown }>(`/admin/tasks/${id}/complete`, {
+      method: "POST"
+    }),
+
+  cancelAdminTask: (id: number) =>
+    request<{ task: unknown }>(`/admin/tasks/${id}/cancel`, {
+      method: "POST"
+    }),
+
   myNotifications: (query = "") => request<{ notifications: unknown[] }>(`/me/notifications${query}`),
+
+  myTasks: (query = "") =>
+    request<{
+      tasks: unknown[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/me/tasks${query}`),
+
+  myTask: (id: number) =>
+    request<{ task: unknown; events: unknown[] }>(`/me/tasks/${id}`),
+
+  createMyTask: (payload: unknown) =>
+    request<{ task: unknown }>("/me/tasks", {
+      method: "POST",
+      bodyJson: payload
+    }),
+
+  updateMyTask: (id: number, payload: unknown) =>
+    request<{ task: unknown }>(`/me/tasks/${id}`, {
+      method: "PATCH",
+      bodyJson: payload
+    }),
+
+  completeMyTask: (id: number) =>
+    request<{ task: unknown }>(`/me/tasks/${id}/complete`, {
+      method: "POST"
+    }),
+
+  cancelMyTask: (id: number) =>
+    request<{ task: unknown }>(`/me/tasks/${id}/cancel`, {
+      method: "POST"
+    }),
 
   markRead: (id: number) =>
     request<{

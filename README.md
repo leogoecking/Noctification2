@@ -156,11 +156,53 @@ Se o projeto estiver clonado em outro caminho, basta ajustar `APP_ROOT` para o d
 Para serviço de sistema, os exemplos estão em [`ops/systemd`](ops/systemd).
 Para deploy permanente em VM Debian com `systemd` + `nginx`, consulte [`docs/debian-vm-deploy.md`](docs/debian-vm-deploy.md).
 
+### Atualizar uma VM ja em producao
+
+Se a aplicacao ja esta rodando na VM e voce so quer publicar atualizacoes de codigo com o fluxo seguro validado neste projeto, use:
+
+```bash
+bash ops/scripts/update-vm-safe.sh
+```
+
+O script executa este procedimento:
+
+1. mostra `git status --short`
+2. faz `git pull`
+3. roda `npm install`
+4. roda `npm run build`
+5. aplica migrations da API
+6. roda `systemctl daemon-reload`
+7. reinicia `noctification-api`
+8. valida `systemctl status`
+9. consulta `http://127.0.0.1:4000/api/v1/health`
+10. valida `nginx -t`
+11. recarrega o Nginx
+12. orienta hard refresh no navegador
+
+Observacoes:
+
+- o script assume que o servico da API se chama `noctification-api`
+- para outro nome de servico:
+
+```bash
+SERVICE_NAME=meu-servico bash ops/scripts/update-vm-safe.sh
+```
+
+- para outro endpoint de health:
+
+```bash
+API_HEALTH_URL=http://127.0.0.1:4000/api/v1/health bash ops/scripts/update-vm-safe.sh
+```
+
+- ele usa `sudo` para `systemctl` e `nginx`, entao o usuario precisa ter permissao
+- se voce tiver alterado unit do `systemd`, configuracao do Nginx ou env de producao, este script continua valido para recarregar, mas nesses casos vale revisar tambem o fluxo completo em [`.deploy/README.md`](.deploy/README.md)
+
 ## Estrutura
 
 - [`apps/api/migrations`](apps/api/migrations): migrações SQL
 - [`apps/api/src`](apps/api/src): API, auth, realtime e scripts
 - [`apps/web/src`](apps/web/src): frontend React
+- [`ops/scripts/update-vm-safe.sh`](ops/scripts/update-vm-safe.sh): atualizacao segura de uma VM ja em producao
 - [`ops/systemd`](ops/systemd): exemplos de serviço
 - [`ops/nginx`](ops/nginx): exemplo de vhost para frontend e proxy da API
 - [`docs/debian-vm-deploy.md`](docs/debian-vm-deploy.md): passo a passo de deploy em VM Debian

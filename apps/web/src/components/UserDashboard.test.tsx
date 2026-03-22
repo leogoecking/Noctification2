@@ -35,6 +35,7 @@ const buildNotification = (id: number, isVisualized: boolean) => ({
   title: `Notificacao ${id}`,
   message: `Mensagem ${id}`,
   priority: "normal" as const,
+  sourceTaskId: null,
   createdAt: new Date(Date.now() - id * 1000).toISOString(),
   senderId: 1,
   senderName: "Admin",
@@ -108,5 +109,33 @@ describe("UserDashboard", () => {
 
     await waitFor(() => expect(mockedApi.markAllRead).toHaveBeenCalledTimes(1));
     expect(screen.getByTestId("unread-counter")).toHaveTextContent("Nao lidas: 0");
+  });
+
+  it("mostra o identificador da tarefa vinculada no detalhe da notificacao", async () => {
+    mockedApi.myNotifications.mockResolvedValue({
+      notifications: [
+        {
+          ...buildNotification(7, false),
+          sourceTaskId: 22
+        }
+      ]
+    });
+
+    render(
+      <UserDashboard
+        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+        isNotificationsPage
+        onOpenAllNotifications={vi.fn()}
+        onBackToDashboard={vi.fn()}
+        onError={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.myNotifications).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: /Notificacao 7/i }));
+
+    expect(screen.getByText("Tarefa vinculada #22")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,9 @@
 import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
+import type { AppConfig } from "../config";
 import { nowIso } from "../db";
 import { emitReminderDue, emitReminderUpdated } from "../socket";
+import { runTaskAutomationCycle } from "../tasks/automation";
 import { logReminderEvent } from "./service";
 import {
   addDaysToDateParts,
@@ -313,6 +315,38 @@ export const startReminderScheduler = (
     running = true;
     try {
       runReminderSchedulerCycle(db, io, options);
+    } finally {
+      running = false;
+    }
+  };
+
+  tick();
+  const timer = setInterval(tick, TICK_INTERVAL_MS);
+  return () => clearInterval(timer);
+};
+
+export const startOperationalScheduler = (
+  db: Database.Database,
+  io: Server,
+  config: AppConfig,
+  options: ReminderSchedulerOptions = {}
+) => {
+  let running = false;
+
+  const tick = () => {
+    if (running) {
+      return;
+    }
+
+    running = true;
+    try {
+      if (config.enableReminderScheduler) {
+        runReminderSchedulerCycle(db, io, options);
+      }
+
+      if (config.enableTaskAutomationScheduler) {
+        runTaskAutomationCycle(db, io, config, options);
+      }
     } finally {
       running = false;
     }

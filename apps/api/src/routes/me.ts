@@ -14,6 +14,7 @@ interface NotificationRow {
   title: string;
   message: string;
   priority: "low" | "normal" | "high" | "critical";
+  sourceTaskId: number | null;
   createdAt: string;
   senderId: number;
   senderName: string;
@@ -117,6 +118,7 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
             n.title,
             n.message,
             n.priority,
+            n.source_task_id AS sourceTaskId,
             n.created_at AS createdAt,
             n.sender_id AS senderId,
             sender.name AS senderName,

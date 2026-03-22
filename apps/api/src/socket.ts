@@ -21,6 +21,7 @@ interface ReminderRow {
   title: string;
   message: string;
   priority: NotificationPriority;
+  sourceTaskId: number | null;
   createdAt: string;
   senderId: number;
   senderName: string;
@@ -33,6 +34,7 @@ export interface NotificationPushPayload {
   title: string;
   message: string;
   priority: NotificationPriority;
+  sourceTaskId: number | null;
   createdAt: string;
   sender: {
     id: number;
@@ -47,6 +49,7 @@ export interface NotificationAdminPayload {
   message: string;
   priority: NotificationPriority;
   recipient_mode: "all" | "users";
+  source_task_id: number | null;
   created_at: string;
   sender: {
     id: number;
@@ -151,6 +154,7 @@ const emitProgressReminders = (io: Server, db: Database.Database): void => {
           n.title,
           n.message,
           n.priority,
+          n.source_task_id AS sourceTaskId,
           n.created_at AS createdAt,
           sender.id AS senderId,
           sender.name AS senderName,
@@ -209,6 +213,7 @@ const emitProgressReminders = (io: Server, db: Database.Database): void => {
       title: row.title,
       message: row.message,
       priority: row.priority,
+      sourceTaskId: row.sourceTaskId,
       createdAt: row.createdAt,
       reminderCount: row.reminderCount + 1,
       sender: {

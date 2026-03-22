@@ -30,6 +30,7 @@ const buildNotificationFromNew = (payload: IncomingNotification): NotificationIt
   title: payload.title,
   message: payload.message,
   priority: payload.priority,
+  sourceTaskId: payload.sourceTaskId ?? null,
   createdAt: payload.createdAt,
   senderId: payload.sender.id,
   senderName: payload.sender.name,

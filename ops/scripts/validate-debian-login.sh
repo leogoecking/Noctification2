@@ -139,7 +139,24 @@ trap cleanup EXIT
 log "Env file used: $ENV_FILE"
 log "Login used: $LOGIN"
 log "Checking health endpoint..."
-curl -fsS --max-time "$TIMEOUT_SECONDS" "$API_BASE/api/v1/health" >/dev/null
+curl -fsS --max-time "$TIMEOUT_SECONDS" "$API_BASE/api/v1/health" -o "$BODY_FILE" >/dev/null
+
+if ! grep -q '"taskAutomationEnabled"' "$BODY_FILE"; then
+  fail "Health response does not expose schedulers.taskAutomationEnabled"
+fi
+
+if ! grep -q '"remindersEnabled"' "$BODY_FILE"; then
+  fail "Health response does not expose schedulers.remindersEnabled"
+fi
+
+EXPECTED_TASK_AUTOMATION="$(read_env_value ENABLE_TASK_AUTOMATION_SCHEDULER || true)"
+if [[ "$EXPECTED_TASK_AUTOMATION" == "true" ]]; then
+  grep -q '"taskAutomationEnabled":[[:space:]]*true' "$BODY_FILE" || fail "Health response does not reflect ENABLE_TASK_AUTOMATION_SCHEDULER=true"
+fi
+
+if [[ "$EXPECTED_TASK_AUTOMATION" == "false" ]]; then
+  grep -q '"taskAutomationEnabled":[[:space:]]*false' "$BODY_FILE" || fail "Health response does not reflect ENABLE_TASK_AUTOMATION_SCHEDULER=false"
+fi
 
 log "Checking CORS preflight for /auth/login..."
 PREFLIGHT_STATUS="$(
