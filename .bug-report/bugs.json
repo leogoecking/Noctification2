@@ -2,170 +2,105 @@
   {
     "id": "BUG-001",
     "tipo": "bug_reproduzivel",
-    "status": "corrigido",
-    "severidade": "alta",
+    "status": "confirmado",
+    "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/api notificacoes e realtime",
-    "arquivo": "apps/api/src/routes/me.ts",
-    "linha": 36,
-    "componente": "Compatibilidade de notificacoes legadas",
-    "prioridade": 1
+    "escopo": "apps/web runtime",
+    "arquivo": "apps/web/src/lib/runtimeUrls.ts",
+    "linha": 10,
+    "componente": "runtimeUrls",
+    "sintoma": "Loopback IPv6 [::1] nao e tratado como localhost na reescrita de URLs.",
+    "evidencia": [
+      "apps/web/src/lib/runtimeUrls.ts:10-12",
+      "reproducao via node --import tsx"
+    ],
+    "causa_raiz": "A funcao isLoopbackHost cobre apenas localhost e 127.0.0.1, omitindo [::1].",
+    "impacto": {
+      "usuario": "medio",
+      "sistema": "medio",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Executar resolveRuntimeApiBase com configuredValue=http://[::1]:4000/api/v1",
+      "Usar location.hostname diferente de loopback, por exemplo 10.0.0.20",
+      "Observar que a URL continua apontando para [::1]"
+    ],
+    "correcao_recomendada": "Incluir [::1] na deteccao de loopback em runtimeUrls.",
+    "validacao": [
+      "Adicionar teste unitario para [::1] em runtimeUrls.test.ts",
+      "Rodar npm run test:web"
+    ],
+    "prioridade": 1,
+    "corrigir_agora": true
   },
   {
-    "id": "BUG-002",
-    "tipo": "bug_reproduzivel",
-    "status": "corrigido",
-    "severidade": "alta",
+    "id": "CFG-001",
+    "tipo": "erro_de_configuracao",
+    "status": "confirmado",
+    "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/api lembretes e scheduler",
-    "arquivo": "apps/api/src/routes/reminders-me.ts",
-    "linha": 340,
-    "componente": "Edicao de lembretes recorrentes",
-    "prioridade": 2
+    "escopo": "raiz do monorepo",
+    "arquivo": "package.json",
+    "linha": 18,
+    "componente": "scripts",
+    "sintoma": "npm test valida apenas a API e nao o frontend.",
+    "evidencia": [
+      "package.json:18",
+      "npm test executou apenas @noctification/api",
+      "npm run test:web executou a suite web separadamente"
+    ],
+    "causa_raiz": "O script raiz test aponta so para o workspace da API.",
+    "impacto": {
+      "usuario": "baixo",
+      "sistema": "medio",
+      "negocio": "medio"
+    },
+    "reproducao": [
+      "Executar npm test na raiz",
+      "Observar que apenas a suite da API e disparada"
+    ],
+    "correcao_recomendada": "Fazer o script raiz cobrir API e Web ou renomear para evitar falsa cobertura.",
+    "validacao": [
+      "Executar npm test apos ajustar o script",
+      "Confirmar disparo das duas suites"
+    ],
+    "prioridade": 2,
+    "corrigir_agora": true
   },
   {
     "id": "RISK-001",
-    "tipo": "bug_reproduzivel",
-    "status": "corrigido",
+    "tipo": "risco_potencial",
+    "status": "confirmado",
     "severidade": "media",
-    "confianca_diagnostica": "alta",
+    "confianca_diagnostica": "media",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/web autenticacao",
-    "arquivo": "apps/web/src/App.tsx",
-    "linha": 123,
-    "componente": "Fluxo de login por papel",
-    "prioridade": 3
-  },
-  {
-    "id": "MEL-001",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "ROADMAP.md + schema passivo de tarefas",
-    "arquivo": "apps/api/migrations/012_tasks_foundation.sql",
-    "linha": 1,
-    "componente": "Fundacao passiva para tarefas",
-    "prioridade": 4
-  },
-  {
-    "id": "MEL-002",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "rotas HTTP de tarefas + cliente API",
-    "arquivo": "apps/api/src/routes/tasks-me.ts",
-    "linha": 1,
-    "componente": "CRUD inicial de tarefas",
-    "prioridade": 5
-  },
-  {
-    "id": "MEL-003",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/web tarefas user/admin",
-    "arquivo": "apps/web/src/components/TaskUserPanel.tsx",
-    "linha": 42,
-    "componente": "UI minima de tarefas",
-    "prioridade": 6
-  },
-  {
-    "id": "MEL-004",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "notifications <-> tasks no backend e frontend",
-    "arquivo": "apps/api/src/tasks/notifications.ts",
-    "linha": 1,
-    "componente": "Notificacoes vinculadas opcionalmente a tarefa",
-    "prioridade": 7
-  },
-  {
-    "id": "MEL-005",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "scheduler operacional de tarefas + observabilidade admin",
-    "arquivo": "apps/api/src/tasks/automation.ts",
-    "linha": 1,
-    "componente": "Automacoes operacionais iniciais de tarefa",
-    "prioridade": 8
-  },
-  {
-    "id": "MEL-006",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "recorrencia de tarefa no schema, CRUD, scheduler e UI minima",
-    "arquivo": "apps/api/src/tasks/automation.ts",
-    "linha": 453,
-    "componente": "Recorrencia de tarefa",
-    "prioridade": 9
-  },
-  {
-    "id": "MEL-007",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "hardening operacional da automacao de tarefas",
-    "arquivo": "apps/api/src/app.ts",
-    "linha": 42,
-    "componente": "Health, env e checklist de rollout",
-    "prioridade": 10
-  },
-  {
-    "id": "MEL-008",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "comentarios por tarefa no detalhe me/admin",
-    "arquivo": "apps/api/src/routes/tasks-me.ts",
-    "linha": 229,
-    "componente": "Comentarios por tarefa",
-    "prioridade": 11
-  },
-  {
-    "id": "MEL-009",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "timeline unificada no detalhe de tasks",
-    "arquivo": "apps/api/src/tasks/service.ts",
-    "linha": 436,
-    "componente": "Historico unico da tarefa",
-    "prioridade": 12
-  },
-  {
-    "id": "MEL-010",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "baixa",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "limpeza do contrato de detalhe de task",
-    "arquivo": "apps/api/src/routes/tasks-me.ts",
-    "linha": 221,
-    "componente": "Payload de detalhe de tarefa",
-    "prioridade": 13
+    "escopo": "apps/api + apps/web web-push",
+    "arquivo": "apps/api/src/routes/me.ts",
+    "linha": 73,
+    "componente": "web-push unsubscribe",
+    "sintoma": "Remocao de subscription depende de request body em DELETE.",
+    "evidencia": [
+      "apps/api/src/routes/me.ts:73-82",
+      "apps/web/src/lib/api.ts removeWebPushSubscription usa DELETE com bodyJson"
+    ],
+    "causa_raiz": "O contrato HTTP depende de um padrao que alguns proxies e clientes tratam de forma inconsistente.",
+    "impacto": {
+      "usuario": "medio",
+      "sistema": "baixo",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Enviar DELETE sem body para /me/web-push/subscription",
+      "Observar erro 400 endpoint obrigatorio"
+    ],
+    "correcao_recomendada": "Mover o endpoint para query string ou path parameter, ou aceitar ambas as formas.",
+    "validacao": [
+      "Teste de rota cobrindo DELETE sem body e com query/path",
+      "Teste frontend do fluxo de unsubscribe"
+    ],
+    "prioridade": 3,
+    "corrigir_agora": false
   }
 ]

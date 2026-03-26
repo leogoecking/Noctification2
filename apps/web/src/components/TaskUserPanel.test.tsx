@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskUserPanel } from "./TaskUserPanel";
 import { api } from "../lib/api";
+import type { TaskCommentItem, TaskItem } from "../types";
 
 vi.mock("../lib/api", () => ({
   api: {
@@ -24,9 +25,45 @@ vi.mock("../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
+const buildTask = (id: number): TaskItem => ({
+  id,
+  title: `Tarefa ${id}`,
+  description: "Descricao",
+  status: "new",
+  priority: "normal",
+  creatorUserId: 2,
+  creatorName: "Usuario",
+  creatorLogin: "user",
+  assigneeUserId: 2,
+  assigneeName: "Usuario",
+  assigneeLogin: "user",
+  dueAt: null,
+  repeatType: "none",
+  repeatWeekdays: [],
+  startedAt: null,
+  completedAt: null,
+  cancelledAt: null,
+  recurrenceSourceTaskId: null,
+  sourceNotificationId: null,
+  createdAt: "2026-03-21T12:00:00.000Z",
+  updatedAt: "2026-03-21T12:00:00.000Z",
+  archivedAt: null
+});
+
+const buildTaskComment = (id: number): TaskCommentItem => ({
+  id,
+  taskId: 1,
+  authorUserId: 2,
+  authorName: "Usuario",
+  authorLogin: "user",
+  body: "Comentario",
+  createdAt: "2026-03-21T12:05:00.000Z",
+  updatedAt: "2026-03-21T12:05:00.000Z"
+});
+
 describe("TaskUserPanel", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("abre o detalhe da tarefa pelo board", async () => {
@@ -199,9 +236,7 @@ describe("TaskUserPanel", () => {
       timeline: []
     });
     mockedApi.createMyTask.mockResolvedValue({
-      task: {
-        id: 22
-      }
+      task: buildTask(22)
     });
 
     render(
@@ -234,6 +269,47 @@ describe("TaskUserPanel", () => {
           assignee_user_id: 2
         })
       )
+    );
+  });
+
+  it("fecha o detalhe quando a tarefa sai do filtro apos concluir", async () => {
+    mockedApi.myTasks
+      .mockResolvedValueOnce({
+        tasks: [buildTask(7)],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      })
+      .mockResolvedValueOnce({
+        tasks: [],
+        pagination: { page: 1, limit: 50, total: 0, totalPages: 1 }
+      });
+    mockedApi.myTask.mockResolvedValue({
+      task: buildTask(7),
+      timeline: []
+    });
+    mockedApi.completeMyTask.mockResolvedValue({
+      task: { ...buildTask(7), status: "done" }
+    });
+
+    render(
+      <TaskUserPanel
+        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+        onError={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Tarefa 7" }));
+    await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(7));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Detalhe da tarefa" })).getByRole("button", {
+        name: "Concluir"
+      })
+    );
+
+    await waitFor(() => expect(mockedApi.completeMyTask).toHaveBeenCalledWith(7));
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Tarefa 7" })).not.toBeInTheDocument()
     );
   });
 
@@ -329,13 +405,13 @@ describe("TaskUserPanel", () => {
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
 
-    const newColumn = screen.getByLabelText("Coluna Nova");
-    const inProgressColumn = screen.getByLabelText("Coluna Em andamento");
+    const newColumn = await screen.findByLabelText("Coluna Nova");
+    const inProgressColumn = await screen.findByLabelText("Coluna Em andamento");
 
     expect(newColumn).toBeInTheDocument();
     expect(inProgressColumn).toBeInTheDocument();
-    expect(within(newColumn).getByText("Nova tarefa")).toBeInTheDocument();
-    expect(within(inProgressColumn).getAllByText("Em andamento").length).toBeGreaterThan(0);
+    expect(await within(newColumn).findByText("Nova tarefa")).toBeInTheDocument();
+    expect((await within(inProgressColumn).findAllByText("Em andamento")).length).toBeGreaterThan(0);
   });
 
   it("permite mudar o status pelo board", async () => {
@@ -426,7 +502,7 @@ describe("TaskUserPanel", () => {
       timeline: []
     });
     mockedApi.updateMyTask.mockResolvedValue({
-      task: { id: 3 }
+      task: buildTask(3)
     });
 
     render(
@@ -681,7 +757,7 @@ describe("TaskUserPanel", () => {
         ]
       });
     mockedApi.createMyTaskComment.mockResolvedValue({
-      comment: { id: 91 }
+      comment: buildTaskComment(91)
     });
 
     render(

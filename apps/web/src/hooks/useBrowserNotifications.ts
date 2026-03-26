@@ -14,6 +14,8 @@ interface NotificationLockRecord {
 
 const LOCK_TTL_MS = 15_000;
 const LOCK_RENEW_INTERVAL_MS = 5_000;
+const NOTIFICATION_PERMISSION_EVENT =
+  "noctification:browser-notification:permission-changed";
 
 const getNotificationLockKey = (namespace: string, itemId: number) =>
   `noctification:browser-notification:${namespace}:${itemId}`;
@@ -94,11 +96,25 @@ export const useBrowserNotifications = ({ namespace, onOpen }: UseBrowserNotific
 
     if (Notification.permission === "granted") {
       setPermission("granted");
+      window.dispatchEvent(
+        new CustomEvent(NOTIFICATION_PERMISSION_EVENT, {
+          detail: {
+            permission: "granted"
+          }
+        })
+      );
       return "granted" as const;
     }
 
     const nextPermission = await Notification.requestPermission();
     setPermission(nextPermission);
+    window.dispatchEvent(
+      new CustomEvent(NOTIFICATION_PERMISSION_EVENT, {
+        detail: {
+          permission: nextPermission
+        }
+      })
+    );
     return nextPermission;
   }, []);
 

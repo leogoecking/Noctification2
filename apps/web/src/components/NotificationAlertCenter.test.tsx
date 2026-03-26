@@ -291,6 +291,41 @@ describe("NotificationAlertCenter", () => {
     });
   });
 
+  it("explica quando a API de notificacoes nao esta disponivel no navegador", async () => {
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      writable: true,
+      value: undefined
+    });
+
+    render(
+      <NotificationAlertCenter
+        isVisible
+        onError={vi.fn()}
+        onToast={vi.fn()}
+        onOpenNotifications={vi.fn()}
+      />
+    );
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("noctification:notification:new", {
+          detail: {
+            id: 16,
+            title: "Nova tarefa",
+            message: "Verifique o painel",
+            priority: "normal",
+            createdAt: new Date().toISOString(),
+            sender: { id: 1, name: "Admin", login: "admin" }
+          }
+        })
+      );
+    });
+
+    expect(screen.getByText("Notificacoes nativas indisponiveis")).toBeInTheDocument();
+    expect(screen.getByText(/Use `localhost` em desenvolvimento ou publique com HTTPS/i)).toBeInTheDocument();
+  });
+
   it("permite marcar como visualizada com confirmacao no backend", async () => {
     const onToast = vi.fn();
     render(

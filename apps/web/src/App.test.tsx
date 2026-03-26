@@ -164,6 +164,6 @@ describe("App routing", () => {
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("heading", { level: 1, name: "Tarefas" })).toBeInTheDocument();
-    expect(screen.getByText("Lista inicial de trabalho operacional do usuario")).toBeInTheDocument();
+    expect(screen.getByText("Acompanhamento da sua fila operacional")).toBeInTheDocument();
   });
 });

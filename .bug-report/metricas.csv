@@ -1,14 +1,4 @@
 id,tipo,severidade,confianca_diagnostica,risco_de_regressao,arquivo,linha,prioridade,status
-BUG-001,bug_reproduzivel,alta,alta,baixo,apps/api/src/routes/me.ts,36,1,corrigido
-BUG-002,bug_reproduzivel,alta,alta,baixo,apps/api/src/routes/reminders-me.ts,340,2,corrigido
-RISK-001,bug_reproduzivel,media,alta,baixo,apps/web/src/App.tsx,123,3,corrigido
-MEL-001,melhoria,media,alta,baixo,apps/api/migrations/012_tasks_foundation.sql,1,4,corrigido
-MEL-002,melhoria,alta,alta,baixo,apps/api/src/routes/tasks-me.ts,1,5,corrigido
-MEL-003,melhoria,alta,alta,baixo,apps/web/src/components/TaskUserPanel.tsx,42,6,corrigido
-MEL-004,melhoria,alta,alta,baixo,apps/api/src/tasks/notifications.ts,1,7,corrigido
-MEL-005,melhoria,alta,alta,baixo,apps/api/src/tasks/automation.ts,1,8,corrigido
-MEL-006,melhoria,alta,alta,baixo,apps/api/src/tasks/automation.ts,453,9,corrigido
-MEL-007,melhoria,media,alta,baixo,apps/api/src/app.ts,42,10,corrigido
-MEL-008,melhoria,media,alta,baixo,apps/api/src/routes/tasks-me.ts,229,11,corrigido
-MEL-009,melhoria,media,alta,baixo,apps/api/src/tasks/service.ts,436,12,corrigido
-MEL-010,melhoria,baixa,alta,baixo,apps/api/src/routes/tasks-me.ts,221,13,corrigido
+BUG-001,bug_reproduzivel,media,alta,baixo,apps/web/src/lib/runtimeUrls.ts,10,1,corrigido
+CFG-001,erro_de_configuracao,media,alta,baixo,package.json,18,2,corrigido
+RISK-001,risco_potencial,media,media,baixo,apps/api/src/routes/me.ts,73,3,requer_decisao_humana

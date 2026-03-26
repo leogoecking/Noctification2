@@ -26,13 +26,63 @@ O script faz o necessário para desenvolvimento local:
 - frontend: `http://127.0.0.1:5173`
 - API: `http://127.0.0.1:4000`
 
-Se você abrir de fora da VM, use o IP da máquina:
+Se você abrir apenas na própria máquina, prefira `127.0.0.1` ou `localhost`.
 
-- frontend: `http://IP_DA_VM:5173`
-- API: `http://IP_DA_VM:4000`
+Para acesso por outros dispositivos na mesma rede, nao use `http://IP_DA_VM` se o objetivo inclui notificacoes nativas do navegador. Use um hostname local em HTTPS, por exemplo:
+
+- frontend: `https://noctification.lan`
+- API: `https://noctification.lan/api/v1`
 
 No dev com Vite em `:5173`, o frontend resolve a API e o Socket.IO usando o mesmo host da página na porta `4000`.
 Quando servido pelo `nginx`, sem `VITE_API_BASE` e `VITE_SOCKET_URL`, o frontend usa o mesmo `origin` da página e aproveita o proxy reverso de `/api` e `/socket.io`.
+
+## HTTPS local para rede interna
+
+Para notebooks, navegadores desktop e celulares na mesma rede, a base recomendada agora e:
+
+1. escolher um hostname local fixo, por exemplo `noctification.lan`
+2. apontar esse hostname para o IP da maquina no DNS local ou no arquivo `hosts` dos dispositivos
+3. servir o app via `nginx` em `https://noctification.lan`
+4. instalar um certificado local confiavel nos dispositivos que vao acessar o sistema
+
+O template de `nginx` em [`ops/nginx/noctification.conf`](ops/nginx/noctification.conf) ja foi ajustado para esse modelo e espera:
+
+- certificado: `/etc/noctification/certs/noctification.lan.pem`
+- chave privada: `/etc/noctification/certs/noctification.lan-key.pem`
+
+Se voce nao tiver `mkcert`, o repositorio agora inclui um script usando `openssl`:
+
+```bash
+bash ops/scripts/generate-local-certs.sh
+```
+
+Ele gera em `.deploy/certs/`:
+
+- `local-root-ca.pem`
+- `noctification.lan.pem`
+- `noctification.lan-key.pem`
+
+Depois:
+
+1. instale `local-root-ca.pem` como CA confiavel nos notebooks/celulares que vao acessar o sistema
+2. aponte `noctification.lan` para o IP da maquina no DNS local ou no arquivo `hosts`
+3. copie `noctification.lan.pem` e `noctification.lan-key.pem` para `/etc/noctification/certs/`
+4. valide com `nginx -t` e recarregue o nginx
+
+Em Linux/macOS/Windows desktop, o passo critico e confiar a CA raiz.
+Em celular, o passo critico e importar a mesma CA raiz para o armazenamento de certificados do aparelho.
+
+Sem HTTPS local confiavel, o navegador pode continuar bloqueando notificacoes nativas fora de `localhost`.
+
+## PWA base
+
+O frontend agora inclui base PWA:
+
+- `manifest.webmanifest`
+- `service worker` em `/sw.js`
+- registro automatico do worker em contexto compativel (`https` ou `localhost`)
+
+Essa etapa prepara o projeto para a proxima fase de `Web Push`, mantendo o modelo atual de `Socket.IO` para a interface aberta.
 
 ## Login inicial
 
@@ -152,6 +202,16 @@ sudo APP_ROOT="$(pwd)" bash ops/scripts/deploy-debian.sh
 ```
 
 Se o projeto estiver clonado em outro caminho, basta ajustar `APP_ROOT` para o diretório real do clone.
+
+Para preparar uma instalacao local/LAN a partir da pasta atual do clone, use:
+
+```bash
+npm run prepare:local-lan
+```
+
+Guia operacional geral:
+
+- [`docs/local-lan-operational-guide.md`](docs/local-lan-operational-guide.md)
 
 Para serviço de sistema, os exemplos estão em [`ops/systemd`](ops/systemd).
 Para deploy permanente em VM Debian com `systemd` + `nginx`, consulte [`docs/debian-vm-deploy.md`](docs/debian-vm-deploy.md).

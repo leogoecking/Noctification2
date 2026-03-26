@@ -1,6 +1,8 @@
 import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
 import { logAudit, nowIso } from "../db";
+import type { AppConfig } from "../config";
+import { sendWebPushNotificationToUser } from "../push/service";
 import {
   emitNotificationCreatedToAdmins,
   emitNotificationToUser,
@@ -194,12 +196,54 @@ export const createTaskLinkedNotification = (
 };
 
 export const dispatchTaskLinkedNotification = (
+  db: Database.Database,
+  config: AppConfig,
   io: Server,
   notification: TaskLinkedNotificationDispatch
 ): void => {
   for (const recipientId of notification.recipientIds) {
     emitNotificationToUser(io, recipientId, notification.pushPayload);
+    void sendWebPushNotificationToUser(db, config, recipientId, {
+      title: `Notificacao: ${notification.pushPayload.title}`,
+      body:
+        notification.pushPayload.message.trim() ||
+        `Recebida em ${new Date(notification.pushPayload.createdAt).toLocaleString("pt-BR")}`,
+      tag: `notification-${notification.pushPayload.id}`,
+      url: notification.pushPayload.sourceTaskId ? "/tasks" : "/notifications",
+      notificationId: notification.pushPayload.id,
+      kind: "notification"
+    });
   }
 
   emitNotificationCreatedToAdmins(io, notification.adminPayload);
+};
+
+export const dispatchTaskLinkedNotificationIfPresent = (
+  db: Database.Database,
+  config: AppConfig,
+  io: Server | null,
+  notification: TaskLinkedNotificationDispatch | null
+): void => {
+  if (!io || !notification) {
+    return;
+  }
+
+  dispatchTaskLinkedNotification(db, config, io, notification);
+};
+
+export const dispatchTaskLinkedNotifications = (
+  db: Database.Database,
+  config: AppConfig,
+  io: Server | null,
+  notifications: Array<TaskLinkedNotificationDispatch | null>
+): void => {
+  if (!io) {
+    return;
+  }
+
+  for (const notification of notifications) {
+    if (notification) {
+      dispatchTaskLinkedNotification(db, config, io, notification);
+    }
+  }
 };

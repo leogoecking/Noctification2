@@ -36,6 +36,9 @@ describe("admin user routes", () => {
     to: (_room: string) => ({
       emit: (_event: string, _payload: unknown) => undefined
     }),
+    in: (_room: string) => ({
+      disconnectSockets: (_close?: boolean) => undefined
+    }),
     sockets: {
       adapter: {
         rooms: new Map()
@@ -170,5 +173,24 @@ describe("admin user routes", () => {
     );
 
     expect(conflictRes.statusCode).toBe(409);
+  });
+
+  it("aceita isActive no toggle de status admin", () => {
+    const toggleStatusHandler = getRouteHandler(adminRouter, "/users/:id/status", "patch");
+    const targetUser = db
+      .prepare("SELECT id FROM users WHERE login = 'user'")
+      .get() as { id: number };
+
+    const response = createMockResponse();
+    toggleStatusHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(targetUser.id) },
+        body: { isActive: false }
+      },
+      response
+    );
+
+    expect(response.statusCode).toBe(204);
   });
 });

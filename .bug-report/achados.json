@@ -2,500 +2,53 @@
   {
     "id": "BUG-001",
     "tipo": "bug_reproduzivel",
-    "status": "corrigido",
-    "severidade": "alta",
+    "status": "confirmado",
+    "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/api notificacoes e realtime",
-    "arquivo": "apps/api/src/routes/me.ts",
-    "linha": 36,
-    "componente": "Compatibilidade de notificacoes legadas",
-    "sintoma": "Itens com response_status='assumida' aparecem como recebida para o usuario e perdem o responseStatus derivado.",
+    "escopo": "apps/web",
+    "arquivo": "apps/web/src/lib/runtimeUrls.ts",
+    "linha": 10,
+    "componente": "runtimeUrls",
+    "sintoma": "URLs configuradas com [::1] nao sao reescritas para o host atual em acesso remoto/local-LAN.",
     "evidencia": [
-      "Backfill em apps/api/migrations/005_notification_operational_status.sql nao trata assumida",
-      "Derivacao em apps/api/src/routes/me.ts nao trata assumida",
-      "Consulta de lembretes em apps/api/src/socket.ts nao trata assumida",
-      "Reproducao local retornou operationalStatus='recebida' e responseStatus=null para dado legado assumida"
-    ],
-    "causa_raiz": "O mapeamento legado response_status -> operational_status foi implementado sem o ramo para 'assumida' em mais de um ponto.",
-    "impacto": {
-      "usuario": "alto",
-      "sistema": "medio",
-      "negocio": "medio"
-    },
-    "reproducao": [
-      "Criar banco em memoria com migrations",
-      "Inserir notification_recipient com response_status='assumida' e operational_status NULL",
-      "Executar GET /me/notifications",
-      "Observar retorno como recebida em vez de assumida"
-    ],
-    "correcao_recomendada": "Aplicada: runtime agora prioriza response_status legado e a migration 011 corrige bases ja migradas.",
-    "validacao": [
-      "Teste de rota para GET /me/notifications com response_status legado assumida",
-      "Teste de reminder realtime cobrindo recipient assumida sem operational_status"
-    ],
-    "prioridade": 1,
-    "corrigir_agora": true
+      "apps/web/src/lib/runtimeUrls.ts:10-12",
+      "reproducao via node --import tsx mantendo http://[::1]:4000/api/v1 e http://[::1]:4000/"
+    ]
   },
   {
-    "id": "BUG-002",
-    "tipo": "bug_reproduzivel",
-    "status": "corrigido",
-    "severidade": "alta",
+    "id": "CFG-001",
+    "tipo": "erro_de_configuracao",
+    "status": "confirmado",
+    "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/api lembretes e scheduler",
-    "arquivo": "apps/api/src/routes/reminders-me.ts",
-    "linha": 340,
-    "componente": "Edicao de lembretes recorrentes",
-    "sintoma": "Editar horario/data/recorrencia de um lembrete nao atualiza o proximo disparo quando last_scheduled_for ja existe.",
+    "escopo": "raiz do monorepo",
+    "arquivo": "package.json",
+    "linha": 18,
+    "componente": "scripts",
+    "sintoma": "npm test nao cobre o workspace web.",
     "evidencia": [
-      "PATCH /me/reminders/:id atualiza os campos editaveis mas preserva last_scheduled_for",
-      "Scheduler em apps/api/src/reminders/scheduler.ts calcula a proxima execucao a partir de last_scheduled_for",
-      "Reproducao local mostrou timeOfDay='20:00' mas occurrence.scheduledFor='2026-03-14T12:00:00.000Z'"
-    ],
-    "causa_raiz": "O ponteiro interno do scheduler nao e recalculado quando o lembrete e editado.",
-    "impacto": {
-      "usuario": "alto",
-      "sistema": "medio",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Criar lembrete diario com last_scheduled_for ja preenchido",
-      "Editar timeOfDay via PATCH /me/reminders/:id",
-      "Executar um ciclo do scheduler apos o novo horario",
-      "Observar disparo calculado com o horario antigo"
-    ],
-    "correcao_recomendada": "Aplicada: a rota recalcula last_scheduled_for quando a agenda muda.",
-    "validacao": [
-      "Teste de API para editar lembrete com last_scheduled_for preenchido",
-      "Teste do scheduler garantindo que o novo horario e respeitado"
-    ],
-    "prioridade": 2,
-    "corrigir_agora": true
+      "package.json:18",
+      "npm test executou apenas @noctification/api",
+      "npm run test:web precisou ser executado separadamente"
+    ]
   },
   {
     "id": "RISK-001",
-    "tipo": "bug_reproduzivel",
-    "status": "corrigido",
+    "tipo": "risco_potencial",
+    "status": "hipotese_forte",
     "severidade": "media",
-    "confianca_diagnostica": "alta",
+    "confianca_diagnostica": "media",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/web autenticacao",
-    "arquivo": "apps/web/src/App.tsx",
-    "linha": 123,
-    "componente": "Fluxo de login por papel",
-    "sintoma": "Sessao do backend pode ser criada antes da validacao de role no frontend.",
+    "escopo": "apps/api + apps/web",
+    "arquivo": "apps/api/src/routes/me.ts",
+    "linha": 73,
+    "componente": "web push unsubscribe",
+    "sintoma": "A remocao da subscription depende de body em DELETE.",
     "evidencia": [
-      "api.login e chamado antes da validacao de papel",
-      "Em role divergente o codigo apenas lanca ApiError e nao limpa sessao",
-      "Teste de verificacao dedicado confirmou que um novo mount autentica a sessao preservada"
-    ],
-    "causa_raiz": "Validacao de role ocorre no cliente apos o login ja ter sido aceito pelo backend, sem logout compensatorio.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "baixo",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Montar App em /login com api.me rejeitando e api.login retornando usuario admin",
-      "Submeter login e observar mensagem de erro de role divergente",
-      "Remontar App com api.me retornando o admin autenticado",
-      "Observar entrada no console administrativo"
-    ],
-    "correcao_recomendada": "Aplicada: o backend rejeita expected_role divergente antes do cookie e o frontend mantem logout compensatorio.",
-    "validacao": [
-      "Teste de rota em apps/api/src/test/auth-routes.test.ts",
-      "Teste de App em apps/web/src/App.test.tsx"
-    ],
-    "prioridade": 3,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-001",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "ROADMAP.md + schema passivo de tarefas",
-    "arquivo": "apps/api/migrations/012_tasks_foundation.sql",
-    "linha": 1,
-    "componente": "Fundacao passiva para tarefas",
-    "sintoma": "O roadmap atual ja apontava `task` como nucleo futuro do produto, mas o codigo nao tinha schema nem contratos minimos para iniciar a transicao com seguranca.",
-    "evidencia": [
-      "ROADMAP.md define task como entidade principal futura",
-      "Busca estrutural no codigo nao encontrou modulo de tasks em runtime",
-      "Schema existente nao tinha tabelas tasks/task_events",
-      "apps/api/src/types.ts e apps/web/src/types.ts nao expunham contratos de tarefa"
-    ],
-    "causa_raiz": "A evolucao de produto estava planejada antes da existencia de uma base passiva de persistencia e contratos para tarefas.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "medio",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Ler ROADMAP.md e confirmar tasks como proximo nucleo do produto",
-      "Inspecionar migrations atuais e observar ausencia de schema de tasks",
-      "Inspecionar tipos atuais e observar ausencia de contratos de tarefa"
-    ],
-    "correcao_recomendada": "Aplicada: nova frente de rollout no roadmap, migration passiva de tasks/task_events e tipos passivos em backend/frontend.",
-    "validacao": [
-      "npm run test --workspace @noctification/api -- src/test/task-migrations.test.ts",
-      "npm run typecheck --workspace @noctification/api",
-      "npm run typecheck --workspace @noctification/web"
-    ],
-    "prioridade": 4,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-002",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "rotas HTTP de tarefas + cliente API",
-    "arquivo": "apps/api/src/routes/tasks-me.ts",
-    "linha": 1,
-    "componente": "CRUD inicial de tarefas",
-    "sintoma": "A fundacao de tasks existia, mas ainda nao havia superficie HTTP para uso operacional nem cliente API correspondente.",
-    "evidencia": [
-      "Ausencia anterior de rotas tasks em me/admin",
-      "Novas rotas permitem create/list/detail/update/complete/cancel",
-      "task-routes.test.ts validou fluxo user/admin",
-      "typecheck do frontend confirmou exposicao do cliente API sem regressao"
-    ],
-    "causa_raiz": "A evolucao foi dividida corretamente em fundacao passiva antes do CRUD real.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "alto",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Executar rotas me/admin de tarefas antes desta rodada e observar ausencia do modulo",
-      "Aplicar implementacao atual",
-      "Executar task-routes.test.ts e confirmar CRUD/lista/status/cancelamento"
-    ],
-    "correcao_recomendada": "Aplicada: modulo de servico, rotas me/admin, auditoria, task_events e cliente API para tarefas.",
-    "validacao": [
-      "npm run test --workspace @noctification/api -- src/test/task-routes.test.ts src/test/task-migrations.test.ts",
-      "npm run typecheck --workspace @noctification/api",
-      "npm run typecheck --workspace @noctification/web"
-    ],
-    "prioridade": 5,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-003",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/web tarefas user/admin",
-    "arquivo": "apps/web/src/components/TaskUserPanel.tsx",
-    "linha": 42,
-    "componente": "UI minima de tarefas",
-    "sintoma": "A entidade task ja existia em schema e HTTP, mas ainda nao tinha rota nem paineis minimos no frontend para uso operacional.",
-    "evidencia": [
-      "App.tsx ainda nao expunha /tasks antes desta rodada",
-      "Nao havia painel consumindo api.myTasks ou api.adminTasks",
-      "TaskUserPanel.test.tsx validou carga inicial, detalhe e criacao basica do usuario",
-      "AdminTasksPanel.test.tsx validou fila administrativa, usuarios ativos e criacao com responsavel",
-      "App.test.tsx validou roteamento do usuario autenticado para /tasks"
-    ],
-    "causa_raiz": "A frente de tarefas foi entregue incrementalmente: primeiro schema, depois CRUD HTTP e so entao a UI minima.",
-    "impacto": {
-      "usuario": "alto",
-      "sistema": "medio",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Executar o frontend antes desta rodada",
-      "Observar ausencia de aba ou rota de tarefas no fluxo do usuario",
-      "Observar ausencia de painel administrativo dedicado a tasks",
-      "Aplicar a implementacao atual e executar os testes focados do workspace web"
-    ],
-    "correcao_recomendada": "Aplicada: rota /tasks no app, paineis minimos para user/admin, helper visual compartilhado e testes focados.",
-    "validacao": [
-      "npm run typecheck --workspace @noctification/web",
-      "npm run test --workspace @noctification/web -- src/components/TaskUserPanel.test.tsx src/components/admin/AdminTasksPanel.test.tsx src/App.test.tsx"
-    ],
-    "prioridade": 6,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-004",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "notifications <-> tasks no backend e frontend",
-    "arquivo": "apps/api/src/tasks/notifications.ts",
-    "linha": 1,
-    "componente": "Notificacoes vinculadas opcionalmente a tarefa",
-    "sintoma": "A entidade task ja existia com UI propria, mas novas notificacoes operacionais ainda nao carregavam referencia opcional para task nem eram emitidas pelas mutacoes de tarefa.",
-    "evidencia": [
-      "notifications ainda nao possuia source_task_id",
-      "admin.ts inseria notificacoes sem referencia opcional de tarefa",
-      "rotas tasks ainda nao emitiam notificacoes em atribuicao ou mudanca relevante de status",
-      "UserDashboard e AdminHistoryPanel nao exibiam qualquer vinculo para task"
-    ],
-    "causa_raiz": "A frente foi implementada incrementalmente: primeiro task como dominio proprio, depois a vinculacao opcional de notifications ao novo nucleo.",
-    "impacto": {
-      "usuario": "alto",
-      "sistema": "medio",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Operar tarefas apos MEL-003",
-      "Observar ausencia de source_task_id em notificacoes novas",
-      "Observar que atribuicao e status de task nao geram notificacao vinculada",
-      "Aplicar a implementacao atual e validar migrations, rotas e UI focada"
-    ],
-    "correcao_recomendada": "Aplicada: migration 013, helper compartilhado de notificacoes de task, propagacao do campo ate socket/frontend e exibicao do vinculo na UI atual.",
-    "validacao": [
-      "npm run typecheck --workspace @noctification/api",
-      "npm run test --workspace @noctification/api -- src/test/task-migrations.test.ts src/test/task-routes.test.ts src/test/notification-routes.test.ts",
-      "npm run typecheck --workspace @noctification/web",
-      "npm run test --workspace @noctification/web -- src/components/UserDashboard.test.tsx src/components/admin/AdminHistoryPanel.test.tsx",
-      "npm run test --workspace @noctification/web -- src/components/AdminDashboard.test.tsx src/components/NotificationAlertCenter.test.tsx"
-    ],
-    "prioridade": 7,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-005",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "scheduler operacional de tarefas + observabilidade admin",
-    "arquivo": "apps/api/src/tasks/automation.ts",
-    "linha": 1,
-    "componente": "Automacoes operacionais iniciais de tarefa",
-    "sintoma": "A frente de tarefas ainda nao possuia automacoes reais de `due_soon`, `overdue` ou `stale_task`, nem logs dedicados e idempotencia para o futuro scheduler.",
-    "evidencia": [
-      "A Etapa 4 do ROADMAP.md previa automacoes operacionais, mas o backend ainda nao tinha um modulo dedicado para isso",
-      "O scheduler existente atendia apenas lembretes pessoais, sem flags separadas para automacoes de tarefa",
-      "Nao havia persistencia de logs de automacao nem chave de deduplicacao para evitar alertas repetidos",
-      "Rotas administrativas de tasks ainda nao expunham health nem automation-logs"
-    ],
-    "causa_raiz": "A evolucao foi intencionalmente incremental: era necessario instrumentar logs, flags e deduplicacao antes de ligar automacoes de tarefa no tick compartilhado.",
-    "impacto": {
-      "usuario": "alto",
-      "sistema": "medio",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Inspecionar o backend apos MEL-004",
-      "Observar ausencia de automacoes de prazo/atraso para tasks",
-      "Observar ausencia de tabela de logs e de rotas administrativas de observabilidade",
-      "Aplicar a implementacao atual e executar task-automation.test.ts e task-routes.test.ts"
-    ],
-    "correcao_recomendada": "Aplicada: migration 014, modulo dedicado de automacoes, scheduler operacional compartilhado com flags separadas, logs deduplicados e observabilidade admin inicial.",
-    "validacao": [
-      "npm run typecheck --workspace @noctification/api",
-      "npm run test --workspace @noctification/api -- src/test/task-migrations.test.ts src/test/task-routes.test.ts src/test/task-automation.test.ts",
-      "npm run test --workspace @noctification/api -- src/test/reminder-scheduler.test.ts src/test/reminder-routes.test.ts src/test/notification-routes.test.ts",
-      "npm run typecheck --workspace @noctification/web",
-      "npm run test --workspace @noctification/web -- src/components/TaskUserPanel.test.tsx src/components/admin/AdminTasksPanel.test.tsx src/components/UserDashboard.test.tsx src/components/admin/AdminHistoryPanel.test.tsx"
-    ],
-    "prioridade": 8,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-006",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "recorrencia de tarefa no schema, CRUD, scheduler e UI minima",
-    "arquivo": "apps/api/src/tasks/automation.ts",
-    "linha": 453,
-    "componente": "Recorrencia de tarefa",
-    "sintoma": "A Etapa 4 ainda nao conseguia configurar recorrencia em tarefas nem gerar automaticamente a proxima tarefa apos conclusao.",
-    "evidencia": [
-      "O ROADMAP.md ainda apontava tarefa recorrente como parte pendente da Etapa 4",
-      "O schema de tasks nao possuia repeat_type, repeat_weekdays_json ou recurrence_source_task_id",
-      "O scheduler de tarefa ainda nao gerava a proxima tarefa recorrente",
-      "TaskUserPanel e AdminTasksPanel nao expunham configuracao de recorrencia"
-    ],
-    "causa_raiz": "A recorrencia foi deliberadamente adiada para uma rodada propria, apos a base de automacoes, logs e observabilidade minima estar pronta.",
-    "impacto": {
-      "usuario": "alto",
-      "sistema": "medio",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Inspecionar o sistema apos MEL-005",
-      "Observar ausencia de campos de recorrencia nas tarefas",
-      "Concluir uma tarefa que deveria ser recorrente",
-      "Observar que nenhuma nova tarefa era criada automaticamente"
-    ],
-    "correcao_recomendada": "Aplicada: migration 015, CRUD com repeat_type/weekdays, automacao recurring_task e UI minima para configuracao de recorrencia.",
-    "validacao": [
-      "npm run typecheck --workspace @noctification/api",
-      "npm run test --workspace @noctification/api -- src/test/task-migrations.test.ts src/test/task-routes.test.ts src/test/task-automation.test.ts",
-      "npm run test --workspace @noctification/api -- src/test/reminder-scheduler.test.ts src/test/reminder-routes.test.ts src/test/notification-routes.test.ts",
-      "npm run typecheck --workspace @noctification/web",
-      "npm run test --workspace @noctification/web -- src/components/TaskUserPanel.test.tsx src/components/admin/AdminTasksPanel.test.tsx"
-    ],
-    "prioridade": 9,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-007",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "hardening operacional da automacao de tarefas",
-    "arquivo": "apps/api/src/app.ts",
-    "linha": 42,
-    "componente": "Health, env e checklist de rollout",
-    "sintoma": "O rollout de ENABLE_TASK_AUTOMATION_SCHEDULER ainda dependia de leitura implícita do codigo e nao tinha artefatos operacionais minimos no repositorio.",
-    "evidencia": [
-      "O health publico nao expunha o estado dos schedulers",
-      "ops/systemd/api.env.example nao documentava as flags de automacao de tarefa",
-      "Nao havia documento versionado de checklist/rollback especifico para task automation",
-      "O script Debian de validacao nao checava coerencia entre env e health"
-    ],
-    "causa_raiz": "As rodadas anteriores priorizaram o dominio funcional; os artefatos operacionais ficaram para a fase de hardening.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "medio",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Inspecionar o repositorio apos MEL-006",
-      "Observar ausencia de estado dos schedulers em /api/v1/health",
-      "Observar ausencia das flags em ops/systemd/api.env.example",
-      "Observar ausencia de checklist versionado de rollout/rollback"
-    ],
-    "correcao_recomendada": "Aplicada: health enriquecido, env example atualizado, script Debian endurecido e documento de rollout/rollback adicionado.",
-    "validacao": [
-      "npm run typecheck --workspace @noctification/api",
-      "npm run test --workspace @noctification/api -- src/test/health-routes.test.ts src/test/task-migrations.test.ts src/test/task-routes.test.ts src/test/task-automation.test.ts src/test/reminder-scheduler.test.ts src/test/reminder-routes.test.ts src/test/notification-routes.test.ts",
-      "bash -n ops/scripts/validate-debian-login.sh"
-    ],
-    "prioridade": 10,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-008",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "comentarios por tarefa no detalhe me/admin",
-    "arquivo": "apps/api/src/routes/tasks-me.ts",
-    "linha": 229,
-    "componente": "Comentarios por tarefa",
-    "sintoma": "O detalhe da tarefa nao permitia registrar nem consultar comentarios humanos persistidos; o contexto operacional ficava restrito a descricao e task_events.",
-    "evidencia": [
-      "Busca estrutural nao encontrou task_comments implementado no schema ou nas rotas",
-      "GET de detalhe retornava apenas task e events",
-      "TaskUserPanel e AdminTasksPanel nao tinham formulario nem lista de comentarios"
-    ],
-    "causa_raiz": "As rodadas anteriores priorizaram fundacao, board e rollout operacional; comentarios ficaram fora do menor caminho de risco ate esta rodada.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "baixo",
-      "negocio": "medio"
-    },
-    "reproducao": [
-      "Inspecionar as rotas de detalhe em apps/api/src/routes/tasks-me.ts e tasks-admin.ts antes desta rodada",
-      "Observar ausencia de task_comments no schema e ausencia de comments no payload",
-      "Abrir o detalhe da tarefa no frontend e observar que nao ha bloco de comentarios"
-    ],
-    "correcao_recomendada": "Aplicada: tabela task_comments, rotas de criacao/listagem via detalhe em me/admin, tipos e bloco de comentarios no frontend.",
-    "validacao": [
-      "npm run test --workspace @noctification/api -- task-migrations task-routes",
-      "npm run test --workspace @noctification/web -- TaskUserPanel AdminTasksPanel",
-      "npm run typecheck --workspace @noctification/api",
-      "npm run typecheck --workspace @noctification/web"
-    ],
-    "prioridade": 11,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-009",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "timeline unificada no detalhe de tasks",
-    "arquivo": "apps/api/src/tasks/service.ts",
-    "linha": 436,
-    "componente": "Historico unico da tarefa",
-    "sintoma": "Comentarios e eventos eram exibidos em listas separadas, dificultando a leitura cronologica do historico operacional.",
-    "evidencia": [
-      "Apos MEL-008 o detalhe ainda exibia blocos distintos para comentarios e timeline",
-      "O backend retornava comments e events separadamente, sem feed unificado"
-    ],
-    "causa_raiz": "A entrega incremental do dominio separou comentarios e task_events e ainda nao havia uma camada de agregacao para o detalhe.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "baixo",
-      "negocio": "medio"
-    },
-    "reproducao": [
-      "Abrir o detalhe de uma tarefa com comentarios e eventos",
-      "Observar que a leitura cronologica depende de correlacao manual entre duas listas"
-    ],
-    "correcao_recomendada": "Aplicada: detalhe passou a retornar timeline unificada e a UI migrou para um historico unico.",
-    "validacao": [
-      "npm run test --workspace @noctification/api -- task-routes",
-      "npm run test --workspace @noctification/web -- TaskUserPanel AdminTasksPanel",
-      "npm run typecheck --workspace @noctification/api",
-      "npm run typecheck --workspace @noctification/web"
-    ],
-    "prioridade": 12,
-    "corrigir_agora": true
-  },
-  {
-    "id": "MEL-010",
-    "tipo": "melhoria",
-    "status": "corrigido",
-    "severidade": "baixa",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "limpeza do contrato de detalhe de task",
-    "arquivo": "apps/api/src/routes/tasks-me.ts",
-    "linha": 221,
-    "componente": "Payload de detalhe de tarefa",
-    "sintoma": "O payload ainda retornava events e comments mesmo apos a UI migrar integralmente para timeline.",
-    "evidencia": [
-      "TaskUserPanel e AdminTasksPanel ja consumiam apenas timeline",
-      "Rotas de detalhe ainda retornavam campos redundantes"
-    ],
-    "causa_raiz": "Compatibilidade temporaria mantida apos a migracao do historico unico.",
-    "impacto": {
-      "usuario": "baixo",
-      "sistema": "baixo",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Inspecionar o payload de detalhe apos MEL-009",
-      "Observar a presenca de events/comments sem consumo correspondente na UI"
-    ],
-    "correcao_recomendada": "Aplicada: rotas e cliente HTTP simplificados para task + timeline.",
-    "validacao": [
-      "npm run test --workspace @noctification/api -- task-routes",
-      "npm run test --workspace @noctification/web -- TaskUserPanel AdminTasksPanel",
-      "npm run typecheck --workspace @noctification/api",
-      "npm run typecheck --workspace @noctification/web"
-    ],
-    "prioridade": 13,
-    "corrigir_agora": true
+      "apps/api/src/routes/me.ts:73-82",
+      "apps/web/src/lib/api.ts removeWebPushSubscription envia body em DELETE"
+    ]
   }
 ]

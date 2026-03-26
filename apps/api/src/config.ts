@@ -59,6 +59,9 @@ export interface AppConfig {
   enableTaskAutomationScheduler?: boolean;
   taskAutomationDueSoonMinutes?: number;
   taskAutomationStaleHours?: number;
+  webPushSubject?: string;
+  webPushVapidPublicKey?: string;
+  webPushVapidPrivateKey?: string;
   adminSeed: {
     login: string;
     password: string;
@@ -110,6 +113,9 @@ export const config: AppConfig = {
     120
   ),
   taskAutomationStaleHours: toNumber(process.env.TASK_AUTOMATION_STALE_HOURS, 24),
+  webPushSubject: process.env.WEB_PUSH_SUBJECT?.trim(),
+  webPushVapidPublicKey: process.env.WEB_PUSH_VAPID_PUBLIC_KEY?.trim(),
+  webPushVapidPrivateKey: process.env.WEB_PUSH_VAPID_PRIVATE_KEY?.trim(),
   adminSeed
 };
 

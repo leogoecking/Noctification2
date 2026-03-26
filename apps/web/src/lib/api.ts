@@ -1,4 +1,22 @@
-import type { UserRole } from "../types";
+import type {
+  AuditEventItem,
+  AuthUser,
+  NotificationHistoryItem,
+  NotificationItem,
+  OnlineUserItem,
+  PaginationInfo,
+  ReminderHealthItem,
+  ReminderItem,
+  ReminderLogItem,
+  ReminderOccurrenceItem,
+  TaskAutomationHealthItem,
+  TaskAutomationLogItem,
+  TaskCommentItem,
+  TaskItem,
+  TaskTimelineItem,
+  UserItem,
+  UserRole
+} from "../types";
 import { resolveRuntimeApiBase } from "./runtimeUrls";
 
 const API_BASE = resolveRuntimeApiBase(
@@ -18,6 +36,24 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+type AuthUserResponse = { user: AuthUser };
+type UsersResponse = { users: UserItem[] };
+type OnlineUsersResponse = { users: OnlineUserItem[]; count: number };
+type AuditResponse = { events: AuditEventItem[]; pagination: PaginationInfo };
+type NotificationHistoryResponse = {
+  notifications: NotificationHistoryItem[];
+  pagination: PaginationInfo;
+};
+type TaskListResponse = { tasks: TaskItem[]; pagination: PaginationInfo };
+type TaskDetailResponse = { task: TaskItem; timeline: TaskTimelineItem[] };
+type TaskCommentResponse = { comment: TaskCommentItem };
+type TaskHealthResponse = { health: TaskAutomationHealthItem };
+type TaskAutomationLogsResponse = { logs: TaskAutomationLogItem[] };
+type ReminderListResponse = { reminders: ReminderItem[] };
+type ReminderOccurrencesResponse = { occurrences: ReminderOccurrenceItem[] };
+type ReminderHealthResponse = { health: ReminderHealthItem };
+type ReminderLogsResponse = { logs: ReminderLogItem[] };
 
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const headers = new Headers(options.headers ?? {});
@@ -46,13 +82,13 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
 
 export const api = {
   register: (name: string, login: string, password: string) =>
-    request<{ user: unknown }>("/auth/register", {
+    request<AuthUserResponse>("/auth/register", {
       method: "POST",
       bodyJson: { name, login, password }
     }),
 
   login: (login: string, password: string, expectedRole?: UserRole) =>
-    request<{ user: unknown }>("/auth/login", {
+    request<AuthUserResponse>("/auth/login", {
       method: "POST",
       bodyJson: {
         login,
@@ -61,31 +97,27 @@ export const api = {
       }
     }),
 
-  me: () => request<{ user: unknown }>("/auth/me"),
+  me: () => request<AuthUserResponse>("/auth/me"),
 
   logout: () =>
     request<void>("/auth/logout", {
       method: "POST"
     }),
 
-  adminUsers: () => request<{ users: unknown[] }>("/admin/users"),
+  adminUsers: () => request<UsersResponse>("/admin/users"),
 
-  adminOnlineUsers: () => request<{ users: unknown[]; count: number }>("/admin/online-users"),
+  adminOnlineUsers: () => request<OnlineUsersResponse>("/admin/online-users"),
 
-  adminAudit: (query = "") =>
-    request<{
-      events: unknown[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
-    }>(`/admin/audit${query}`),
+  adminAudit: (query = "") => request<AuditResponse>(`/admin/audit${query}`),
 
   createUser: (payload: unknown) =>
-    request<{ user: unknown }>("/admin/users", {
+    request<{ user: UserItem }>("/admin/users", {
       method: "POST",
       bodyJson: payload
     }),
 
   updateUser: (id: number, payload: unknown) =>
-    request<{ user: unknown }>(`/admin/users/${id}`, {
+    request<{ user: UserItem }>(`/admin/users/${id}`, {
       method: "PATCH",
       bodyJson: payload
     }),
@@ -97,96 +129,98 @@ export const api = {
     }),
 
   sendNotification: (payload: unknown) =>
-    request<{ notification: unknown }>("/admin/notifications", {
+    request<{ notification: NotificationHistoryItem }>("/admin/notifications", {
       method: "POST",
       bodyJson: payload
     }),
 
   adminNotifications: (query = "") =>
-    request<{
-      notifications: unknown[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
-    }>(`/admin/notifications${query}`),
+    request<NotificationHistoryResponse>(`/admin/notifications${query}`),
 
-  adminTasks: (query = "") =>
-    request<{
-      tasks: unknown[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
-    }>(`/admin/tasks${query}`),
+  adminTasks: (query = "") => request<TaskListResponse>(`/admin/tasks${query}`),
 
-  adminTask: (id: number) =>
-    request<{ task: unknown; timeline: unknown[] }>(`/admin/tasks/${id}`),
+  adminTask: (id: number) => request<TaskDetailResponse>(`/admin/tasks/${id}`),
 
   createAdminTaskComment: (id: number, payload: unknown) =>
-    request<{ comment: unknown }>(`/admin/tasks/${id}/comments`, {
+    request<TaskCommentResponse>(`/admin/tasks/${id}/comments`, {
       method: "POST",
       bodyJson: payload
     }),
 
-  adminTaskHealth: () =>
-    request<{ health: unknown }>("/admin/tasks/health"),
+  adminTaskHealth: () => request<TaskHealthResponse>("/admin/tasks/health"),
 
   adminTaskAutomationLogs: (query = "") =>
-    request<{ logs: unknown[] }>(`/admin/tasks/automation-logs${query}`),
+    request<TaskAutomationLogsResponse>(`/admin/tasks/automation-logs${query}`),
 
   createAdminTask: (payload: unknown) =>
-    request<{ task: unknown }>("/admin/tasks", {
+    request<{ task: TaskItem }>("/admin/tasks", {
       method: "POST",
       bodyJson: payload
     }),
 
   updateAdminTask: (id: number, payload: unknown) =>
-    request<{ task: unknown }>(`/admin/tasks/${id}`, {
+    request<{ task: TaskItem }>(`/admin/tasks/${id}`, {
       method: "PATCH",
       bodyJson: payload
     }),
 
   completeAdminTask: (id: number) =>
-    request<{ task: unknown }>(`/admin/tasks/${id}/complete`, {
+    request<{ task: TaskItem }>(`/admin/tasks/${id}/complete`, {
       method: "POST"
     }),
 
   cancelAdminTask: (id: number) =>
-    request<{ task: unknown }>(`/admin/tasks/${id}/cancel`, {
+    request<{ task: TaskItem }>(`/admin/tasks/${id}/cancel`, {
       method: "POST"
     }),
 
-  myNotifications: (query = "") => request<{ notifications: unknown[] }>(`/me/notifications${query}`),
+  myNotifications: (query = "") =>
+    request<{ notifications: NotificationItem[] }>(`/me/notifications${query}`),
 
-  myTasks: (query = "") =>
-    request<{
-      tasks: unknown[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
-    }>(`/me/tasks${query}`),
+  webPushConfig: () =>
+    request<{ enabled: boolean; vapidPublicKey: string | null }>("/me/web-push/config"),
 
-  myTask: (id: number) =>
-    request<{ task: unknown; timeline: unknown[] }>(`/me/tasks/${id}`),
+  saveWebPushSubscription: (payload: unknown) =>
+    request<{ ok: boolean }>("/me/web-push/subscription", {
+      method: "PUT",
+      bodyJson: payload
+    }),
+
+  removeWebPushSubscription: (endpoint: string) =>
+    request<{ ok: boolean; removed: number }>("/me/web-push/subscription", {
+      method: "DELETE",
+      bodyJson: { endpoint }
+    }),
+
+  myTasks: (query = "") => request<TaskListResponse>(`/me/tasks${query}`),
+
+  myTask: (id: number) => request<TaskDetailResponse>(`/me/tasks/${id}`),
 
   createMyTaskComment: (id: number, payload: unknown) =>
-    request<{ comment: unknown }>(`/me/tasks/${id}/comments`, {
+    request<TaskCommentResponse>(`/me/tasks/${id}/comments`, {
       method: "POST",
       bodyJson: payload
     }),
 
   createMyTask: (payload: unknown) =>
-    request<{ task: unknown }>("/me/tasks", {
+    request<{ task: TaskItem }>("/me/tasks", {
       method: "POST",
       bodyJson: payload
     }),
 
   updateMyTask: (id: number, payload: unknown) =>
-    request<{ task: unknown }>(`/me/tasks/${id}`, {
+    request<{ task: TaskItem }>(`/me/tasks/${id}`, {
       method: "PATCH",
       bodyJson: payload
     }),
 
   completeMyTask: (id: number) =>
-    request<{ task: unknown }>(`/me/tasks/${id}/complete`, {
+    request<{ task: TaskItem }>(`/me/tasks/${id}/complete`, {
       method: "POST"
     }),
 
   cancelMyTask: (id: number) =>
-    request<{ task: unknown }>(`/me/tasks/${id}/cancel`, {
+    request<{ task: TaskItem }>(`/me/tasks/${id}/cancel`, {
       method: "POST"
     }),
 
@@ -228,16 +262,16 @@ export const api = {
       }
     }),
 
-  myReminders: (query = "") => request<{ reminders: unknown[] }>(`/me/reminders${query}`),
+  myReminders: (query = "") => request<ReminderListResponse>(`/me/reminders${query}`),
 
   createMyReminder: (payload: unknown) =>
-    request<{ reminder: unknown }>("/me/reminders", {
+    request<{ reminder: ReminderItem }>("/me/reminders", {
       method: "POST",
       bodyJson: payload
     }),
 
   updateMyReminder: (id: number, payload: unknown) =>
-    request<{ reminder: unknown }>(`/me/reminders/${id}`, {
+    request<{ reminder: ReminderItem }>(`/me/reminders/${id}`, {
       method: "PATCH",
       bodyJson: payload
     }),
@@ -254,23 +288,22 @@ export const api = {
     }),
 
   myReminderOccurrences: (query = "") =>
-    request<{ occurrences: unknown[] }>(`/me/reminder-occurrences${query}`),
+    request<ReminderOccurrencesResponse>(`/me/reminder-occurrences${query}`),
 
   completeReminderOccurrence: (id: number) =>
     request<{ ok: boolean; completedAt: string }>(`/me/reminder-occurrences/${id}/complete`, {
       method: "POST"
     }),
 
-  adminReminders: (query = "") => request<{ reminders: unknown[] }>(`/admin/reminders${query}`),
+  adminReminders: (query = "") => request<ReminderListResponse>(`/admin/reminders${query}`),
 
   adminReminderOccurrences: (query = "") =>
-    request<{ occurrences: unknown[] }>(`/admin/reminder-occurrences${query}`),
+    request<ReminderOccurrencesResponse>(`/admin/reminder-occurrences${query}`),
 
-  adminReminderHealth: () =>
-    request<{ health: unknown }>("/admin/reminders/health"),
+  adminReminderHealth: () => request<ReminderHealthResponse>("/admin/reminders/health"),
 
   adminReminderLogs: (query = "") =>
-    request<{ logs: unknown[] }>(`/admin/reminder-logs${query}`),
+    request<ReminderLogsResponse>(`/admin/reminder-logs${query}`),
 
   toggleAdminReminder: (id: number, isActive: boolean) =>
     request<{ ok: boolean }>(`/admin/reminders/${id}/toggle`, {

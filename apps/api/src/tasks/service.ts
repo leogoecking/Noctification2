@@ -2,12 +2,6 @@ import type Database from "better-sqlite3";
 import { logAudit, nowIso, sanitizeMetadata } from "../db";
 import type { TaskEventType, TaskPriority, TaskRepeatType, TaskStatus } from "../types";
 
-export const TASK_PRIORITIES: TaskPriority[] = ["low", "normal", "high", "critical"];
-export const TASK_STATUSES: TaskStatus[] = ["new", "in_progress", "waiting", "done", "cancelled"];
-export const TASK_REPEAT_TYPES: TaskRepeatType[] = ["none", "daily", "weekly", "monthly", "weekdays"];
-export const NON_TERMINAL_TASK_STATUSES: TaskStatus[] = ["new", "in_progress", "waiting"];
-const WEEKDAY_VALUES = new Set([0, 1, 2, 3, 4, 5, 6]);
-
 export interface TaskRow {
   id: number;
   title: string;
@@ -132,6 +126,8 @@ const taskCommentsSelectSql = `
   INNER JOIN users author ON author.id = c.author_user_id
 `;
 
+const TASK_ROW_WEEKDAY_VALUES = new Set([0, 1, 2, 3, 4, 5, 6]);
+
 const parseMetadata = (value: string | null): Record<string, unknown> | null => {
   if (!value) {
     return null;
@@ -150,7 +146,7 @@ const parseTaskWeekdaysJson = (value: string): number[] => {
     return Array.isArray(parsed)
       ? parsed
           .map((item) => Number(item))
-          .filter((item) => Number.isInteger(item) && WEEKDAY_VALUES.has(item))
+          .filter((item) => Number.isInteger(item) && TASK_ROW_WEEKDAY_VALUES.has(item))
       : [];
   } catch {
     return [];
@@ -205,177 +201,6 @@ export const normalizeTaskCommentRow = (row: TaskCommentRow) => ({
   createdAt: row.createdAt,
   updatedAt: row.updatedAt
 });
-
-export const toNullableString = (value: unknown): string | null => {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-export const parseLimit = (value: unknown, fallback: number, max: number): number => {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  return Math.min(parsed, max);
-};
-
-export const parsePage = (value: unknown, fallback = 1): number => {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  return parsed;
-};
-
-export const parseTaskPriority = (value: unknown): TaskPriority | null => {
-  if (value === "low" || value === "normal" || value === "high" || value === "critical") {
-    return value;
-  }
-
-  return null;
-};
-
-export const parseTaskStatus = (value: unknown): TaskStatus | null => {
-  if (
-    value === "new" ||
-    value === "in_progress" ||
-    value === "waiting" ||
-    value === "done" ||
-    value === "cancelled"
-  ) {
-    return value;
-  }
-
-  return null;
-};
-
-export const parseTaskRepeatType = (value: unknown): TaskRepeatType | null => {
-  if (
-    value === "none" ||
-    value === "daily" ||
-    value === "weekly" ||
-    value === "monthly" ||
-    value === "weekdays"
-  ) {
-    return value;
-  }
-
-  return null;
-};
-
-export const parseTaskWeekdays = (value: unknown): number[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return Array.from(
-    new Set(
-      value
-        .map((item) => Number(item))
-        .filter((item) => Number.isInteger(item) && WEEKDAY_VALUES.has(item))
-    )
-  ).sort((a, b) => a - b);
-};
-
-export const stringifyTaskWeekdays = (weekdays: number[]): string => JSON.stringify(weekdays);
-
-export const parseNonTerminalTaskStatus = (value: unknown): TaskStatus | null => {
-  if (value === "new" || value === "in_progress" || value === "waiting") {
-    return value;
-  }
-
-  return null;
-};
-
-export const isTaskTerminal = (status: TaskStatus): boolean =>
-  status === "done" || status === "cancelled";
-
-export const parseOptionalUserId = (value: unknown): number | null | undefined => {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (value === null || value === "") {
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return parsed;
-};
-
-export const parseOptionalDueAt = (
-  value: unknown
-): { provided: boolean; value: string | null; error?: string } => {
-  if (value === undefined) {
-    return { provided: false, value: null };
-  }
-
-  if (value === null || value === "") {
-    return { provided: true, value: null };
-  }
-
-  if (typeof value !== "string") {
-    return { provided: true, value: null, error: "due_at deve ser uma data ISO valida ou null" };
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return { provided: true, value: null, error: "due_at deve ser uma data ISO valida ou null" };
-  }
-
-  return { provided: true, value: parsed.toISOString() };
-};
-
-export const validateTaskRecurrence = (
-  repeatType: TaskRepeatType,
-  weekdays: number[]
-): string | null => {
-  if (repeatType === "weekly" && weekdays.length === 0) {
-    return "weekdays e obrigatorio para recorrencia semanal";
-  }
-
-  return null;
-};
-
-export const validateTaskTitle = (value: unknown): string | null => {
-  const title = toNullableString(value);
-  if (!title || title.length > 200) {
-    return null;
-  }
-
-  return title;
-};
-
-export const validateTaskDescription = (value: unknown): string => {
-  if (value === undefined || value === null) {
-    return "";
-  }
-
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim().slice(0, 4000);
-};
-
-export const validateTaskCommentBody = (value: unknown): string | null => {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const body = value.trim().slice(0, 4000);
-  return body.length > 0 ? body : null;
-};
 
 export const activeUserExists = (db: Database.Database, userId: number): boolean => {
   const row = db.prepare("SELECT id FROM users WHERE id = ? AND is_active = 1").get(userId) as

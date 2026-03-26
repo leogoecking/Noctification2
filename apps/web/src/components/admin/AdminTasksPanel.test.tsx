@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminTasksPanel } from "./AdminTasksPanel";
 import { api } from "../../lib/api";
+import type { TaskCommentItem, TaskItem } from "../../types";
 
 vi.mock("../../lib/api", () => ({
   api: {
@@ -25,9 +26,45 @@ vi.mock("../../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
+const buildAdminTask = (id: number): TaskItem => ({
+  id,
+  title: `Tarefa ${id}`,
+  description: "Descricao",
+  status: "new",
+  priority: "normal",
+  creatorUserId: 1,
+  creatorName: "Admin",
+  creatorLogin: "admin",
+  assigneeUserId: 2,
+  assigneeName: "Operador",
+  assigneeLogin: "operador",
+  dueAt: null,
+  repeatType: "none",
+  repeatWeekdays: [],
+  startedAt: null,
+  completedAt: null,
+  cancelledAt: null,
+  recurrenceSourceTaskId: null,
+  sourceNotificationId: null,
+  createdAt: "2026-03-21T12:00:00.000Z",
+  updatedAt: "2026-03-21T12:00:00.000Z",
+  archivedAt: null
+});
+
+const buildAdminTaskComment = (id: number): TaskCommentItem => ({
+  id,
+  taskId: 1,
+  authorUserId: 1,
+  authorName: "Admin",
+  authorLogin: "admin",
+  body: "Comentario",
+  createdAt: "2026-03-21T12:06:00.000Z",
+  updatedAt: "2026-03-21T12:06:00.000Z"
+});
+
 describe("AdminTasksPanel", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("abre o detalhe administrativo da tarefa pelo board", async () => {
@@ -210,7 +247,7 @@ describe("AdminTasksPanel", () => {
       timeline: []
     });
     mockedApi.createAdminTask.mockResolvedValue({
-      task: { id: 44 }
+      task: buildAdminTask(44)
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
@@ -237,6 +274,57 @@ describe("AdminTasksPanel", () => {
           assignee_user_id: 2
         })
       )
+    );
+  });
+
+  it("fecha o detalhe admin quando a tarefa sai do filtro apos concluir", async () => {
+    mockedApi.adminTasks
+      .mockResolvedValueOnce({
+        tasks: [buildAdminTask(12)],
+        pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
+      })
+      .mockResolvedValueOnce({
+        tasks: [],
+        pagination: { page: 1, limit: 100, total: 0, totalPages: 1 }
+      });
+    mockedApi.adminUsers.mockResolvedValue({
+      users: [
+        {
+          id: 2,
+          name: "Operador",
+          login: "operador",
+          department: "Suporte",
+          jobTitle: "Analista",
+          role: "user",
+          isActive: true,
+          createdAt: "2026-03-21T12:00:00.000Z",
+          updatedAt: "2026-03-21T12:00:00.000Z"
+        }
+      ]
+    });
+    mockedApi.adminTask.mockResolvedValue({
+      task: buildAdminTask(12),
+      timeline: []
+    });
+    mockedApi.completeAdminTask.mockResolvedValue({
+      task: { ...buildAdminTask(12), status: "done" }
+    });
+
+    render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Tarefa 12" }));
+    await waitFor(() => expect(mockedApi.adminTask).toHaveBeenCalledWith(12));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Detalhe da tarefa" })).getByRole("button", {
+        name: "Concluir"
+      })
+    );
+
+    await waitFor(() => expect(mockedApi.completeAdminTask).toHaveBeenCalledWith(12));
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Tarefa 12" })).not.toBeInTheDocument()
     );
   });
 
@@ -341,13 +429,13 @@ describe("AdminTasksPanel", () => {
 
     await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
 
-    const newColumn = screen.getByLabelText("Coluna Nova");
-    const waitingColumn = screen.getByLabelText("Coluna Aguardando");
+    const newColumn = await screen.findByLabelText("Coluna Nova");
+    const waitingColumn = await screen.findByLabelText("Coluna Aguardando");
 
     expect(newColumn).toBeInTheDocument();
     expect(waitingColumn).toBeInTheDocument();
-    expect(within(newColumn).getByText("Nova task admin")).toBeInTheDocument();
-    expect(within(waitingColumn).getByText("Task aguardando")).toBeInTheDocument();
+    expect(await within(newColumn).findByText("Nova task admin")).toBeInTheDocument();
+    expect(await within(waitingColumn).findByText("Task aguardando")).toBeInTheDocument();
   });
 
   it("permite mudar o status pelo board administrativo", async () => {
@@ -453,7 +541,7 @@ describe("AdminTasksPanel", () => {
       timeline: []
     });
     mockedApi.updateAdminTask.mockResolvedValue({
-      task: { id: 11 }
+      task: buildAdminTask(11)
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
@@ -726,7 +814,7 @@ describe("AdminTasksPanel", () => {
         ]
       });
     mockedApi.createAdminTaskComment.mockResolvedValue({
-      comment: { id: 70 }
+      comment: buildAdminTaskComment(70)
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);

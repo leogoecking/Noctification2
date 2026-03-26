@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserDashboard } from "./UserDashboard";
 import { api } from "../lib/api";
+import type { NotificationItem } from "../types";
 
 vi.mock("../lib/socket", () => ({
   connectSocket: () => ({
@@ -30,7 +31,7 @@ vi.mock("../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
-const buildNotification = (id: number, isVisualized: boolean) => ({
+const buildNotification = (id: number, isVisualized: boolean): NotificationItem => ({
   id,
   title: `Notificacao ${id}`,
   message: `Mensagem ${id}`,

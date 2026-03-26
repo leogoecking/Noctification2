@@ -26,6 +26,7 @@ export type MockRequest = {
   params?: Record<string, string>;
   query?: Record<string, string>;
   cookies?: Record<string, string>;
+  headers?: Record<string, string>;
   ip?: string;
 };
 

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminDashboard } from "./AdminDashboard";
 import { api } from "../lib/api";
+import type { NotificationHistoryItem } from "../types";
 
 const socketHandlers = new Map<string, (payload?: unknown) => void>();
 
@@ -41,11 +42,37 @@ vi.mock("../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
+const buildAdminNotification = (): NotificationHistoryItem => ({
+  id: 1,
+  title: "Notificacao operacional",
+  message: "Mensagem operacional",
+  priority: "normal",
+  recipient_mode: "users",
+  source_task_id: null,
+  created_at: new Date().toISOString(),
+  sender: {
+    id: 1,
+    name: "Admin",
+    login: "admin"
+  },
+  recipients: [],
+  stats: {
+    total: 0,
+    read: 0,
+    unread: 0,
+    responded: 0,
+    inProgress: 0,
+    resolved: 0,
+    operationalPending: 0,
+    operationalCompleted: 0
+  }
+});
+
 describe("AdminDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     socketHandlers.clear();
-    mockedApi.sendNotification.mockResolvedValue({ notification: undefined });
+    mockedApi.sendNotification.mockResolvedValue({ notification: buildAdminNotification() });
     mockedApi.createUser.mockResolvedValue({
       user: {
         id: 3,
