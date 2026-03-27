@@ -1,14 +1,34 @@
 [
   {
-    "id": "APR-001",
-    "tipo": "melhoria",
+    "id": "ACH-001",
+    "tipo": "bug_reproduzivel",
     "status": "confirmado",
-    "descricao": "Estrutura inicial do modulo APR ausente no backend, frontend e pacote compartilhado.",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "descricao": "Tabela manual APR renderizava todos os registros do mes sem paginacao local.",
     "evidencia": [
-      "Ausencia de apps/api/src/modules/apr",
-      "Ausencia de apps/web/src/features/apr",
-      "Ausencia de packages/apr-core"
-    ],
-    "corrigir_agora": true
+      "manualRows.map(...) sem slice/paginacao",
+      "ausencia de estado de pagina e botoes de navegacao"
+    ]
+  },
+  {
+    "id": "ACH-002",
+    "tipo": "bug_reproduzivel",
+    "status": "confirmado",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "descricao": "Listagem e exportacao de APR divergentes exibiam colunas/campos alem de ID, Status, Assunto e Nome do colaborador.",
+    "evidencia": [
+      "Card de divergencias mostrava Sistema/Manual e campos alterados",
+      "PDF exportado continha assunto e colaborador de sistema/manual e colunas adicionais"
+    ]
+  },
+  {
+    "id": "ACH-003",
+    "tipo": "problema_de_qualidade",
+    "status": "confirmado",
+    "arquivo": "ambiente",
+    "descricao": "Ferramenta rg indisponivel no ambiente.",
+    "evidencia": [
+      "/bin/bash: linha 1: rg: comando nao encontrado"
+    ]
   }
 ]

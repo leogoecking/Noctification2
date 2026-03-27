@@ -1,5 +1,4 @@
 id,tipo,severidade,confianca_diagnostica,risco_de_regressao,arquivo,linha,prioridade,status
-APR-001,melhoria,baixa,alta,baixo,apps/api/src/app.ts,1,1,corrigido
-APR-002,melhoria,baixa,alta,baixo,apps/web/src/features/apr/AprPage.tsx,1,2,corrigido
-APR-003,melhoria,media,alta,baixo,apps/api/src/modules/apr/service.ts,1,3,corrigido
-BUG-003,bug_reproduzivel,media,alta,baixo,apps/api/src/modules/apr/service.ts,102,1,corrigido
+BUG-001,bug_reproduzivel,media,alta,baixo,apps/web/src/features/apr/AprPage.tsx,618,1,corrigido
+BUG-002,bug_reproduzivel,baixa,alta,baixo,apps/web/src/features/apr/AprPage.tsx,321,2,corrigido
+ACH-003,problema_de_qualidade,baixa,alta,baixo,ambiente,0,99,nao_aplicado

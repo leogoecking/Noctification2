@@ -1,76 +1,74 @@
 [
   {
-    "id": "APR-001",
-    "tipo": "melhoria",
-    "status": "confirmado",
-    "severidade": "baixa",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "monorepo/apps-api-apps-web-packages",
-    "arquivo": "apps/api/src/app.ts",
-    "linha": 1,
-    "componente": "APR bootstrap",
-    "sintoma": "O repositório nao tinha estrutura inicial do modulo APR.",
-    "evidencia": [
-      "Inspecao estrutural do monorepo",
-      "Ausencia dos caminhos solicitados",
-      "Roteamento existente identificado para extensao incremental"
-    ],
-    "causa_raiz": "Modulo APR ainda nao havia sido iniciado no monorepo.",
-    "impacto": {
-      "usuario": "baixo",
-      "sistema": "baixo",
-      "negocio": "medio"
-    },
-    "reproducao": [
-      "Inspecionar a estrutura em apps/api/src",
-      "Inspecionar a estrutura em apps/web/src",
-      "Confirmar ausencia de packages/apr-core"
-    ],
-    "correcao_recomendada": "Criar esqueleto do modulo com feature flag desligada por padrao e rotas isoladas.",
-    "validacao": [
-      "npm run build",
-      "npm run test",
-      "npm run typecheck"
-    ],
-    "prioridade": 1,
-    "corrigir_agora": true
-  },
-  {
-    "id": "BUG-003",
+    "id": "BUG-001",
     "tipo": "bug_reproduzivel",
     "status": "confirmado",
     "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/api/src/modules/apr",
-    "arquivo": "apps/api/src/modules/apr/service.ts",
-    "linha": 90,
-    "componente": "APR audit/divergencia",
-    "sintoma": "IDs APR no formato Excel =\"235269\" eram exibidos e comparados de forma incorreta na auditoria/divergencia.",
+    "escopo": "apps/web/src/features/apr",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "linha": 618,
+    "componente": "AprPage",
+    "sintoma": "A tabela manual exibe todos os registros do mes, sem limitar a 5 itens por pagina.",
     "evidencia": [
-      "Inspecao do fluxo APR no backend",
-      "Normalizacao existente apenas em packages/apr-core/src/import.ts",
-      "Ausencia de sanitizacao equivalente em service.ts e validators.ts",
-      "Relato do usuario com o valor =\"235269\""
+      "Renderizacao direta de manualRows.map(...)",
+      "Ausencia de estado de pagina e controles de navegacao",
+      "Teste automatizado adicionado para 6 registros com pagina 1/2"
     ],
-    "causa_raiz": "Sanitizacao inconsistente de external_id: o wrapper de texto-formula do Excel era removido no import core, mas nao na validacao manual, na leitura de registros persistidos e nas comparacoes do servico APR.",
+    "causa_raiz": "O componente mantinha a lista completa em memoria, mas nao aplicava recorte paginado na renderizacao nem mantinha estado de pagina local.",
     "impacto": {
       "usuario": "medio",
-      "sistema": "medio",
-      "negocio": "medio"
+      "sistema": "baixo",
+      "negocio": "baixo"
     },
     "reproducao": [
-      "Persistir ou enviar um external_id no formato =\"235269\"",
-      "Consultar rows/audit do modulo APR",
-      "Observar o ID cru ou a comparacao incorreta em auditoria/divergencia"
+      "Abrir o modulo APR",
+      "Selecionar um mes com mais de 5 lancamentos manuais",
+      "Observar que todos os registros aparecem na tabela de uma vez"
     ],
-    "correcao_recomendada": "Sanitizar externalId no backend APR ao validar entradas, ao montar respostas e antes de comparar bases.",
+    "correcao_recomendada": "Adicionar paginacao local no frontend com limite fixo de 5 registros por pagina e controles anterior/proxima.",
     "validacao": [
-      "apps/api/src/test/apr-service.test.ts",
-      "npm run test --workspace=apps/api -- apr-service.test.ts"
+      "npm run test --workspace @noctification/web -- AprPage.test.tsx",
+      "npm run typecheck --workspace @noctification/web"
     ],
     "prioridade": 1,
+    "corrigir_agora": true
+  },
+  {
+    "id": "BUG-002",
+    "tipo": "bug_reproduzivel",
+    "status": "confirmado",
+    "severidade": "baixa",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/web/src/features/apr",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "linha": 321,
+    "componente": "AprPage",
+    "sintoma": "A visualizacao e a exportacao de APR divergentes exibiam campos extras alem de ID, Status, Assunto e Nome do colaborador.",
+    "evidencia": [
+      "Card de divergencias continha comparacao Sistema/Manual",
+      "PDF exportado continha colunas de sistema/manual e campos alterados",
+      "Testes automatizados passaram a validar o conjunto reduzido de campos"
+    ],
+    "causa_raiz": "O componente reutilizava uma apresentacao detalhada de auditoria, sem recorte especifico para o fluxo de divergencias desejado.",
+    "impacto": {
+      "usuario": "baixo",
+      "sistema": "baixo",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Abrir o modulo APR com divergencias",
+      "Visualizar o card Audit / divergencias ou exportar o PDF",
+      "Observar a presenca de campos extras alem dos quatro solicitados"
+    ],
+    "correcao_recomendada": "Restringir a visualizacao e o PDF a ID, Status, Assunto e Nome do colaborador, escolhendo a linha manual quando existir e, na ausencia dela, a linha do sistema.",
+    "validacao": [
+      "npm run test --workspace @noctification/web -- AprPage.test.tsx",
+      "npm run typecheck --workspace @noctification/web"
+    ],
+    "prioridade": 2,
     "corrigir_agora": true
   }
 ]

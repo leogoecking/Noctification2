@@ -1,42 +1,53 @@
-## Ordem de execução
+# 02 - Plano de Analise
 
-1. Registrar o estado do repositório e as premissas operacionais.
-2. Inserir a feature flag `ENABLE_APR_MODULE` no backend e no frontend com default desligado.
-3. Criar o módulo APR no backend e o placeholder APR no frontend, ambos isolados.
-4. Criar `packages/apr-core` como esqueleto compartilhado sem acoplar aos fluxos atuais.
-5. Validar com `npm run build`, `npm run test` e `npm run typecheck`.
+## Ordem de execucao
+
+1. Mapear stack e localizar a implementacao da tabela manual.
+2. Ler componente e testes do modulo APR.
+3. Classificar o problema com base no comportamento observado no codigo.
+4. Aplicar a menor correcao viavel.
+5. Validar no workspace afetado.
+6. Consolidar rastreabilidade em `.bug-report`.
 
 ## Ferramentas escolhidas
 
-- `find`: mapear estrutura do monorepo.
-  - Escopo: diretórios, configs e entrypoints.
+- `find`
+  - Motivo: descoberta estrutural do monorepo e de arquivos relevantes.
+  - Escopo: raiz do repositorio, `apps/`, `.github/`, `ops/`, `.deploy/`.
+  - Confiabilidade esperada: alta para inventario de arquivos.
+  - Achados esperados: estrutura, entrypoints e configs.
+- `grep`
+  - Motivo: localizar rapidamente referencias a "manual", "table" e "pagination" sem `rg`.
+  - Escopo: `apps/web/src`.
+  - Confiabilidade esperada: alta para correlacao textual.
+  - Achados esperados: componente e testes do fluxo alvo.
+- `sed`
+  - Motivo: leitura pontual de arquivos relevantes.
+  - Escopo: `package.json`, `AprPage.tsx`, `AprPage.test.tsx`, `README.md`.
   - Confiabilidade esperada: alta.
-  - Tipo de achado esperado: estrutura real.
-- `sed`: leitura direta dos arquivos críticos.
-  - Escopo: `package.json`, `config.ts`, `app.ts`, `App.tsx`, `appShell.tsx`, `.env.example`.
-  - Confiabilidade esperada: alta.
-  - Tipo de achado esperado: contratos locais e pontos de extensão.
-- `grep`: localizar flags e referências existentes.
-  - Escopo: env vars, rotas e uso de runtime config.
-  - Confiabilidade esperada: média-alta.
-  - Tipo de achado esperado: integração e impacto lateral.
-- `npm run build|test|typecheck`: validação objetiva.
-  - Escopo: apps existentes e compatibilidade do monorepo.
-  - Confiabilidade esperada: alta.
-  - Tipo de achado esperado: regressões de compilação, testes e tipagem.
+  - Achados esperados: stack, fluxo de renderizacao, testes existentes.
+- `npm run test --workspace @noctification/web -- AprPage.test.tsx`
+  - Motivo: validacao focalizada do modulo afetado.
+  - Escopo: testes APR do frontend.
+  - Confiabilidade esperada: alta para regressao local.
+  - Achados esperados: falha/sucesso do comportamento de paginação.
+- `npm run typecheck --workspace @noctification/web`
+  - Motivo: garantir integridade do TypeScript no workspace alterado.
+  - Escopo: `apps/web`.
+  - Confiabilidade esperada: alta para erros de tipo.
+  - Achados esperados: incompatibilidades introduzidas pela alteracao.
 
-## Módulos prioritários
+## Modulos prioritarios
 
-- `apps/api/src/config.ts`
-- `apps/api/src/app.ts`
-- `apps/web/src/App.tsx`
-- `apps/web/src/components/app/appShell.tsx`
+- `apps/web/src/features/apr/AprPage.tsx`
+- `apps/web/src/features/apr/AprPage.test.tsx`
 
 ## Risco previsto
 
-- Baixo, desde que o APR permaneça desligado por padrão e sem dependências novas.
+- Baixo: paginação local em lista ja carregada, sem mudar contrato com backend.
 
-## Limitações
+## Limitacoes
 
-- Não haverá validação e2e com navegador.
-- Não haverá deploy nem rollout operacional nesta fase.
+- Sem execucao de navegador real.
+- Sem teste E2E.
+- Sem rerun de suite global, por ser desnecessario para a correcao pedida.

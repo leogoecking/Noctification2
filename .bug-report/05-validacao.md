@@ -1,64 +1,17 @@
-## Validacao executada
+# 05 - Validacao
 
-- Data: 2026-03-27
-- Escopo: monorepo raiz
+## Validacoes executadas
 
-### Comandos
+- Teste especifico do modulo afetado:
+  - Comando: `npm run test --workspace @noctification/web -- AprPage.test.tsx`
+  - Resultado final: sucesso
+  - Evidencia: `6 tests passed`
+- Typecheck do workspace afetado:
+  - Comando: `npm run typecheck --workspace @noctification/web`
+  - Resultado final: sucesso
 
-- `npm run build`
-- `npm run test`
-- `npm run typecheck`
+## Validacoes nao executadas
 
-### Resultado
-
-- `build`: aprovado
-- `test`: aprovado
-- `typecheck`: aprovado
-
-### Observacoes
-
-- O ambiente emite warnings de npm sobre `globalignorefile`, mas a execucao concluiu com sucesso.
-- Os testes do backend para APR foram adaptados para inspecao do router do Express, evitando dependencia de abertura de porta no sandbox.
-
-## Validacao adicional do frontend APR
-
-- Escopo: `apps/web/src/features/apr`
-- Comandos:
-  - `npm run test --workspace @noctification/web -- src/features/apr/AprPage.test.tsx src/App.test.tsx`
-  - `npm run typecheck --workspace @noctification/web`
-  - `npm run build --workspace @noctification/web`
-  - `npm run build`
-  - `npm run test`
-  - `npm run typecheck`
-- Resultado:
-  - todos os comandos aprovados
-- Observacoes:
-  - o build global continuou atualizando o artefato gerado `apps/web/tsconfig.tsbuildinfo`
-  - o ambiente manteve warnings de npm sobre `globalignorefile`, sem impacto funcional
-
-## Validacao adicional das operacoes avancadas APR
-
-- Escopo: `apps/api/src/modules/apr`
-- Comandos:
-  - `npm run test --workspace @noctification/api -- src/test/apr-migrations.test.ts src/test/apr-service.test.ts src/test/apr-routes.test.ts src/test/apr-destructive.test.ts src/test/apr-import-integration.test.ts`
-  - `npm run build --workspace @noctification/api`
-  - `npm run typecheck --workspace @noctification/api`
-  - `npm run build`
-  - `npm run test`
-  - `npm run typecheck`
-- Resultado:
-  - todos os comandos aprovados
-- Observacoes:
-  - as protecoes destrutivas ficaram cobertas por testes especificos em `apr-destructive.test.ts`
-
-## Validacao adicional da divergencia APR
-
-- Escopo: `apps/api/src/modules/apr`
-- Comandos:
-  - `npm run test --workspace=apps/api -- apr-service.test.ts`
-  - `npm run typecheck --workspace=apps/api`
-- Resultado:
-  - ambos aprovados
-- Observacoes:
-  - o novo teste cobre explicitamente o caso `external_id =\"235269\"` no fluxo de leitura e auditoria
-  - o ambiente continuou emitindo warnings de npm sobre `globalignorefile`, sem bloquear a execucao
+- Lint do workspace `apps/web`: nao executado por a mudanca nao introduzir risco semantico adicional apos teste e typecheck bem-sucedidos.
+- Build do workspace `apps/web`: nao executado porque teste focalizado + typecheck foram suficientes para esta alteracao localizada de UI.
+- Suite global do monorepo: nao executada por custo desnecessario para uma correcao local no APR frontend.

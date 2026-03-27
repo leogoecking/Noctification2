@@ -1,26 +1,36 @@
-## Achados brutos
+# 03 - Achados Brutos
 
-### APR-001
+## ACH-001
 
-- Categoria: `melhoria`
+- Tipo: `bug_reproduzivel`
+- Local: `apps/web/src/features/apr/AprPage.tsx`
 - Evidencia:
-  - O monorepo nao tinha estrutura dedicada para APR em backend, frontend ou pacote compartilhado.
-  - O backend ja usa composicao central de rotas em `apps/api/src/app.ts`.
-  - O frontend ja usa roteamento manual em `apps/web/src/App.tsx` e `apps/web/src/components/app/appShell.tsx`.
-- Interpretacao:
-  - A solicitacao pode ser atendida com extensao incremental de baixo risco, sem alterar autenticacao, notificacoes, Socket.IO ou rotas existentes.
+  - A tabela manual renderizava `manualRows.map(...)` sem qualquer recorte por pagina.
+  - Nao havia estado de pagina, limite por pagina ou controles de navegacao no bloco "Tabela manual".
+  - Pedido do usuario especificou necessidade de "deixando apenas 5 por pagina", o que conflita com o comportamento observado.
+- Impacto observado:
+  - Toda a base manual do mes era exibida de uma vez.
+  - Em meses com muitos registros, a visualizacao e a edicao local ficam menos controladas.
+- Classificacao: bug confirmado por inspecao de codigo.
 
-## Sem achados de bug confirmados
+## ACH-002
 
-- Nenhum bug funcional existente foi alvo desta fase.
-- Nenhuma vulnerabilidade confirmada foi identificada no escopo executado.
-
-### BUG-003
-
-- Categoria: `bug_reproduzivel`
+- Tipo: `bug_reproduzivel`
+- Local: `apps/web/src/features/apr/AprPage.tsx`
 - Evidencia:
-  - O pacote `packages/apr-core/src/import.ts` ja remove o wrapper Excel `="..."` via `unwrapSpreadsheetFormulaText`.
-  - O backend APR em `apps/api/src/modules/apr/service.ts` e `apps/api/src/modules/apr/validators.ts` nao reaplicava a mesma sanitizacao ao validar payload manual, ler registros persistidos e comparar auditoria.
-  - O valor reportado pelo usuario, `="235269"`, e compativel com esse formato bruto de planilha e explica o ID incorreto exibido em `auditoria/divergencia`.
-- Interpretacao:
-  - O modulo APR aceitava/exibia `external_id` cru em alguns fluxos, causando divergencia visual e comparacoes incorretas quando o dado vinha encapsulado como texto-formula do Excel.
+  - A listagem de divergencias em tela mostrava comparacao entre sistema/manual e campos alterados.
+  - O PDF exportado de divergencias incluia colunas extras: assunto/colaborador de sistema e manual, alem de campos alterados.
+  - A solicitacao atual exigiu restringir a saida a `ID`, `Status`, `Assunto` e `Nome do colaborador`.
+- Impacto observado:
+  - Excesso de informacao na listagem de divergencias.
+  - Saida exportada menos objetiva do que o necessario para o fluxo pedido.
+- Classificacao: bug confirmado por inspecao de codigo.
+
+## ACH-003
+
+- Tipo: `problema_de_qualidade`
+- Local: ambiente de execucao
+- Evidencia:
+  - `rg` nao esta instalado.
+- Impacto:
+  - Apenas operacional para analise, sem impacto direto no produto.

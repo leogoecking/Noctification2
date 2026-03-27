@@ -1,33 +1,35 @@
-## Priorizacao
+# 04 - Priorizacao
 
-### APR-001
+## Item priorizado para correcao imediata
 
-- Tipo: `melhoria`
-- Status: confirmado
-- Severidade: baixa
-- Confianca diagnostica: alta
-- Risco de regressao: baixo
-- Prioridade: 1
-- Corrigir agora: `true`
-
-## Justificativa
-
-- A mudanca era explicitamente solicitada.
-- O impacto colateral esperado e baixo porque o modulo nasce atras de feature flag desligada por padrao.
-- A validacao objetiva e simples via build, test e typecheck.
-
-### BUG-003
+### BUG-001
 
 - Tipo: `bug_reproduzivel`
-- Status: confirmado
 - Severidade: media
 - Confianca diagnostica: alta
 - Risco de regressao: baixo
-- Prioridade: 1
-- Corrigir agora: `true`
+- Escopo: `apps/web/src/features/apr`
+- Motivo da prioridade:
+  - comportamento divergente do desejado
+  - correcao localizada
+  - validacao objetiva simples via teste do componente
 
-## Justificativa adicional
+### BUG-002
 
-- O defeito afeta identificadores usados como chave de comparacao na auditoria APR.
-- A causa raiz e localizada e a menor correcao viavel e sanitizar `externalId` sem alterar contrato HTTP ou schema.
-- A validacao objetiva pode ser feita com teste focado do servico APR.
+- Tipo: `bug_reproduzivel`
+- Severidade: baixa
+- Confianca diagnostica: alta
+- Risco de regressao: baixo
+- Escopo: `apps/web/src/features/apr`
+- Motivo da prioridade:
+  - simplificacao direta de campos exibidos no bloco de divergencias e no PDF
+  - sem alteracao de API
+  - validacao objetiva por teste do componente e inspeção do HTML exportado
+
+## Item nao tratado como correcao de produto
+
+### ACH-003
+
+- Tipo: `problema_de_qualidade`
+- Acao: apenas documentado
+- Justificativa: nao afeta o comportamento da aplicacao entregue ao usuario final.

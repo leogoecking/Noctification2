@@ -1,7 +1,6 @@
-## Checklist derivado desta entrega
+# Checklist de Code Review
 
-- Confirmar que novas features nascem atras de flag desligada por padrao.
-- Confirmar que novas rotas sao registradas sem alterar contratos existentes.
-- Confirmar que o frontend nao muda a navegacao padrao quando a flag estiver desligada.
-- Confirmar que novos workspaces nao introduzem scripts obrigatorios desnecessarios.
-- Confirmar que existe validacao objetiva por build, test e typecheck.
+- Confirmar se listas com potencial de crescimento possuem paginação ou limite explicito de renderizacao.
+- Verificar se estado de pagina e total de paginas sao reajustados quando a fonte de dados muda.
+- Garantir que mudancas de UI tenham teste focalizado para o comportamento novo.
+- Confirmar que correcoes locais nao alteram contratos de API sem necessidade.

@@ -1,47 +1,49 @@
-## Visão estrutural do repositório
+# 01 - Reconhecimento do Repositorio
 
-- Tipo: monorepo `npm` com dois apps principais (`apps/api`, `apps/web`).
-- Workspaces confirmados em `package.json`: `apps/api` e `apps/web`.
-- Há documentação operacional em `docs/` e scripts de deploy/validação em `ops/`.
+## Visao estrutural
+
+- Tipo: monorepo npm com multi-app e multi-package.
+- Workspaces detectados: `apps/api`, `apps/web`, `packages/apr-core`.
+- Documentacao-base: `README.md`.
+- CI detectado: `.github/workflows/main.yml`.
+- Infra/deploy detectados: `ops/`, `.deploy/`, scripts `deploy-debian`, nginx, systemd, backup de banco.
 
 ## Stack detectada
 
-- Backend: Node.js + TypeScript + Express + Socket.IO + Better SQLite3 + Vitest.
-- Frontend: React 18 + TypeScript + Vite + Vitest.
-- Gerenciador de pacotes ativo: `npm`.
-- Lint: ESLint.
-- Typecheck: TypeScript (`tsc --noEmit`).
-- Build: `tsc` no backend; `tsc -b` + `vite build` no frontend.
+- Linguagem principal: TypeScript.
+- Frontend: React 18 + Vite + Vitest + ESLint.
+- Backend: Node.js + Express + Socket.IO + SQLite (`better-sqlite3`) + Vitest.
+- Build tools: `tsc`, `vite`.
+- Package manager: npm com `workspaces`.
+- Typecheck: `tsc --noEmit`.
+- Test runner: `vitest`.
 
-## Ferramentas disponíveis
+## Ferramentas disponiveis e indisponiveis
 
-- Disponíveis: `node`, `npm`, `git`, `find`, `grep`, `sed`.
-- Indisponíveis: `rg`, `pnpm`.
+- Disponiveis com evidencia: `npm`, `git`, `find`, `grep`, `sed`, `tsc`, `vitest`.
+- Indisponivel com evidencia: `rg` (`/bin/bash: linha 1: rg: comando nao encontrado`).
 
-## Entrypoints confirmados
+## Entrypoints relevantes
 
-- API: `apps/api/src/index.ts`, `apps/api/src/app.ts`.
-- Web: `apps/web/src/main.tsx`, `apps/web/src/App.tsx`.
-- Configuração backend: `apps/api/src/config.ts`.
-- Roteamento frontend: `apps/web/src/App.tsx` e `apps/web/src/components/app/appShell.tsx`.
+- Frontend: `apps/web/src/*`, bootstrap Vite.
+- Backend: `apps/api/src/index.ts`.
+- Modulo alvo desta solicitacao: `apps/web/src/features/apr/AprPage.tsx`.
 
-## Módulos críticos
+## Modulos criticos
 
-- Autenticação: `apps/api/src/routes/auth.ts`, `apps/api/src/auth.ts`.
-- Rotas do usuário: `apps/api/src/routes/me.ts`.
-- Rotas administrativas: `apps/api/src/routes/admin.ts`.
-- Socket.IO: `apps/api/src/socket.ts` e módulos associados.
-- Notificações, lembretes e tarefas: áreas já ativas em `apps/api/src/routes/*`, `apps/api/src/tasks/*`, `apps/api/src/reminders/*` e componentes equivalentes no frontend.
+- APR frontend: importacao, tabela manual, auditoria e historico.
+- API de notificacoes/autenticacao.
+- Scripts de deploy e configuracao operacional.
 
-## Áreas de maior risco
+## Areas de maior risco
 
-- `apps/api/src/app.ts`: qualquer alteração aqui pode afetar registro global de rotas.
-- `apps/api/src/config.ts`: mudanças de env podem impactar inicialização da API.
-- `apps/web/src/App.tsx` e `apps/web/src/components/app/appShell.tsx`: concentram navegação manual do frontend.
+- Fluxos APR com alta densidade de estado local no frontend.
+- Integracoes API/frontend que dependem de formatos estaveis.
+- Arquivos operacionais em `ops/` e `.deploy/`.
 
-## Estratégia proposta para análise
+## Estrategia proposta para analise
 
-- Seguir o padrão já existente de rotas isoladas e composição central em `createApp`.
-- Introduzir APR por feature flag desligada por padrão.
-- Evitar tocar em autenticação, Socket.IO, notificações, lembretes e tarefas.
-- Validar por testes focados, `typecheck` e `build` dos apps existentes.
+1. Identificar o componente exato da "Tabela manual".
+2. Confirmar o fluxo de dados e o ponto de renderizacao.
+3. Implementar paginação local no frontend para evitar mudancas de API.
+4. Validar com teste focalizado do componente e `typecheck` do workspace `apps/web`.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AprPage } from "./AprPage";
 import { aprApi } from "./api";
@@ -247,6 +247,36 @@ describe("AprPage", () => {
     expect(onToast).toHaveBeenCalledWith("Lancamento criado");
   });
 
+  it("pagina a tabela manual com 5 registros por pagina", async () => {
+    mockedAprApi.getRows.mockResolvedValue({
+      monthRef: "2026-03",
+      rows: Array.from({ length: 6 }, (_, index) => ({
+        ...baseRows.rows[0],
+        id: index + 1,
+        externalId: `APR-00${index + 1}`,
+        subject: `ASSUNTO ${index + 1}`
+      }))
+    });
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(mockedAprApi.getRows).toHaveBeenCalled());
+
+    const manualTableBody = screen.getByText("Tabela manual").closest("article")?.querySelector("tbody");
+    expect(manualTableBody).not.toBeNull();
+
+    expect(screen.getByText("Pagina 1 de 2 | Total 6")).toBeInTheDocument();
+    expect(within(manualTableBody as HTMLElement).getByText("APR-001")).toBeInTheDocument();
+    expect(within(manualTableBody as HTMLElement).getByText("APR-005")).toBeInTheDocument();
+    expect(within(manualTableBody as HTMLElement).queryByText("APR-006")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Proxima pagina" }));
+
+    expect(screen.getByText("Pagina 2 de 2 | Total 6")).toBeInTheDocument();
+    expect(within(manualTableBody as HTMLElement).getByText("APR-006")).toBeInTheDocument();
+    expect(within(manualTableBody as HTMLElement).queryByText("APR-001")).not.toBeInTheDocument();
+  });
+
   it("envia importação com arquivo selecionado", async () => {
     const onToast = vi.fn();
     mockedAprApi.importRows.mockResolvedValue({
@@ -320,6 +350,32 @@ describe("AprPage", () => {
 
     await waitFor(() => expect(appendChildSpy).toHaveBeenCalled());
     expect(write).toHaveBeenCalled();
+    const exportedHtml = write.mock.calls[0]?.[0] as string;
+    expect(exportedHtml).toContain("<th>ID</th>");
+    expect(exportedHtml).toContain("<th>Status</th>");
+    expect(exportedHtml).toContain("<th>Assunto</th>");
+    expect(exportedHtml).toContain("<th>Nome do colaborador</th>");
+    expect(exportedHtml).not.toContain("Assunto sistema");
+    expect(exportedHtml).not.toContain("Assunto manual");
+    expect(exportedHtml).not.toContain("Colaborador sistema");
+    expect(exportedHtml).not.toContain("Colaborador manual");
+    expect(exportedHtml).not.toContain("Campos alterados");
     await waitFor(() => expect(print).toHaveBeenCalled());
+  });
+
+  it("mostra nas divergencias apenas id, status, assunto e colaborador", async () => {
+    mockedAprApi.getAudit.mockResolvedValue(divergentAudit);
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Audit / divergencias")).toBeInTheDocument());
+
+    expect(screen.getByText("Assunto: PODA")).toBeInTheDocument();
+    expect(screen.getByText("Nome do colaborador: RENAN")).toBeInTheDocument();
+    expect(screen.getByText("Assunto: MAPEAMENTO")).toBeInTheDocument();
+    expect(screen.getByText("Nome do colaborador: FELIPE")).toBeInTheDocument();
+    expect(screen.queryByText(/Sistema:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Manual:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Campos alterados:/)).not.toBeInTheDocument();
   });
 });

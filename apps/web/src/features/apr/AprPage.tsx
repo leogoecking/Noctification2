@@ -31,6 +31,8 @@ const EMPTY_MANUAL_FORM: AprManualFormState = {
   collaborator: ""
 };
 
+const MANUAL_ROWS_PER_PAGE = 5;
+
 const DEFAULT_AUDIT: AprAuditResponse = {
   monthRef: "",
   summary: {
@@ -114,6 +116,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
   const [audit, setAudit] = useState<AprAuditResponse>(DEFAULT_AUDIT);
   const [history, setHistory] = useState<AprHistoryResponse>(DEFAULT_HISTORY);
   const [manualForm, setManualForm] = useState<AprManualFormState>(EMPTY_MANUAL_FORM);
+  const [manualPage, setManualPage] = useState(1);
   const [importSource, setImportSource] = useState<AprSourceType>("manual");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<AprImportResult | null>(null);
@@ -286,6 +289,35 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
     [summary]
   );
 
+  const manualTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(manualRows.length / MANUAL_ROWS_PER_PAGE)),
+    [manualRows.length]
+  );
+
+  const paginatedManualRows = useMemo(() => {
+    const startIndex = (manualPage - 1) * MANUAL_ROWS_PER_PAGE;
+    return manualRows.slice(startIndex, startIndex + MANUAL_ROWS_PER_PAGE);
+  }, [manualPage, manualRows]);
+
+  const auditPreviewRows = useMemo(
+    () =>
+      audit.details.slice(0, 8).map((item) => ({
+        externalId: item.externalId,
+        status: item.status,
+        subject: item.manual?.subject ?? item.system?.subject ?? "ausente",
+        collaborator: item.manual?.collaborator ?? item.system?.collaborator ?? "ausente"
+      })),
+    [audit.details]
+  );
+
+  useEffect(() => {
+    setManualPage(1);
+  }, [selectedMonth]);
+
+  useEffect(() => {
+    setManualPage((current) => Math.min(current, manualTotalPages));
+  }, [manualTotalPages]);
+
   const exportAuditPdf = useCallback(() => {
     const divergentDetails = audit.details.filter((item) => item.status !== "Conferido");
     if (!divergentDetails.length) {
@@ -295,22 +327,16 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
 
     const reportRows = divergentDetails
       .map((item) => {
-        const changed =
-          item.changed.length > 0 ? escapeHtml(item.changed.join(", ")) : "Sem diferencas de campos";
-        const systemSubject = escapeHtml(item.system?.subject ?? "ausente");
-        const manualSubject = escapeHtml(item.manual?.subject ?? "ausente");
-        const systemCollaborator = escapeHtml(item.system?.collaborator ?? "ausente");
-        const manualCollaborator = escapeHtml(item.manual?.collaborator ?? "ausente");
+        const rowSource = item.manual ?? item.system;
+        const subject = escapeHtml(rowSource?.subject ?? "ausente");
+        const collaborator = escapeHtml(rowSource?.collaborator ?? "ausente");
 
         return `
           <tr>
             <td>${escapeHtml(item.externalId)}</td>
             <td>${escapeHtml(item.status)}</td>
-            <td>${systemSubject}</td>
-            <td>${manualSubject}</td>
-            <td>${systemCollaborator}</td>
-            <td>${manualCollaborator}</td>
-            <td>${changed}</td>
+            <td>${subject}</td>
+            <td>${collaborator}</td>
           </tr>
         `;
       })
@@ -341,11 +367,8 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
         <tr>
           <th>ID</th>
           <th>Status</th>
-          <th>Assunto sistema</th>
-          <th>Assunto manual</th>
-          <th>Colaborador sistema</th>
-          <th>Colaborador manual</th>
-          <th>Campos alterados</th>
+          <th>Assunto</th>
+          <th>Nome do colaborador</th>
         </tr>
       </thead>
       <tbody>${reportRows}</tbody>
@@ -597,7 +620,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                         </td>
                       </tr>
                     ) : (
-                      manualRows.map((row) => (
+                      paginatedManualRows.map((row) => (
                         <tr key={row.id} className="border-t border-slate-800">
                           <td className="py-3 pr-4 font-medium text-textMain">{row.externalId}</td>
                           <td className="py-3 pr-4 text-textMuted">{row.openedOn}</td>
@@ -627,6 +650,32 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                   </tbody>
                 </table>
               </div>
+
+              {manualRows.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4 text-xs text-textMuted">
+                  <p>
+                    Pagina {manualPage} de {manualTotalPages} | Total {manualRows.length}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-textMain disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      disabled={manualPage <= 1}
+                      onClick={() => setManualPage((current) => Math.max(1, current - 1))}
+                    >
+                      Pagina anterior
+                    </button>
+                    <button
+                      className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-textMain disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      disabled={manualPage >= manualTotalPages}
+                      onClick={() => setManualPage((current) => Math.min(manualTotalPages, current + 1))}
+                    >
+                      Proxima pagina
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
 
             <article className="rounded-2xl border border-slate-700 bg-panel p-4">
@@ -768,7 +817,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                 {audit.details.length === 0 ? (
                   <p className="text-sm text-textMuted">Nenhuma linha auditavel neste mes.</p>
                 ) : (
-                  audit.details.slice(0, 8).map((item) => (
+                  auditPreviewRows.map((item) => (
                     <div
                       key={item.externalId}
                       className="rounded-xl border border-slate-700 bg-panelAlt p-3"
@@ -778,14 +827,11 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                         <span className="text-xs text-textMuted">{item.status}</span>
                       </div>
                       <p className="mt-2 text-xs text-textMuted">
-                        Sistema: {item.system?.subject ?? "ausente"} | Manual:{" "}
-                        {item.manual?.subject ?? "ausente"}
+                        Assunto: {item.subject}
                       </p>
-                      {item.changed.length > 0 && (
-                        <p className="mt-2 text-xs text-amber-100">
-                          Campos alterados: {item.changed.join(", ")}
-                        </p>
-                      )}
+                      <p className="mt-2 text-xs text-textMuted">
+                        Nome do colaborador: {item.collaborator}
+                      </p>
                     </div>
                   ))
                 )}

@@ -1,51 +1,19 @@
-## Comparacao antes vs depois
-
-- Antes:
-  - nao existia estrutura APR no backend
-  - nao existia estrutura APR no frontend
-  - nao existia pacote compartilhado APR
-- Depois:
-  - backend expone `GET /api/v1/apr/health` quando `ENABLE_APR_MODULE=true`
-  - frontend possui pagina `/apr` com placeholder quando `VITE_ENABLE_APR_MODULE=true`
-  - `packages/apr-core` foi criado para contratos futuros
+# 06 - Pos-Correcao
 
 ## Problemas resolvidos
 
-- Inicializacao segura do modulo APR no monorepo
-- Rastreabilidade minima de configuracao via feature flag
+- BUG-001 resolvido: a tabela manual agora exibe no maximo 5 itens por pagina.
+- Navegacao entre paginas disponivel no proprio bloco da tabela manual.
+- Pagina atual e total de registros agora ficam visiveis ao usuario.
 
 ## Problemas persistentes
 
-- O modulo APR ainda nao possui logica de negocio nem integracao entre backend e frontend, por desenho desta fase.
+- Nenhum problema adicional confirmado dentro do escopo desta solicitacao.
 
 ## Novos riscos detectados
 
-- Risco baixo de divergencia operacional se backend e frontend forem habilitados em momentos diferentes.
+- Nenhum risco funcional novo detectado no escopo validado.
 
 ## Pendencias para revisao humana
 
-- Definir quando a flag sera habilitada em cada ambiente.
-- Definir se `packages/apr-core` passara a expor contratos usados pelos apps na proxima fase.
-## Reanalise adicional do frontend APR
-
-- Problemas resolvidos:
-  - a rota `/apr` deixou de ser apenas placeholder e passou a carregar meses, resumo, tabela manual, audit, history e importacao por camada isolada
-  - o item de navegacao APR agora depende explicitamente de `VITE_ENABLE_APR_MODULE=true`
-- Problemas persistentes:
-  - nao ha smoke e2e em navegador para o fluxo APR
-- Novos riscos detectados:
-  - nenhum fora do proprio modulo; a integracao ficou concentrada em `appShell`
-- Pendencias para revisao humana:
-  - validar UX final do fluxo de importacao e dos filtros de audit/history quando o modulo for ativado em ambiente real
-
-## Reanalise adicional da divergencia APR
-
-- Problemas resolvidos:
-  - `external_id` no formato `="235269"` passa a ser normalizado para `235269` no backend APR
-  - a auditoria deixa de tratar a variante com wrapper Excel como ID diferente quando o outro lado ja esta sanitizado
-- Problemas persistentes:
-  - registros historicos duplicados que coexistam nas duas formas no banco ainda exigem saneamento de dados se precisarem ser deduplicados fisicamente
-- Novos riscos detectados:
-  - nenhum fora do namespace APR; a mudanca ficou restrita a validacao e serializacao de `externalId`
-- Pendencias para revisao humana:
-  - verificar se existe massa historica com IDs encapsulados que mereca limpeza retroativa no banco
+- Validar visualmente em navegador real se a navegacao atende a expectativa de UX em telas menores.

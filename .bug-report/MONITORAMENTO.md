@@ -1,13 +1,17 @@
-## Sinais recomendados para fases futuras do APR
+# Monitoramento
 
-- Health check dedicado do modulo APR
-- Logs de ativacao da flag `ENABLE_APR_MODULE`
-- Logs de acesso a `/api/v1/apr/health`
-- Contador de requests 2xx/4xx/5xx do namespace `/api/v1/apr`
-- Smoke monitor para o path `/apr` quando a flag estiver ativa
+## Sinais uteis
 
-## Alertas uteis
+- Medir quantidade de registros manuais por mes APR para identificar meses com listas grandes.
+- Registrar erros de carregamento do modulo APR no frontend.
+- Observar falhas de importacao e de operacoes CRUD manuais.
 
-- APR habilitado no backend e desabilitado no frontend
-- APR habilitado no frontend e desabilitado no backend
-- Crescimento de respostas 404 no namespace `/api/v1/apr`
+## Health checks e observabilidade
+
+- Manter health check da API ja existente para cobertura backend.
+- Se houver telemetria frontend no futuro, registrar tempo de renderizacao de listas APR maiores.
+
+## Alertas recomendados
+
+- Alerta para falhas recorrentes de `getRows`, `createManual`, `updateManual` e `deleteManual`.
+- Alerta para crescimento atipico de registros manuais por referencia mensal, caso impacte UX.
