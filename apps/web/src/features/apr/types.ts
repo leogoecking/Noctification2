@@ -99,12 +99,25 @@ export interface AprHistoryResponse {
 
 export interface AprImportResult {
   monthRef: string;
+  requestedMonthRef: string;
+  importedMonths: string[];
+  monthDetectedByDate: boolean;
   sourceType: AprSourceType;
   fileName: string;
   totalValid: number;
   totalInvalid: number;
   duplicates: string[];
   invalid: unknown[];
+}
+
+export interface AprCollaboratorSuggestion {
+  displayName: string;
+  occurrenceCount: number;
+}
+
+export interface AprSubjectSuggestion {
+  subject: string;
+  occurrenceCount: number;
 }
 
 export interface AprManualPayload {

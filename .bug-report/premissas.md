@@ -33,3 +33,9 @@
 - Nesta iteração, o placeholder do frontend APR foi substituído por uma feature isolada em `apps/web/src/features/apr`.
 - A navegação existente deve continuar intacta; o único ponto de integração fora da feature é o `appShell`.
 - O menu APR só pode aparecer quando `VITE_ENABLE_APR_MODULE=true`.
+
+## Escopo inferido desta correcao
+
+- O defeito reportado esta concentrado no modulo APR, especificamente na auditoria/divergencia.
+- A evidencia disponivel indica sanitizacao inconsistente de `external_id` no formato de texto-formula Excel (`="235269"`).
+- A correcao deve preservar contratos HTTP e se limitar a normalizacao de `externalId` na validacao, leitura e comparacao APR.

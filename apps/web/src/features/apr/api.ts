@@ -5,10 +5,12 @@ import type {
   AprHistoryResponse,
   AprImportResult,
   AprManualPayload,
+  AprCollaboratorSuggestion,
   AprMonthItem,
   AprMonthSummary,
   AprRow,
-  AprSourceType
+  AprSourceType,
+  AprSubjectSuggestion
 } from "./types";
 
 const APR_API_BASE = resolveRuntimeApiBase(
@@ -39,6 +41,16 @@ const requestApr = async <T>(path: string, init: RequestInit = {}): Promise<T> =
 };
 
 export const aprApi = {
+  listCollaborators: (search = "") =>
+    requestApr<{ collaborators: AprCollaboratorSuggestion[] }>(
+      `/collaborators${search ? `?search=${encodeURIComponent(search)}` : ""}`
+    ),
+
+  listSubjects: (search = "") =>
+    requestApr<{ subjects: AprSubjectSuggestion[] }>(
+      `/subjects${search ? `?search=${encodeURIComponent(search)}` : ""}`
+    ),
+
   listMonths: () => requestApr<{ months: AprMonthItem[] }>("/months"),
 
   getMonthSummary: (monthRef: string, historySource: AprSourceType) =>

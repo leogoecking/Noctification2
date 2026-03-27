@@ -144,7 +144,7 @@ describe("APR migrations and repository isolation", () => {
     });
     expect(collaborators).toHaveLength(2);
     expect(collaborators[0]).toMatchObject({
-      displayName: "Felipe"
+      displayName: "FELIPE"
     });
 
     const legacyCounts = {

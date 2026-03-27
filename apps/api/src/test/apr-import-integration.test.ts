@@ -81,6 +81,9 @@ describe("APR import integration", () => {
 
     expect(result).toMatchObject({
       monthRef: "2026-03",
+      requestedMonthRef: "2026-03",
+      importedMonths: ["2026-03"],
+      monthDetectedByDate: false,
       sourceType: "manual",
       totalValid: 1,
       totalInvalid: 1,
@@ -158,5 +161,44 @@ describe("APR import integration", () => {
     await expect(parseAprImportRequest(badExtRequest, "manual")).rejects.toThrow(
       "Extensao invalida. Use csv, xlsx ou xls"
     );
+  });
+
+  it("reconhece o mes real das APRs e persiste no month_ref correto", async () => {
+    const csv = [
+      "ID;Data de abertura;Assunto;Colaborador",
+      '="235269";28/01/2026;MANUTENCAO FIBRA - INFRA;Felipe',
+      '="235422";29/01/2026;DOCUMENTACAO FIBRA;Renan'
+    ].join("\n");
+
+    const request = createMultipartRequest({
+      fields: { refMonth: "2026-03" },
+      file: {
+        name: "apr-system.csv",
+        contentType: "text/csv",
+        content: Buffer.from(csv, "utf-8")
+      }
+    });
+
+    const parsed = await parseAprImportRequest(request, "system");
+    const result = importAprRowsService(db, parsed);
+
+    expect(result).toMatchObject({
+      monthRef: "2026-01",
+      requestedMonthRef: "2026-03",
+      importedMonths: ["2026-01"],
+      monthDetectedByDate: true,
+      sourceType: "system",
+      totalValid: 2
+    });
+    expect(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM apr_entries e JOIN apr_reference_months m ON m.id=e.reference_month_id WHERE m.month_ref = '2026-01' AND e.source_type = 'system'"
+      ).get()
+    ).toMatchObject({ count: 2 });
+    expect(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM apr_entries e JOIN apr_reference_months m ON m.id=e.reference_month_id WHERE m.month_ref = '2026-03' AND e.source_type = 'system'"
+      ).get()
+    ).toMatchObject({ count: 0 });
   });
 });

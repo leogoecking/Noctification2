@@ -81,6 +81,7 @@ describe("APR routes", () => {
 
   it("expone listMonths, getMonthSummary, getRows, audit e history no contrato HTTP", () => {
     const listCollaborators = getRouteHandler(aprRouter, "/collaborators", "get");
+    const listSubjects = getRouteHandler(aprRouter, "/subjects", "get");
     const listMonths = getRouteHandler(aprRouter, "/months", "get");
     const listSnapshots = getRouteHandler(aprRouter, "/snapshots", "get");
     const getSummary = getRouteHandler(aprRouter, "/months/:month/summary", "get");
@@ -92,6 +93,14 @@ describe("APR routes", () => {
     listCollaborators({ authUser }, collaboratorsRes);
     expect(collaboratorsRes.statusCode).toBe(200);
     expect((collaboratorsRes.body as { collaborators: Array<{ displayName: string }> }).collaborators).toHaveLength(1);
+
+    const subjectsRes = createMockResponse();
+    listSubjects({ authUser }, subjectsRes);
+    expect(subjectsRes.statusCode).toBe(200);
+    expect((subjectsRes.body as { subjects: Array<{ subject: string }> }).subjects).toEqual([
+      { subject: "MAPEAMENTO", occurrenceCount: 2 },
+      { subject: "PODAS", occurrenceCount: 1 }
+    ]);
 
     const listRes = createMockResponse();
     listMonths({ authUser }, listRes);

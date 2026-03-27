@@ -5,6 +5,8 @@ import { aprApi } from "./api";
 
 vi.mock("./api", () => ({
   aprApi: {
+    listCollaborators: vi.fn(),
+    listSubjects: vi.fn(),
     listMonths: vi.fn(),
     getMonthSummary: vi.fn(),
     getRows: vi.fn(),
@@ -79,6 +81,20 @@ const baseRows = {
   ]
 };
 
+const baseSubjects = {
+  subjects: [
+    { subject: "MAPEAMENTO", occurrenceCount: 3 },
+    { subject: "PODAS", occurrenceCount: 2 }
+  ]
+};
+
+const baseCollaborators = {
+  collaborators: [
+    { displayName: "Felipe", occurrenceCount: 3 },
+    { displayName: "Renan", occurrenceCount: 2 }
+  ]
+};
+
 const baseAudit = {
   monthRef: "2026-03",
   summary: {
@@ -98,6 +114,47 @@ const baseAudit = {
       changed: [],
       system: null,
       manual: null
+    }
+  ]
+};
+
+const divergentAudit = {
+  monthRef: "2026-03",
+  summary: {
+    totalSistema: 2,
+    totalManual: 1,
+    conferido: 0,
+    soSistema: 1,
+    soManual: 1,
+    totalIds: 2,
+    statusGeral: "Divergente" as const,
+    divergentes: 2
+  },
+  details: [
+    {
+      externalId: "235269",
+      status: "Só no sistema" as const,
+      changed: [],
+      system: {
+        ...baseRows.rows[0],
+        sourceType: "system" as const,
+        externalId: "235269",
+        subject: "PODA",
+        collaborator: "RENAN"
+      },
+      manual: null
+    },
+    {
+      externalId: "235270",
+      status: "Só no manual" as const,
+      changed: ["Assunto"],
+      system: null,
+      manual: {
+        ...baseRows.rows[0],
+        externalId: "235270",
+        subject: "MAPEAMENTO",
+        collaborator: "FELIPE"
+      }
     }
   ]
 };
@@ -128,6 +185,8 @@ const baseHistory = {
 describe("AprPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockedAprApi.listCollaborators.mockResolvedValue(baseCollaborators);
+    mockedAprApi.listSubjects.mockResolvedValue(baseSubjects);
     mockedAprApi.listMonths.mockResolvedValue(baseMonths);
     mockedAprApi.getMonthSummary.mockResolvedValue(baseSummary);
     mockedAprApi.getRows.mockResolvedValue(baseRows);
@@ -146,6 +205,8 @@ describe("AprPage", () => {
     expect(screen.getByText("Tabela manual")).toBeInTheDocument();
     expect(screen.getByText("Audit / divergencias")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
+    expect(mockedAprApi.listSubjects).toHaveBeenCalledTimes(1);
+    expect(mockedAprApi.listCollaborators).toHaveBeenCalledTimes(1);
   });
 
   it("envia criação manual e recarrega a referência", async () => {
@@ -160,10 +221,18 @@ describe("AprPage", () => {
 
     await waitFor(() => expect(mockedAprApi.getRows).toHaveBeenCalled());
 
-    fireEvent.change(screen.getByLabelText("External ID"), { target: { value: "APR-020" } });
-    fireEvent.change(screen.getByLabelText("Data de abertura"), { target: { value: "2026-03-15" } });
-    fireEvent.change(screen.getByLabelText("Assunto"), { target: { value: "Podas" } });
-    fireEvent.change(screen.getByLabelText("Colaborador"), { target: { value: "Renan" } });
+    fireEvent.change(document.getElementById("apr-manual-external-id") as HTMLInputElement, {
+      target: { value: "APR-020" }
+    });
+    fireEvent.change(document.getElementById("apr-manual-opened-on") as HTMLInputElement, {
+      target: { value: "2026-03-15" }
+    });
+    fireEvent.change(document.getElementById("apr-manual-subject") as HTMLInputElement, {
+      target: { value: "Podas" }
+    });
+    fireEvent.change(document.getElementById("apr-manual-collaborator") as HTMLInputElement, {
+      target: { value: "Renan" }
+    });
     fireEvent.click(screen.getByRole("button", { name: "Criar lancamento" }));
 
     await waitFor(() =>
@@ -182,6 +251,9 @@ describe("AprPage", () => {
     const onToast = vi.fn();
     mockedAprApi.importRows.mockResolvedValue({
       monthRef: "2026-03",
+      requestedMonthRef: "2026-03",
+      importedMonths: ["2026-03"],
+      monthDetectedByDate: false,
       sourceType: "manual",
       fileName: "apr.csv",
       totalValid: 1,
@@ -205,5 +277,49 @@ describe("AprPage", () => {
 
     await waitFor(() => expect(mockedAprApi.importRows).toHaveBeenCalledWith("manual", file, "2026-03"));
     expect(onToast).toHaveBeenCalledWith("Importacao APR concluida");
+  });
+
+  it("exporta relatorio de divergentes em janela de impressao", async () => {
+    const write = vi.fn();
+    const print = vi.fn();
+    const focus = vi.fn();
+    mockedAprApi.getAudit.mockResolvedValue(divergentAudit);
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      const element = originalCreateElement(tagName);
+      if (tagName.toLowerCase() === "iframe") {
+        Object.defineProperty(element, "contentWindow", {
+          value: { focus, print },
+          configurable: true
+        });
+        Object.defineProperty(element, "contentDocument", {
+          value: { open: vi.fn(), write, close: vi.fn() },
+          configurable: true
+        });
+      }
+      return element;
+    });
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Exportar PDF" })).toBeEnabled());
+
+    const appendChildSpy = vi.spyOn(document.body, "appendChild").mockImplementation((node) => {
+      const result = node;
+      queueMicrotask(() => {
+        const iframeNode = node as HTMLIFrameElement;
+        const onload = iframeNode.onload as ((this: HTMLIFrameElement, event: Event) => void) | null;
+        if (typeof onload === "function") {
+          onload.call(iframeNode, new Event("load"));
+        }
+      });
+      return result;
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Exportar PDF" }));
+
+    await waitFor(() => expect(appendChildSpy).toHaveBeenCalled());
+    expect(write).toHaveBeenCalled();
+    await waitFor(() => expect(print).toHaveBeenCalled());
   });
 });

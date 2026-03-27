@@ -94,6 +94,11 @@ export interface AprCollaboratorRow {
   updatedAt: string;
 }
 
+export interface AprSubjectCatalogRow {
+  subject: string;
+  occurrenceCount: number;
+}
+
 const APR_REFERENCE_MONTH_SELECT = `
   SELECT
     id,
@@ -177,11 +182,7 @@ const toCatalogDisplayName = (value: string): string =>
   value
     .trim()
     .replace(/\s+/g, " ")
-    .toLocaleLowerCase("pt-BR")
-    .split(" ")
-    .filter((item) => item.length > 0)
-    .map((item) => item.charAt(0).toLocaleUpperCase("pt-BR") + item.slice(1))
-    .join(" ");
+    .toLocaleUpperCase("pt-BR");
 
 const touchReferenceMonth = (
   db: Database.Database,
@@ -686,6 +687,42 @@ export const listAprCollaborators = (
       `
     )
     .all(`%${normalizedSearch}%`, `%${normalizeCatalogName(normalizedSearch)}%`) as AprCollaboratorRow[];
+};
+
+export const listAprSubjects = (
+  db: Database.Database,
+  search?: string
+): AprSubjectCatalogRow[] => {
+  const normalizedSearch = search?.trim().toUpperCase() ?? "";
+
+  if (!normalizedSearch) {
+    return db
+      .prepare(
+        `
+          SELECT
+            subject,
+            COUNT(*) AS occurrenceCount
+          FROM apr_entries
+          GROUP BY subject
+          ORDER BY occurrenceCount DESC, subject ASC
+        `
+      )
+      .all() as AprSubjectCatalogRow[];
+  }
+
+  return db
+    .prepare(
+      `
+        SELECT
+          subject,
+          COUNT(*) AS occurrenceCount
+        FROM apr_entries
+        WHERE UPPER(subject) LIKE ?
+        GROUP BY subject
+        ORDER BY occurrenceCount DESC, subject ASC
+      `
+    )
+    .all(`%${normalizedSearch}%`) as AprSubjectCatalogRow[];
 };
 
 export const replaceAprCollaborators = (

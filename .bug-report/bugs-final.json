@@ -31,5 +31,16 @@
     "linha": 1,
     "prioridade": 3,
     "status": "corrigido"
+  },
+  {
+    "id": "BUG-003",
+    "tipo": "bug_reproduzivel",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/api/src/modules/apr/service.ts",
+    "linha": 102,
+    "prioridade": 1,
+    "status": "corrigido"
   }
 ]

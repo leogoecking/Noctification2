@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
+import { unwrapSpreadsheetFormulaText } from "@noctification/apr-core";
 import type { ParsedAprUpload } from "./import";
 import {
   clearAllAprData,
@@ -16,6 +17,7 @@ import {
   listAprEntriesByMonth,
   listAprMonths,
   listAprSnapshots,
+  listAprSubjects,
   rebuildAprCollaboratorCatalog,
   replaceAprEntriesForMonth,
   replaceAprCollaborators,
@@ -97,7 +99,10 @@ const normalizeComparableText = (value: unknown): string =>
     .toLowerCase();
 
 const normalizeSubject = (value: string): string => normalizeWhitespace(value).toLocaleUpperCase("pt-BR");
-const normalizeCollaborator = (value: string): string => normalizeWhitespace(value);
+const normalizeCollaborator = (value: string): string =>
+  normalizeWhitespace(value).toLocaleUpperCase("pt-BR");
+const normalizeExternalId = (value: unknown): string =>
+  normalizeWhitespace(unwrapSpreadsheetFormulaText(value));
 const monthFromIsoDate = (value: string): string => value.slice(0, 7);
 const getPreviousMonth = (monthRef: string): string => {
   const [year, month] = monthRef.split("-").map(Number);
@@ -107,7 +112,7 @@ const getPreviousMonth = (monthRef: string): string => {
 };
 
 const normalizeEntryInput = (payload: AprManualPayload): AprEntryRecord => ({
-  externalId: normalizeWhitespace(payload.externalId),
+  externalId: normalizeExternalId(payload.externalId),
   openedOn: payload.openedOn,
   subject: normalizeSubject(payload.subject),
   collaborator: normalizeCollaborator(payload.collaborator)
@@ -117,10 +122,10 @@ const toParsedAprRow = (row: AprEntryRow): ParsedAprRow => ({
   id: row.id,
   monthRef: row.monthRef,
   sourceType: row.sourceType,
-  externalId: row.externalId,
+  externalId: normalizeExternalId(row.externalId),
   openedOn: row.openedOn,
   subject: row.subject,
-  collaborator: row.collaborator,
+  collaborator: normalizeCollaborator(row.collaborator),
   rawPayload: parseRawPayload(row.rawPayloadJson),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt
@@ -374,6 +379,13 @@ export const listAprCollaboratorsService = (
   };
 };
 
+export const listAprSubjectsService = (
+  db: Database.Database,
+  params: { search?: string }
+) => ({
+  subjects: listAprSubjects(db, params.search)
+});
+
 export const getAprRowsService = (
   db: Database.Database,
   params: { monthRef: string; sourceType?: AprSourceType }
@@ -601,46 +613,69 @@ export const importAprRowsService = (
   db: Database.Database,
   parsedUpload: ParsedAprUpload
 ) => {
-  const targetRows = parsedUpload.grouped.get(parsedUpload.refMonth) ?? parsedUpload.rows;
+  const importedMonths = [...parsedUpload.grouped.keys()].sort((left, right) =>
+    left.localeCompare(right)
+  );
+  if (!importedMonths.length) {
+    throw new Error("Nenhum registro disponivel para importacao");
+  }
 
-  replaceAprEntriesForMonth(db, {
-    monthRef: parsedUpload.refMonth,
-    sourceType: parsedUpload.sourceType,
-    entries: targetRows.map((row) => ({
-      externalId: row.ID,
-      openedOn: row.dataAbertura,
-      subject: row.assunto,
-      collaborator: row.colaborador,
-      rawPayload: {
-        ID: row.ID,
-        dataAbertura: row.dataAbertura,
-        assunto: row.assunto,
-        colaborador: row.colaborador
-      }
-    }))
-  });
-  rebuildAprCollaboratorCatalog(db);
-
-  createAprImportRun(db, {
-    monthRef: parsedUpload.refMonth,
-    sourceType: parsedUpload.sourceType,
-    fileName: parsedUpload.fileName,
-    totalValid: targetRows.length,
-    totalInvalid: parsedUpload.invalid.length,
-    duplicates: parsedUpload.duplicates.length,
-    totalInvalidGlobal: parsedUpload.invalid.length,
-    duplicatesGlobal: parsedUpload.duplicates.length,
-    monthDetectedByDate: false,
-    metadata: {
-      importedMonths: [...parsedUpload.grouped.keys()]
+  for (const monthRef of importedMonths) {
+    const targetRows = parsedUpload.grouped.get(monthRef) ?? [];
+    if (!targetRows.length) {
+      continue;
     }
-  });
+
+    replaceAprEntriesForMonth(db, {
+      monthRef,
+      sourceType: parsedUpload.sourceType,
+      entries: targetRows.map((row) => ({
+        externalId: normalizeExternalId(row.ID),
+        openedOn: row.dataAbertura,
+        subject: row.assunto,
+        collaborator: row.colaborador,
+        rawPayload: {
+          ID: normalizeExternalId(row.ID),
+          dataAbertura: row.dataAbertura,
+          assunto: row.assunto,
+          colaborador: row.colaborador
+        }
+      }))
+    });
+
+    createAprImportRun(db, {
+      monthRef,
+      sourceType: parsedUpload.sourceType,
+      fileName: parsedUpload.fileName,
+      totalValid: targetRows.length,
+      totalInvalid: parsedUpload.invalid.length,
+      duplicates: parsedUpload.duplicates.length,
+      totalInvalidGlobal: parsedUpload.invalid.length,
+      duplicatesGlobal: parsedUpload.duplicates.length,
+      monthDetectedByDate: monthRef !== parsedUpload.refMonth,
+      metadata: {
+        requestedMonthRef: parsedUpload.refMonth,
+        importedMonths
+      }
+    });
+  }
+  rebuildAprCollaboratorCatalog(db);
+  const primaryMonthRef = importedMonths.includes(parsedUpload.refMonth)
+    ? parsedUpload.refMonth
+    : importedMonths[importedMonths.length - 1];
+  const totalValid = importedMonths.reduce(
+    (count, monthRef) => count + (parsedUpload.grouped.get(monthRef)?.length ?? 0),
+    0
+  );
 
   return {
-    monthRef: parsedUpload.refMonth,
+    monthRef: primaryMonthRef,
+    requestedMonthRef: parsedUpload.refMonth,
+    importedMonths,
+    monthDetectedByDate: importedMonths.some((monthRef) => monthRef !== parsedUpload.refMonth),
     sourceType: parsedUpload.sourceType,
     fileName: parsedUpload.fileName,
-    totalValid: targetRows.length,
+    totalValid,
     totalInvalid: parsedUpload.invalid.length,
     duplicates: parsedUpload.duplicates,
     invalid: parsedUpload.invalid

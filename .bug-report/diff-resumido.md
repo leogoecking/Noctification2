@@ -131,3 +131,21 @@
 - Motivo da mudanca: documentar riscos, rollback e limitacoes das operacoes avancadas APR
 - Risco: baixo
 - Validacao associada: revisao estatica
+
+### `apps/api/src/modules/apr/service.ts`
+
+- Motivo da mudanca: normalizar `externalId` no formato de texto-formula Excel ao ler, importar e comparar dados APR
+- Risco: baixo
+- Validacao associada: `npm run test --workspace=apps/api -- apr-service.test.ts`, `npm run typecheck --workspace=apps/api`
+
+### `apps/api/src/modules/apr/validators.ts`
+
+- Motivo da mudanca: sanitizar `external_id` ja na validacao HTTP manual para evitar persistencia do wrapper `="..."`
+- Risco: baixo
+- Validacao associada: `npm run test --workspace=apps/api -- apr-service.test.ts`, `npm run typecheck --workspace=apps/api`
+
+### `apps/api/src/test/apr-service.test.ts`
+
+- Motivo da mudanca: cobrir explicitamente o caso `external_id =\"235269\"` na leitura e auditoria APR
+- Risco: baixo
+- Validacao associada: `npm run test --workspace=apps/api -- apr-service.test.ts`

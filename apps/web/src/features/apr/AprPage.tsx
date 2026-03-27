@@ -3,13 +3,15 @@ import { ApiError } from "../../lib/api";
 import { aprApi } from "./api";
 import type {
   AprAuditResponse,
+  AprCollaboratorSuggestion,
   AprHistoryResponse,
   AprImportResult,
   AprManualPayload,
   AprMonthItem,
   AprMonthSummary,
   AprRow,
-  AprSourceType
+  AprSourceType,
+  AprSubjectSuggestion
 } from "./types";
 
 interface AprPageProps {
@@ -93,12 +95,22 @@ const currentMonthRef = (): string => new Date().toISOString().slice(0, 7);
 const sortMonthsDesc = (months: AprMonthItem[]): AprMonthItem[] =>
   [...months].sort((left, right) => right.monthRef.localeCompare(left.monthRef));
 
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 export const AprPage = ({ onError, onToast }: AprPageProps) => {
   const [months, setMonths] = useState<AprMonthItem[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthRef);
   const [historySource, setHistorySource] = useState<AprSourceType>("manual");
   const [summary, setSummary] = useState<AprMonthSummary | null>(null);
   const [manualRows, setManualRows] = useState<AprRow[]>([]);
+  const [subjectSuggestions, setSubjectSuggestions] = useState<AprSubjectSuggestion[]>([]);
+  const [collaboratorSuggestions, setCollaboratorSuggestions] = useState<AprCollaboratorSuggestion[]>([]);
   const [audit, setAudit] = useState<AprAuditResponse>(DEFAULT_AUDIT);
   const [history, setHistory] = useState<AprHistoryResponse>(DEFAULT_HISTORY);
   const [manualForm, setManualForm] = useState<AprManualFormState>(EMPTY_MANUAL_FORM);
@@ -140,17 +152,28 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
     setLoadingMonthData(true);
 
     try {
-      const [summaryResponse, rowsResponse, auditResponse, historyResponse] = await Promise.all([
+      const [
+        summaryResponse,
+        rowsResponse,
+        auditResponse,
+        historyResponse,
+        subjectsResponse,
+        collaboratorsResponse
+      ] = await Promise.all([
         aprApi.getMonthSummary(selectedMonth, historySource),
         aprApi.getRows(selectedMonth, "manual"),
         aprApi.getAudit(selectedMonth, "all"),
-        aprApi.getHistory(selectedMonth, historySource)
+        aprApi.getHistory(selectedMonth, historySource),
+        aprApi.listSubjects(),
+        aprApi.listCollaborators()
       ]);
 
       setSummary(summaryResponse);
       setManualRows(rowsResponse.rows);
       setAudit(auditResponse);
       setHistory(historyResponse);
+      setSubjectSuggestions(subjectsResponse.subjects);
+      setCollaboratorSuggestions(collaboratorsResponse.collaborators);
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao carregar dados APR");
     } finally {
@@ -262,6 +285,128 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
     ],
     [summary]
   );
+
+  const exportAuditPdf = useCallback(() => {
+    const divergentDetails = audit.details.filter((item) => item.status !== "Conferido");
+    if (!divergentDetails.length) {
+      onError("Nao ha divergencias para exportar");
+      return;
+    }
+
+    const reportRows = divergentDetails
+      .map((item) => {
+        const changed =
+          item.changed.length > 0 ? escapeHtml(item.changed.join(", ")) : "Sem diferencas de campos";
+        const systemSubject = escapeHtml(item.system?.subject ?? "ausente");
+        const manualSubject = escapeHtml(item.manual?.subject ?? "ausente");
+        const systemCollaborator = escapeHtml(item.system?.collaborator ?? "ausente");
+        const manualCollaborator = escapeHtml(item.manual?.collaborator ?? "ausente");
+
+        return `
+          <tr>
+            <td>${escapeHtml(item.externalId)}</td>
+            <td>${escapeHtml(item.status)}</td>
+            <td>${systemSubject}</td>
+            <td>${manualSubject}</td>
+            <td>${systemCollaborator}</td>
+            <td>${manualCollaborator}</td>
+            <td>${changed}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const reportHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Relatorio APR ${escapeHtml(selectedMonth)}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+      h1, h2 { margin: 0 0 12px; }
+      p { margin: 0 0 8px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; font-size: 12px; }
+      th { background: #f3f4f6; }
+      .meta { margin-top: 12px; color: #4b5563; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Relatorio de divergencias APR</h1>
+    <p><strong>Referencia:</strong> ${escapeHtml(formatMonthLabel(selectedMonth))} (${escapeHtml(selectedMonth)})</p>
+    <p><strong>Total de divergencias:</strong> ${String(audit.summary.divergentes)}</p>
+    <p class="meta">Gerado em ${escapeHtml(new Date().toLocaleString("pt-BR"))}</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Assunto sistema</th>
+          <th>Assunto manual</th>
+          <th>Colaborador sistema</th>
+          <th>Colaborador manual</th>
+          <th>Campos alterados</th>
+        </tr>
+      </thead>
+      <tbody>${reportRows}</tbody>
+    </table>
+  </body>
+</html>`;
+
+    const printFrame = document.createElement("iframe");
+    printFrame.setAttribute("title", "apr-audit-pdf-export");
+    printFrame.style.position = "fixed";
+    printFrame.style.right = "0";
+    printFrame.style.bottom = "0";
+    printFrame.style.width = "0";
+    printFrame.style.height = "0";
+    printFrame.style.border = "0";
+
+    const cleanup = () => {
+      window.setTimeout(() => {
+        printFrame.remove();
+      }, 1000);
+    };
+
+    printFrame.onload = () => {
+      const frameWindow = printFrame.contentWindow;
+      if (!frameWindow) {
+        cleanup();
+        onError("Nao foi possivel preparar a exportacao em PDF");
+        return;
+      }
+
+      frameWindow.focus();
+      frameWindow.print();
+      cleanup();
+    };
+
+    document.body.appendChild(printFrame);
+    const frameDocument = printFrame.contentDocument;
+    if (!frameDocument) {
+      cleanup();
+      onError("Nao foi possivel preparar a exportacao em PDF");
+      return;
+    }
+
+    frameDocument.open();
+    frameDocument.write(reportHtml);
+    frameDocument.close();
+  }, [audit.details, audit.summary.divergentes, onError, selectedMonth]);
+
+  const visibleSubjectSuggestions = useMemo(() => {
+    const currentValue = manualForm.subject.trim().toUpperCase();
+    return subjectSuggestions
+      .filter((item) => !currentValue || item.subject.includes(currentValue))
+      .slice(0, 12);
+  }, [manualForm.subject, subjectSuggestions]);
+
+  const visibleCollaboratorSuggestions = useMemo(() => {
+    const currentValue = manualForm.collaborator.trim().toLowerCase();
+    return collaboratorSuggestions
+      .filter((item) => !currentValue || item.displayName.toLowerCase().includes(currentValue))
+      .slice(0, 12);
+  }, [collaboratorSuggestions, manualForm.collaborator]);
 
   return (
     <section className="space-y-4">
@@ -390,8 +535,14 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                 <p>
                   <strong>{importResult.totalValid}</strong> validos e{" "}
                   <strong>{importResult.totalInvalid}</strong> invalidos em{" "}
-                  <strong>{importResult.monthRef}</strong>.
+                  <strong>{importResult.importedMonths.join(", ")}</strong>.
                 </p>
+                {importResult.monthDetectedByDate && (
+                  <p className="mt-2 text-amber-100">
+                    Mes solicitado: {importResult.requestedMonthRef}. Meses reconhecidos:{" "}
+                    {importResult.importedMonths.join(", ")}.
+                  </p>
+                )}
                 {importResult.duplicates.length > 0 && (
                   <p className="mt-2 text-textMuted">
                     Duplicados ignorados: {importResult.duplicates.join(", ")}
@@ -500,11 +651,12 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
               </div>
 
               <div className="space-y-3">
-                <label className="block">
+                <label className="block" htmlFor="apr-manual-external-id">
                   <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">
                     External ID
                   </span>
                   <input
+                    id="apr-manual-external-id"
                     className="w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
                     value={manualForm.external_id}
                     onChange={(event) =>
@@ -513,11 +665,12 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                   />
                 </label>
 
-                <label className="block">
+                <label className="block" htmlFor="apr-manual-opened-on">
                   <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">
                     Data de abertura
                   </span>
                   <input
+                    id="apr-manual-opened-on"
                     className="w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
                     type="date"
                     value={manualForm.opened_on}
@@ -527,30 +680,48 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                   />
                 </label>
 
-                <label className="block">
+                <label className="block" htmlFor="apr-manual-subject">
                   <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">
                     Assunto
                   </span>
                   <input
+                    id="apr-manual-subject"
                     className="w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
+                    list="apr-subject-suggestions"
                     value={manualForm.subject}
                     onChange={(event) =>
                       setManualForm((current) => ({ ...current, subject: event.target.value }))
                     }
                   />
+                  <datalist id="apr-subject-suggestions">
+                    {visibleSubjectSuggestions.map((item) => (
+                      <option key={item.subject} value={item.subject}>
+                        {item.subject}
+                      </option>
+                    ))}
+                  </datalist>
                 </label>
 
-                <label className="block">
+                <label className="block" htmlFor="apr-manual-collaborator">
                   <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">
                     Colaborador
                   </span>
                   <input
+                    id="apr-manual-collaborator"
                     className="w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
+                    list="apr-collaborator-suggestions"
                     value={manualForm.collaborator}
                     onChange={(event) =>
                       setManualForm((current) => ({ ...current, collaborator: event.target.value }))
                     }
                   />
+                  <datalist id="apr-collaborator-suggestions">
+                    {visibleCollaboratorSuggestions.map((item) => (
+                      <option key={item.displayName} value={item.displayName}>
+                        {item.displayName}
+                      </option>
+                    ))}
+                  </datalist>
                 </label>
 
                 <button
@@ -578,9 +749,19 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                     {audit.summary.divergentes} divergencias entre sistema e manual.
                   </p>
                 </div>
-                <span className="rounded-full bg-panelAlt px-3 py-1 text-xs text-textMuted">
-                  {audit.summary.statusGeral}
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-xs text-textMain disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled={audit.summary.divergentes === 0}
+                    onClick={exportAuditPdf}
+                  >
+                    Exportar PDF
+                  </button>
+                  <span className="rounded-full bg-panelAlt px-3 py-1 text-xs text-textMuted">
+                    {audit.summary.statusGeral}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-3">

@@ -210,6 +210,89 @@ describe("APR service", () => {
     expect(history.details[0]?.status).toBe("Novo");
   });
 
+  it("sanitiza external_id no formato de formula ao ler e comparar auditoria", () => {
+    createAprEntry(db, {
+      monthRef: "2026-03",
+      sourceType: "system",
+      entry: {
+        externalId: '="235269"',
+        openedOn: "2026-03-02",
+        subject: "MAPEAMENTO",
+        collaborator: "Felipe"
+      }
+    });
+    createAprEntry(db, {
+      monthRef: "2026-03",
+      sourceType: "manual",
+      entry: {
+        externalId: "235269",
+        openedOn: "2026-03-02",
+        subject: "MAPEAMENTO",
+        collaborator: "Felipe"
+      }
+    });
+
+    const rows = getAprRowsService(db, { monthRef: "2026-03", sourceType: "system" });
+    const audit = getAprAuditService(db, {
+      monthRef: "2026-03",
+      filters: { mode: "all", search: null, collaborator: null, subject: null, date: null }
+    });
+
+    expect(rows.rows[0]?.externalId).toBe("235269");
+    expect(audit.summary).toMatchObject({
+      totalSistema: 1,
+      totalManual: 1,
+      conferido: 1,
+      soSistema: 0,
+      soManual: 0,
+      divergentes: 0,
+      statusGeral: "Conferido"
+    });
+    expect(audit.details[0]?.externalId).toBe("235269");
+  });
+
+  it("identifica divergencia quando sistema e manual possuem IDs diferentes", () => {
+    createAprEntry(db, {
+      monthRef: "2026-03",
+      sourceType: "system",
+      entry: {
+        externalId: "235269",
+        openedOn: "2026-03-02",
+        subject: "MAPEAMENTO",
+        collaborator: "Felipe"
+      }
+    });
+    createAprEntry(db, {
+      monthRef: "2026-03",
+      sourceType: "manual",
+      entry: {
+        externalId: "235270",
+        openedOn: "2026-03-02",
+        subject: "MAPEAMENTO",
+        collaborator: "Felipe"
+      }
+    });
+
+    const audit = getAprAuditService(db, {
+      monthRef: "2026-03",
+      filters: { mode: "all", search: null, collaborator: null, subject: null, date: null }
+    });
+
+    expect(audit.summary).toMatchObject({
+      totalSistema: 1,
+      totalManual: 1,
+      conferido: 0,
+      soSistema: 1,
+      soManual: 1,
+      divergentes: 2,
+      statusGeral: "Divergente"
+    });
+    expect(audit.details.map((item) => [item.externalId, item.status])).toEqual([
+      ["235269", "Só no sistema"],
+      ["235270", "Só no manual"]
+    ]);
+  });
+
   it("mantem um catalogo isolado de colaboradores a partir das entradas APR", () => {
     createAprManualEntryService(db, {
       requestedMonthRef: "2026-03",
@@ -234,7 +317,7 @@ describe("APR service", () => {
 
     expect(catalog.collaborators).toHaveLength(1);
     expect(catalog.collaborators[0]).toMatchObject({
-      displayName: "Joao Pedro",
+      displayName: "JOAO PEDRO",
       occurrenceCount: 2
     });
   });

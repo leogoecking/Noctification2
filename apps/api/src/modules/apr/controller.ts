@@ -20,6 +20,7 @@ import {
   deleteAprManualEntryService,
   getAprAuditService,
   listAprCollaboratorsService,
+  listAprSubjectsService,
   getAprHistoryService,
   getAprMonthSummaryService,
   getAprRowsService,
@@ -34,6 +35,11 @@ export const createAprController = (db: Database.Database) => ({
   listCollaborators: (req: Request, res: Response) => {
     const search = typeof req.query?.search === "string" ? req.query.search : undefined;
     res.json(listAprCollaboratorsService(db, { search }));
+  },
+
+  listSubjects: (req: Request, res: Response) => {
+    const search = typeof req.query?.search === "string" ? req.query.search : undefined;
+    res.json(listAprSubjectsService(db, { search }));
   },
 
   listMonths: (_req: Request, res: Response) => {

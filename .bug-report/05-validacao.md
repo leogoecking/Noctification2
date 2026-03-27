@@ -50,3 +50,15 @@
   - todos os comandos aprovados
 - Observacoes:
   - as protecoes destrutivas ficaram cobertas por testes especificos em `apr-destructive.test.ts`
+
+## Validacao adicional da divergencia APR
+
+- Escopo: `apps/api/src/modules/apr`
+- Comandos:
+  - `npm run test --workspace=apps/api -- apr-service.test.ts`
+  - `npm run typecheck --workspace=apps/api`
+- Resultado:
+  - ambos aprovados
+- Observacoes:
+  - o novo teste cobre explicitamente o caso `external_id =\"235269\"` no fluxo de leitura e auditoria
+  - o ambiente continuou emitindo warnings de npm sobre `globalignorefile`, sem bloquear a execucao

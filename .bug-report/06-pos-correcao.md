@@ -37,3 +37,15 @@
   - nenhum fora do proprio modulo; a integracao ficou concentrada em `appShell`
 - Pendencias para revisao humana:
   - validar UX final do fluxo de importacao e dos filtros de audit/history quando o modulo for ativado em ambiente real
+
+## Reanalise adicional da divergencia APR
+
+- Problemas resolvidos:
+  - `external_id` no formato `="235269"` passa a ser normalizado para `235269` no backend APR
+  - a auditoria deixa de tratar a variante com wrapper Excel como ID diferente quando o outro lado ja esta sanitizado
+- Problemas persistentes:
+  - registros historicos duplicados que coexistam nas duas formas no banco ainda exigem saneamento de dados se precisarem ser deduplicados fisicamente
+- Novos riscos detectados:
+  - nenhum fora do namespace APR; a mudanca ficou restrita a validacao e serializacao de `externalId`
+- Pendencias para revisao humana:
+  - verificar se existe massa historica com IDs encapsulados que mereca limpeza retroativa no banco

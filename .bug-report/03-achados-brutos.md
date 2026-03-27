@@ -14,3 +14,13 @@
 
 - Nenhum bug funcional existente foi alvo desta fase.
 - Nenhuma vulnerabilidade confirmada foi identificada no escopo executado.
+
+### BUG-003
+
+- Categoria: `bug_reproduzivel`
+- Evidencia:
+  - O pacote `packages/apr-core/src/import.ts` ja remove o wrapper Excel `="..."` via `unwrapSpreadsheetFormulaText`.
+  - O backend APR em `apps/api/src/modules/apr/service.ts` e `apps/api/src/modules/apr/validators.ts` nao reaplicava a mesma sanitizacao ao validar payload manual, ler registros persistidos e comparar auditoria.
+  - O valor reportado pelo usuario, `="235269"`, e compativel com esse formato bruto de planilha e explica o ID incorreto exibido em `auditoria/divergencia`.
+- Interpretacao:
+  - O modulo APR aceitava/exibia `external_id` cru em alguns fluxos, causando divergencia visual e comparacoes incorretas quando o dado vinha encapsulado como texto-formula do Excel.

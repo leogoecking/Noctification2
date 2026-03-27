@@ -18,6 +18,7 @@ export const createAprRouter = (db: Database.Database, config: AppConfig) => {
   router.use(authenticate(db, config));
 
   router.get("/collaborators", controller.listCollaborators);
+  router.get("/subjects", controller.listSubjects);
   router.get("/months", controller.listMonths);
   router.get("/snapshots", controller.listSnapshots);
   router.post("/snapshots", controller.createSnapshot);

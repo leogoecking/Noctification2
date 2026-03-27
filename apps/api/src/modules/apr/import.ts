@@ -108,7 +108,7 @@ export const parseAprImportRequest = async (
     throw new Error("Nenhum registro valido encontrado no arquivo");
   }
 
-  const grouped = groupRowsByDateMonth(normalized.rows, refMonth);
+  const grouped = groupRowsByDateMonth(normalized.rows);
   if (!grouped.size) {
     throw new Error("Nao foi possivel processar os registros para o mes informado");
   }

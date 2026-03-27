@@ -1,3 +1,4 @@
+import { unwrapSpreadsheetFormulaText } from "@noctification/apr-core";
 import type { AprSourceType } from "./repository";
 
 export interface AprManualPayload {
@@ -26,6 +27,8 @@ export interface AprDestructivePayload {
 
 const normalizeWhitespace = (value: unknown): string =>
   String(value ?? "").trim().replace(/\s+/g, " ");
+const normalizeExternalId = (value: unknown): string =>
+  normalizeWhitespace(unwrapSpreadsheetFormulaText(value));
 
 const readBodyRecord = (body: unknown): Record<string, unknown> => (body as Record<string, unknown> | null | undefined) ?? {};
 
@@ -86,7 +89,7 @@ export const validateAprManualPayload = (
   body: unknown
 ): { value: AprManualPayload } | { error: string } => {
   const payload = body as Record<string, unknown> | null | undefined;
-  const externalId = normalizeWhitespace(payload?.external_id);
+  const externalId = normalizeExternalId(payload?.external_id);
   const openedOn = normalizeWhitespace(payload?.opened_on);
   const subject = normalizeWhitespace(payload?.subject);
   const collaborator = normalizeWhitespace(payload?.collaborator);
