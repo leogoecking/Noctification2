@@ -667,4 +667,42 @@ describe("reminder routes", () => {
     expect(healthBody.health.retriesToday).toBe(1);
     expect(healthBody.health.schedulerEnabled).toBe(testConfig.enableReminderScheduler);
   });
+
+  it("rejeita filtros invalidos no admin de lembretes", () => {
+    const listOccurrencesHandler = getRouteHandler(adminRouter, "/reminder-occurrences", "get");
+    const listLogsHandler = getRouteHandler(adminRouter, "/reminder-logs", "get");
+
+    const invalidStatusRes = createMockResponse();
+    listOccurrencesHandler(
+      {
+        authUser: adminUser,
+        query: { status: "wrong" }
+      },
+      invalidStatusRes
+    );
+    expect(invalidStatusRes.statusCode).toBe(400);
+    expect((invalidStatusRes.body as ErrorResponseBody).error).toMatch(/status invalido/i);
+
+    const invalidFilterRes = createMockResponse();
+    listOccurrencesHandler(
+      {
+        authUser: adminUser,
+        query: { filter: "tomorrow" }
+      },
+      invalidFilterRes
+    );
+    expect(invalidFilterRes.statusCode).toBe(400);
+    expect((invalidFilterRes.body as ErrorResponseBody).error).toMatch(/filter invalido/i);
+
+    const invalidEventTypeRes = createMockResponse();
+    listLogsHandler(
+      {
+        authUser: adminUser,
+        query: { event_type: "reminder.unknown" }
+      },
+      invalidEventTypeRes
+    );
+    expect(invalidEventTypeRes.statusCode).toBe(400);
+    expect((invalidEventTypeRes.body as ErrorResponseBody).error).toMatch(/event_type invalido/i);
+  });
 });

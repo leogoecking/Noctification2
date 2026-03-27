@@ -1,101 +1,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
+import { ReminderCollections } from "./reminders/ReminderCollections";
+import { ReminderComposer } from "./reminders/ReminderComposer";
+import { ReminderPendingList } from "./reminders/ReminderPendingList";
 import {
   subscribeReminderDue,
   subscribeReminderUpdated,
   type IncomingReminderDue,
   type IncomingReminderUpdated
 } from "../lib/reminderEvents";
-import type { ReminderItem, ReminderOccurrenceItem, ReminderRepeatType } from "../types";
+import type { ReminderItem, ReminderOccurrenceItem } from "../types";
+import {
+  matchesOccurrenceFilter,
+  matchesReminderFilter,
+  REMINDER_EMPTY_FORM,
+  sortReminders,
+  type OccurrenceFilterMode,
+  type ReminderFilterMode
+} from "./reminders/reminderUi";
 
 interface ReminderUserPanelProps {
   onError: (message: string) => void;
   onToast: (message: string) => void;
 }
 
-type ReminderFilterMode = "all" | "active" | "inactive";
-type OccurrenceFilterMode = "all" | "today" | ReminderOccurrenceItem["status"];
-
-const REMINDER_FILTER_LABELS: Record<ReminderFilterMode, string> = {
-  all: "Todos",
-  active: "Ativos",
-  inactive: "Inativos"
-};
-
-const OCCURRENCE_FILTER_LABELS: Record<OccurrenceFilterMode, string> = {
-  all: "Todas",
-  today: "Hoje",
-  pending: "Pendentes",
-  completed: "Concluidas",
-  expired: "Expiradas",
-  cancelled: "Canceladas"
-};
-
-const EMPTY_FORM = {
-  id: 0,
-  title: "",
-  description: "",
-  startDate: "",
-  timeOfDay: "",
-  timezone: "America/Bahia",
-  repeatType: "none" as ReminderRepeatType,
-  weekdays: [] as number[]
-};
-
-const WEEKDAY_LABELS = [
-  { short: "Dom", full: "domingo", value: 0 },
-  { short: "Seg", full: "segunda", value: 1 },
-  { short: "Ter", full: "terca", value: 2 },
-  { short: "Qua", full: "quarta", value: 3 },
-  { short: "Qui", full: "quinta", value: 4 },
-  { short: "Sex", full: "sexta", value: 5 },
-  { short: "Sab", full: "sabado", value: 6 }
-] as const;
-
-const matchesReminderFilter = (item: ReminderItem, filter: ReminderFilterMode): boolean => {
-  if (filter === "active") {
-    return item.isActive;
-  }
-
-  if (filter === "inactive") {
-    return !item.isActive;
-  }
-
-  return true;
-};
-
-const sortReminders = (items: ReminderItem[]): ReminderItem[] =>
-  [...items].sort((left, right) => {
-    if (left.isActive !== right.isActive) {
-      return left.isActive ? -1 : 1;
-    }
-
-    return right.createdAt.localeCompare(left.createdAt);
-  });
-
-const matchesOccurrenceFilter = (
-  item: ReminderOccurrenceItem,
-  filter: OccurrenceFilterMode
-): boolean => {
-  if (filter === "today") {
-    return (
-      new Date(item.scheduledFor).toLocaleDateString("sv-SE") ===
-      new Date().toLocaleDateString("sv-SE")
-    );
-  }
-
-  if (filter !== "all") {
-    return item.status === filter;
-  }
-
-  return true;
-};
-
 export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) => {
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [occurrences, setOccurrences] = useState<ReminderOccurrenceItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [form, setForm] = useState(REMINDER_EMPTY_FORM);
   const [reminderFilter, setReminderFilter] = useState<ReminderFilterMode>("all");
   const [occurrenceFilter, setOccurrenceFilter] = useState<OccurrenceFilterMode>("all");
   const loadRequestIdRef = useRef(0);
@@ -138,8 +72,8 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
         return;
       }
 
-      setReminders(remindersResponse.reminders as ReminderItem[]);
-      setOccurrences(occurrencesResponse.occurrences as ReminderOccurrenceItem[]);
+      setReminders(remindersResponse.reminders);
+      setOccurrences(occurrencesResponse.occurrences);
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) {
         return;
@@ -261,7 +195,7 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
         onToast("Lembrete criado");
       }
 
-      setForm(EMPTY_FORM);
+      setForm(REMINDER_EMPTY_FORM);
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao salvar lembrete");
     }
@@ -337,42 +271,6 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
     [occurrences]
   );
 
-  const formatOccurrenceStatus = (status: ReminderOccurrenceItem["status"]) => {
-    if (status === "pending") return "Pendente";
-    if (status === "completed") return "Concluida";
-    if (status === "expired") return "Expirada";
-    return "Cancelada";
-  };
-
-  const formatRepeatType = (repeatType: ReminderRepeatType) => {
-    if (repeatType === "none") return "Sem repeticao";
-    if (repeatType === "daily") return "Diaria";
-    if (repeatType === "weekly") return "Semanal";
-    if (repeatType === "monthly") return "Mensal";
-    return "Dias uteis";
-  };
-
-  const formatReminderSummary = (item: Pick<ReminderItem, "repeatType" | "weekdays" | "timeOfDay">) => {
-    if (item.repeatType === "none") {
-      return `Uma vez as ${item.timeOfDay}`;
-    }
-
-    if (item.repeatType === "daily") {
-      return `Todos os dias as ${item.timeOfDay}`;
-    }
-
-    if (item.repeatType === "monthly") {
-      return `Todo mes as ${item.timeOfDay}`;
-    }
-
-    if (item.repeatType === "weekdays") {
-      return `Dias uteis as ${item.timeOfDay}`;
-    }
-
-    const days = WEEKDAY_LABELS.filter((day) => item.weekdays.includes(day.value)).map((day) => day.full);
-    return days.length > 0 ? `${days.join(", ")} as ${item.timeOfDay}` : `Semanal as ${item.timeOfDay}`;
-  };
-
   const pendingOccurrences = useMemo(
     () => occurrences.filter((item) => item.status === "pending").slice(0, 5),
     [occurrences]
@@ -382,250 +280,56 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
     <section className="space-y-4">
       <header className="rounded-2xl border border-slate-700 bg-panel p-4">
         <h3 className="font-display text-lg text-textMain">Lembretes</h3>
-        <p className="text-sm text-textMuted">Cadastro e acompanhamento dos seus lembretes</p>
+        <p className="text-sm text-textMuted">Acompanhamento da sua rotina e dos lembretes ativos</p>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Lembretes</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{reminderStats.total}</p>
-          <p className="mt-1 text-xs text-textMuted">
-            {reminderStats.active} ativos | {reminderStats.inactive} inativos
-          </p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-warning">Pendentes</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{occurrenceStats.pending}</p>
-          <p className="mt-1 text-xs text-textMuted">Ocorrencias aguardando conclusao</p>
-        </article>
-        <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-success">Resolucao</p>
-          <p className="mt-2 font-display text-2xl text-textMain">{occurrenceStats.completed}</p>
-          <p className="mt-1 text-xs text-textMuted">{occurrenceStats.expired} expiradas</p>
-        </article>
-      </section>
+      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Visao rapida</p>
+            <h4 className="mt-1 font-display text-base text-textMain">Meus lembretes</h4>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-panelAlt px-3 py-1.5 text-textMain">{reminderStats.total} lembretes</span>
+            <span className="rounded-full bg-accent/10 px-3 py-1.5 text-accent">{reminderStats.active} ativos</span>
+            <span className="rounded-full bg-warning/20 px-3 py-1.5 text-warning">{occurrenceStats.pending} pendentes</span>
+            <span className="rounded-full bg-success/20 px-3 py-1.5 text-success">{occurrenceStats.completed} concluidas</span>
+          </div>
+        </div>
+      </article>
 
       <div className="grid gap-4 xl:grid-cols-[1.05fr,0.95fr]">
         <div className="space-y-4">
-          <article className="rounded-2xl border border-warning/40 bg-warning/5 p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h4 className="font-display text-base text-textMain">Ocorrencias pendentes agora</h4>
-                <p className="text-sm text-textMuted">Itens que exigem sua confirmacao</p>
-              </div>
-              <span className="rounded-full bg-warning/20 px-3 py-1 text-xs text-warning">
-                {occurrenceStats.pending} pendentes
-              </span>
-            </div>
-            {pendingOccurrences.length === 0 && (
-              <p className="text-sm text-textMuted">
-                Nenhuma ocorrencia pendente no momento. Seus proximos lembretes aparecerao aqui.
-              </p>
-            )}
-            <div className="space-y-2">
-              {pendingOccurrences.map((item) => (
-                <div key={item.id} className="rounded-xl border border-slate-700 bg-panel p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold text-textMain">{item.title}</p>
-                    <span className="rounded-full bg-warning/20 px-2.5 py-1 text-xs text-warning">
-                      Tentativas: {item.retryCount}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-textMuted">
-                    Agendado para {new Date(item.scheduledFor).toLocaleString("pt-BR")}
-                  </p>
-                  {item.description && (
-                    <p className="mt-2 line-clamp-2 text-sm text-textMuted">{item.description}</p>
-                  )}
-                  <button
-                    className="mt-3 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
-                    onClick={() => completeOccurrence(item.id)}
-                  >
-                    Concluir
-                  </button>
-                </div>
-              ))}
-            </div>
-          </article>
+          <ReminderPendingList
+            pendingCount={occurrenceStats.pending}
+            pendingOccurrences={pendingOccurrences}
+            onCompleteOccurrence={completeOccurrence}
+          />
 
-          <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
-            <div>
-              <h4 className="font-display text-base text-textMain">
-                {form.id ? "Editar lembrete" : "Novo lembrete"}
-              </h4>
-              <p className="text-sm text-textMuted">Configure horario, repeticao e dias da semana</p>
-            </div>
-            <input className="input" placeholder="Titulo" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
-            <textarea className="input min-h-24" placeholder="Descricao opcional" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />
-            <div className="grid gap-3 md:grid-cols-2">
-              <input className="input" type="date" value={form.startDate} onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))} />
-              <input className="input" type="time" value={form.timeOfDay} onChange={(event) => setForm((prev) => ({ ...prev, timeOfDay: event.target.value }))} />
-            </div>
-            <select className="input" value={form.repeatType} onChange={(event) => setForm((prev) => ({ ...prev, repeatType: event.target.value as ReminderRepeatType, weekdays: event.target.value === "weekdays" ? [1, 2, 3, 4, 5] : prev.weekdays }))}>
-              <option value="none">Sem repeticao</option>
-              <option value="daily">Diaria</option>
-              <option value="weekly">Semanal</option>
-              <option value="monthly">Mensal</option>
-              <option value="weekdays">Dias uteis</option>
-            </select>
-            {form.repeatType === "weekly" && (
-              <div className="flex flex-wrap gap-2">
-                {WEEKDAY_LABELS.map((item) => (
-                  <button
-                    key={item.value}
-                    className={`rounded-full px-3 py-2 text-xs ${
-                      form.weekdays.includes(item.value) ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"
-                    }`}
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        weekdays: prev.weekdays.includes(item.value)
-                          ? prev.weekdays.filter((value) => value !== item.value)
-                          : [...prev.weekdays, item.value].sort((a, b) => a - b)
-                      }))
-                    }
-                    type="button"
-                  >
-                    {item.short}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button className="btn-primary" onClick={saveReminder}>
-                {form.id ? "Salvar" : "Criar lembrete"}
-              </button>
-              {form.id > 0 && (
-                <button className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain" onClick={() => setForm(EMPTY_FORM)}>
-                  Cancelar
-                </button>
-              )}
-            </div>
-          </article>
+          <ReminderComposer
+            composerOpen={composerOpen}
+            form={form}
+            onFormChange={(updater) => setForm((current) => updater(current))}
+            onReset={() => setForm(REMINDER_EMPTY_FORM)}
+            onSave={() => void saveReminder()}
+            onToggleComposer={() => setComposerOpen((current) => !current)}
+          />
         </div>
 
         <div className="space-y-4">
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h4 className="font-display text-base text-textMain">Meus lembretes</h4>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: REMINDER_FILTER_LABELS.all, value: "all" },
-              { label: REMINDER_FILTER_LABELS.active, value: "active" },
-              { label: REMINDER_FILTER_LABELS.inactive, value: "inactive" }
-            ].map((option) => (
-              <button
-                key={option.value}
-                className={`rounded-lg px-3 py-2 text-xs ${
-                  reminderFilter === option.value
-                    ? "bg-accent text-slate-900"
-                    : "border border-slate-600 text-textMain"
-                }`}
-                onClick={() => setReminderFilter(option.value as ReminderFilterMode)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {loading && <p className="text-sm text-textMuted">Carregando...</p>}
-        {!loading && reminders.length === 0 && (
-          <p className="text-sm text-textMuted">
-            Nenhum lembrete encontrado para este filtro. Ajuste os filtros ou crie um novo lembrete.
-          </p>
-        )}
-        <div className="space-y-2">
-          {reminders.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-textMain">{item.title}</p>
-                  <p className="text-xs text-textMuted">
-                    Inicio em {item.startDate} | {formatRepeatType(item.repeatType)}
-                  </p>
-                  <p className="mt-1 text-xs text-textMuted">{formatReminderSummary(item)}</p>
-                </div>
-                <span className={`rounded-md px-2 py-1 text-xs ${item.isActive ? "bg-success/20 text-success" : "bg-panel text-textMuted"}`}>
-                  {item.isActive ? "Ativo" : "Inativo"}
-                </span>
-              </div>
-              {item.description && <p className="mt-2 line-clamp-2 text-sm text-textMuted">{item.description}</p>}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain" onClick={() => setForm({ ...item, weekdays: item.weekdays })}>
-                  Editar
-                </button>
-                <button className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain" onClick={() => toggleReminder(item)}>
-                  {item.isActive ? "Desativar" : "Ativar"}
-                </button>
-                <button className="rounded-lg border border-danger/60 px-3 py-2 text-xs text-danger" onClick={() => deleteReminder(item.id)}>
-                  Arquivar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </article>
-
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h4 className="font-display text-base text-textMain">Historico de ocorrencias</h4>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: OCCURRENCE_FILTER_LABELS.all, value: "all" },
-              { label: OCCURRENCE_FILTER_LABELS.today, value: "today" },
-              { label: OCCURRENCE_FILTER_LABELS.pending, value: "pending" },
-              { label: OCCURRENCE_FILTER_LABELS.completed, value: "completed" },
-              { label: OCCURRENCE_FILTER_LABELS.expired, value: "expired" }
-            ].map((option) => (
-              <button
-                key={option.value}
-                className={`rounded-lg px-3 py-2 text-xs ${
-                  occurrenceFilter === option.value
-                    ? "bg-accent text-slate-900"
-                    : "border border-slate-600 text-textMain"
-                }`}
-                onClick={() => setOccurrenceFilter(option.value as OccurrenceFilterMode)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {occurrences.length === 0 && (
-          <p className="text-sm text-textMuted">
-            Nenhuma ocorrencia encontrada para este filtro.
-          </p>
-        )}
-        <div className="space-y-2">
-          {occurrences.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold text-textMain">{item.title}</p>
-                <span className="rounded-md bg-panel px-2 py-1 text-xs text-textMuted">
-                  {formatOccurrenceStatus(item.status)}
-                </span>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
-                <span>Agendado para {new Date(item.scheduledFor).toLocaleString("pt-BR")}</span>
-                <span>Tentativas: {item.retryCount}</span>
-                {item.completedAt && (
-                  <span>Concluida em {new Date(item.completedAt).toLocaleString("pt-BR")}</span>
-                )}
-                {item.expiredAt && (
-                  <span>Expirada em {new Date(item.expiredAt).toLocaleString("pt-BR")}</span>
-                )}
-              </div>
-              {item.status === "pending" && (
-                <button className="mt-2 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900" onClick={() => completeOccurrence(item.id)}>
-                  Concluir
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </article>
+          <ReminderCollections
+            loading={loading}
+            occurrenceFilter={occurrenceFilter}
+            occurrences={occurrences}
+            reminderFilter={reminderFilter}
+            reminders={reminders}
+            onCompleteOccurrence={completeOccurrence}
+            onDeleteReminder={deleteReminder}
+            onEditReminder={(item) => setForm({ ...item, weekdays: item.weekdays })}
+            onOccurrenceFilterChange={setOccurrenceFilter}
+            onReminderFilterChange={setReminderFilter}
+            onToggleReminder={toggleReminder}
+          />
         </div>
       </div>
     </section>

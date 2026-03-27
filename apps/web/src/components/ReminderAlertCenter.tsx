@@ -10,6 +10,11 @@ import {
 import { useBrowserNotifications } from "../hooks/useBrowserNotifications";
 import { useReminderSocket } from "../hooks/useReminderSocket";
 import type { ReminderOccurrenceItem } from "../types";
+import {
+  buildOccurrenceFromDue,
+  ReminderAlertCard,
+  type ReminderVisualAlert
+} from "./reminder-alerts/reminderAlertUi";
 
 interface ReminderAlertCenterProps {
   isVisible: boolean;
@@ -17,30 +22,6 @@ interface ReminderAlertCenterProps {
   onToast: (message: string) => void;
   onOpenReminders: () => void;
 }
-
-interface ReminderVisualAlert {
-  occurrence: ReminderOccurrenceItem;
-  audioBlocked: boolean;
-  dismissed: boolean;
-}
-
-const buildOccurrenceFromDue = (payload: IncomingReminderDue): ReminderOccurrenceItem => ({
-  id: payload.occurrenceId,
-  reminderId: payload.reminderId,
-  userId: payload.userId,
-  scheduledFor: payload.scheduledFor,
-  triggeredAt: new Date().toISOString(),
-  status: "pending",
-  retryCount: payload.retryCount,
-  nextRetryAt: null,
-  completedAt: null,
-  expiredAt: null,
-  triggerSource: "socket",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  title: payload.title,
-  description: payload.description
-});
 
 export const ReminderAlertCenter = ({
   isVisible,
@@ -216,86 +197,22 @@ export const ReminderAlertCenter = ({
   return (
     <aside className="fixed bottom-20 right-4 z-40 flex w-full max-w-md flex-col gap-3">
       {visibleAlerts.map((alert) => (
-        <article
+        <ReminderAlertCard
           key={alert.occurrence.id}
-          className="rounded-2xl border border-warning/60 bg-warning/10 p-4 shadow-lg"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="font-display text-base text-textMain">Lembrete pendente agora</p>
-              <p className="mt-1 font-semibold text-textMain">{alert.occurrence.title}</p>
-              {alert.occurrence.description && (
-                <p className="mt-1 text-sm text-textMuted">{alert.occurrence.description}</p>
-              )}
-              <p className="mt-2 text-xs text-textMuted">
-                Agendado para {new Date(alert.occurrence.scheduledFor).toLocaleString("pt-BR")} | Tentativas:{" "}
-                {alert.occurrence.retryCount}
-              </p>
-              {permission === "default" && (
-                <div className="mt-2 space-y-2">
-                  <p className="text-xs text-textMuted">
-                    Ative notificacoes do navegador para receber alertas quando a aba estiver em segundo plano.
-                  </p>
-                  <button
-                    className="rounded-lg border border-accent/60 px-3 py-2 text-xs text-accent"
-                    onClick={() => {
-                      void requestPermission();
-                    }}
-                    type="button"
-                  >
-                    Ativar notificacoes do navegador
-                  </button>
-                </div>
-              )}
-              {permission === "denied" && (
-                <p className="mt-2 text-xs text-warning">
-                  A permissao de notificacoes do navegador esta bloqueada. O alerta visual continua ativo.
-                </p>
-              )}
-              {alert.audioBlocked && (
-                <div className="mt-2 space-y-2">
-                  <p className="text-xs text-warning">
-                    O navegador bloqueou o som. O alerta visual continua ativo.
-                  </p>
-                  <button
-                    className="rounded-lg border border-warning/60 px-3 py-2 text-xs text-warning"
-                    onClick={() => {
-                      void retryAlertSound(alert);
-                    }}
-                    type="button"
-                  >
-                    Tentar som novamente
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
-                onClick={() => {
-                  void completeOccurrence(alert);
-                }}
-                type="button"
-              >
-                Concluir
-              </button>
-              <button
-                className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain"
-                onClick={onOpenReminders}
-                type="button"
-              >
-                Abrir lembretes
-              </button>
-              <button
-                className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMuted"
-                onClick={() => dismissAlert(alert.occurrence.id)}
-                type="button"
-              >
-                Fechar pop-up
-              </button>
-            </div>
-          </div>
-        </article>
+          alert={alert}
+          permission={permission}
+          onRequestPermission={() => {
+            void requestPermission();
+          }}
+          onRetryAudio={() => {
+            void retryAlertSound(alert);
+          }}
+          onComplete={() => {
+            void completeOccurrence(alert);
+          }}
+          onOpenReminders={onOpenReminders}
+          onDismiss={() => dismissAlert(alert.occurrence.id)}
+        />
       ))}
     </aside>
   );

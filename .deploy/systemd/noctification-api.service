@@ -1,0 +1,17 @@
+[Unit]
+Description=Noctification API
+After=network.target
+
+[Service]
+Type=simple
+User=leo
+Group=leo
+Environment=APP_ROOT=/home/leo/Noctification2
+EnvironmentFile=/etc/noctification/api.env
+ExecStart=/usr/bin/bash -lc 'cd "${APP_ROOT}/apps/api" && exec /usr/bin/node dist/index.js'
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

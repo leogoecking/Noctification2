@@ -1,79 +1,101 @@
-# Reconhecimento do repositorio
+# 01 - Reconhecimento do Repositório
 
-## Visao estrutural
+## Visão estrutural
 
 - Tipo: monorepo npm workspaces.
-- Workspaces:
-  - `apps/api`: API Express + Socket.IO + SQLite.
-  - `apps/web`: frontend React + Vite.
-- Pastas de suporte:
-  - `apps/api/migrations`: migracoes SQL.
-  - `ops/`: scripts de deploy, nginx, systemd e cron.
-  - `.github/workflows/main.yml`: CI de seguranca, lint, typecheck, audit e testes.
+- Workspaces detectados:
+  - `apps/api`
+  - `apps/web`
+- Pastas relevantes:
+  - `apps/api/src`
+  - `apps/api/migrations`
+  - `apps/web/src`
+  - `docs`
+  - `ops`
 
 ## Stack detectada
 
-- Runtime principal: Node.js.
-- Linguagens: TypeScript no backend e frontend.
-- Backend:
-  - Express
-  - Socket.IO
-  - better-sqlite3
-  - bcryptjs
-  - jsonwebtoken
-- Frontend:
-  - React 18
-  - Vite
-  - Tailwind CSS
-  - socket.io-client
-- Qualidade:
-  - ESLint
-  - TypeScript (`tsc`)
-  - Vitest
-  - React Testing Library
+### Backend
 
-## Ferramentas disponiveis
+- Linguagem: TypeScript
+- Runtime: Node.js
+- Framework HTTP: Express
+- Banco: SQLite via `better-sqlite3`
+- Realtime: Socket.IO
+- Push: `web-push`
+- Testes: Vitest + Supertest
+- Lint: ESLint
+- Typecheck: TypeScript `tsc --noEmit`
 
-- Confirmadas no ambiente: `node`, `npm`, `npx`, `git`, `find`, `sed`.
-- Disponiveis via dependencias locais/scripts: `tsc`, `eslint`, `vite`, `vitest`.
-- Indisponivel: `rg`.
-- Restricao relevante: sem necessidade de rede para a analise executada.
+### Frontend
 
-## Entrypoints
+- Linguagem: TypeScript
+- UI: React 18
+- Build/dev server: Vite
+- Estilo: Tailwind CSS
+- Testes: Vitest + Testing Library + JSDOM
+- Lint: ESLint
+- Typecheck: TypeScript `tsc --noEmit`
 
-- API:
-  - `apps/api/src/index.ts`
-  - `apps/api/src/app.ts`
-  - routers principais:
-    - `apps/api/src/routes/auth.ts`
-    - `apps/api/src/routes/admin.ts`
-    - `apps/api/src/routes/me.ts`
-    - `apps/api/src/routes/reminders-admin.ts`
-    - `apps/api/src/routes/reminders-me.ts`
-- Realtime:
-  - `apps/api/src/socket.ts`
-- Scheduler:
-  - `apps/api/src/reminders/scheduler.ts`
-- Frontend:
-  - `apps/web/src/main.tsx`
-  - `apps/web/src/App.tsx`
+## Entrypoints confirmados
 
-## Modulos criticos
+### API
 
-- Autenticacao e sessao por cookie.
-- Entrega e leitura de notificacoes.
-- Compatibilidade entre `response_status` legado e `operational_status`.
-- Scheduler e recorrencia de lembretes.
-- Integracao frontend/socket para eventos em tempo real.
+- Bootstrap HTTP: `apps/api/src/index.ts`
+- App Express: `apps/api/src/app.ts`
+- Socket: `apps/api/src/socket.ts`
+- Rotas:
+  - `apps/api/src/routes/auth.ts`
+  - `apps/api/src/routes/admin.ts`
+  - `apps/api/src/routes/me.ts`
+  - `apps/api/src/routes/reminders-admin.ts`
+  - `apps/api/src/routes/reminders-me.ts`
+  - `apps/api/src/routes/tasks-admin.ts`
+  - `apps/api/src/routes/tasks-me.ts`
 
-## Areas de maior risco
+### Web
 
-- Compatibilidade de dados legados em `notification_recipients`.
-- Regras de agendamento baseadas em `last_scheduled_for`.
-- Fluxos de mutacao com efeitos colaterais em realtime e auditoria.
+- Entry: `apps/web/src/main.tsx`
+- Shell principal: `apps/web/src/App.tsx`
 
-## Estrategia proposta para analise
+## Infra e automação
 
-1. Validar lint, typecheck, testes e build para detectar regressao objetiva.
-2. Revisar manualmente modulos criticos com foco em estado legado, scheduler e integracao.
-3. Reproduzir cenarios minimos quando houver suspeita concreta de bug.
+- CI detectada: `.github/workflows/main.yml`
+- Jobs principais:
+  - verificação de arquivos proibidos
+  - lint
+  - typecheck
+  - `npm audit`
+  - testes API
+  - testes Web
+
+## Ferramentas disponíveis e indisponíveis
+
+- Disponíveis: `npm`, `node`, `git`, `sqlite3`
+- Indisponíveis: `rg`, `docker`
+
+## Áreas de maior risco observadas
+
+- Contratos de runtime do frontend (`apps/web/src/lib/runtimeUrls.ts`, `apps/web/src/main.tsx`)
+- Scripts raiz e fluxo local de validação (`package.json`)
+- Integração Web Push (`apps/api/src/routes/me.ts`, `apps/web/src/lib/api.ts`)
+
+## Estratégia proposta
+
+1. Validar integridade global com lint, typecheck e testes.
+2. Correlacionar qualquer falha com código.
+3. Como a base passou, procurar bugs reproduzíveis por inspeção dirigida em áreas sensíveis.
+4. Separar bug confirmado de risco potencial e erro de configuração.
+
+## Adendo 2026-03-26 - superficie de risco de dependencias
+
+- Lockfile: `package-lock.json` v3.
+- Ferramenta de auditoria confirmada: `npm audit`.
+- Dependencias afetadas pelo resultado informado:
+  - `flatted` via `eslint -> file-entry-cache -> flat-cache`
+  - `picomatch` via `tailwindcss/chokidar/micromatch` e via `vite`/`vitest`/`tinyglobby`
+  - `socket.io-parser` via `socket.io` e `socket.io-client`
+- Areas de maior risco desta rodada:
+  - runtime realtime da API/Web por uso de `socket.io-parser`
+  - cadeia de build/teste do frontend por uso de `picomatch`
+  - cadeia de lint por uso de `flatted`

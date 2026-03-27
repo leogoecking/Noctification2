@@ -23,6 +23,7 @@ type UserNotificationResponseItem = {
   message: string;
   priority: "low" | "normal" | "high" | "critical";
   recipient_mode: "all" | "users";
+  source_task_id?: number | null;
   created_at: string;
   sender: {
     id: number;

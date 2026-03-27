@@ -7,6 +7,22 @@ export type NotificationOperationalStatus =
   | "assumida"
   | "resolvida";
 export type NotificationResponseStatus = "em_andamento" | "assumida" | "resolvida";
+export type TaskPriority = "low" | "normal" | "high" | "critical";
+export type TaskStatus = "new" | "in_progress" | "waiting" | "done" | "cancelled";
+export type TaskRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
+export type TaskEventType =
+  | "created"
+  | "updated"
+  | "status_changed"
+  | "assigned"
+  | "due_date_changed"
+  | "recurrence_changed"
+  | "completed"
+  | "cancelled"
+  | "automation_due_soon"
+  | "automation_overdue"
+  | "automation_stale_task"
+  | "automation_recurring_task";
 export type ReminderRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
 export type ReminderOccurrenceStatus = "pending" | "completed" | "expired" | "cancelled";
 
@@ -41,6 +57,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   priority: NotificationPriority;
+  sourceTaskId?: number | null;
   createdAt: string;
   senderId: number;
   senderName: string;
@@ -62,6 +79,7 @@ export interface NotificationHistoryItem {
   message: string;
   priority: NotificationPriority;
   recipient_mode: "all" | "users";
+  source_task_id?: number | null;
   created_at: string;
   sender: {
     id: number;
@@ -115,6 +133,97 @@ export interface AuditEventItem {
     login: string;
   } | null;
   metadata: Record<string, unknown> | null;
+}
+
+export interface TaskItem {
+  id: number;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  creatorUserId: number;
+  creatorName?: string;
+  creatorLogin?: string;
+  assigneeUserId: number | null;
+  assigneeName?: string | null;
+  assigneeLogin?: string | null;
+  dueAt: string | null;
+  repeatType: TaskRepeatType;
+  repeatWeekdays: number[];
+  startedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  recurrenceSourceTaskId: number | null;
+  sourceNotificationId: number | null;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+}
+
+export interface TaskEventItem {
+  id: number;
+  taskId: number;
+  actorUserId: number | null;
+  actorName?: string | null;
+  actorLogin?: string | null;
+  eventType: TaskEventType | string;
+  fromStatus: TaskStatus | null;
+  toStatus: TaskStatus | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface TaskCommentItem {
+  id: number;
+  taskId: number;
+  authorUserId: number;
+  authorName: string;
+  authorLogin: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskTimelineItem {
+  id: string;
+  kind: "event" | "comment";
+  taskId: number;
+  actorUserId: number | null;
+  actorName: string | null;
+  actorLogin: string | null;
+  eventType: TaskEventType | string | null;
+  fromStatus: TaskStatus | null;
+  toStatus: TaskStatus | null;
+  body: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface TaskAutomationHealthItem {
+  schedulerEnabled: boolean;
+  dueSoonWindowMinutes: number;
+  staleWindowHours: number;
+  activeTasks: number;
+  dueSoonEligible: number;
+  overdueEligible: number;
+  staleEligible: number;
+  recurringEligible: number;
+  dueSoonSentToday: number;
+  overdueSentToday: number;
+  staleSentToday: number;
+  recurringCreatedToday: number;
+}
+
+export interface TaskAutomationLogItem {
+  id: number;
+  taskId: number;
+  taskTitle: string;
+  automationType: "due_soon" | "overdue" | "stale_task" | "recurring_task";
+  dedupeKey: string;
+  notificationId: number | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 export interface ReminderItem {

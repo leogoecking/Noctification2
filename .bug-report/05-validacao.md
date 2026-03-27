@@ -1,33 +1,44 @@
-# Validacao executada
+# 05 - Validação
 
-## Checks gerais apos a correcao
+## Validação executada nesta rodada
 
-- `npm run lint`: sucesso.
-- `npm run typecheck`: sucesso.
-- `npm run test:api`: sucesso.
-- `npm run test:web`: sucesso.
-- `npm run build`: sucesso.
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run test:web`
+- `node --import tsx -e "...resolveRuntimeApiBase/resolveRuntimeSocketUrl..."`
+- `npm run test --workspace @noctification/web -- src/lib/runtimeUrls.test.ts`
 
-## Testes direcionados
+## Resultado
 
-- `npm run test --workspace @noctification/api -- src/test/notification-routes.test.ts`: sucesso.
-- `npm run test --workspace @noctification/api -- src/test/reminder-routes.test.ts`: sucesso.
+- Lint: passou
+- Typecheck: passou
+- Testes API: passaram
+- Testes Web: passaram
+- Correcoes validadas:
+  - `BUG-001` corrigido e coberto por teste dedicado
+  - `CFG-001` corrigido com validacao do novo `npm test` raiz
+  - `VULN-001` corrigido com revalidacao de `npm audit --audit-level=high`, testes e build
 
-## Validacao por bug
+## Validacao executada na rodada de seguranca 2026-03-26
 
-### BUG-001
+- `npm ls flatted picomatch socket.io-parser --all`
+- `npm audit fix`
+- `npm audit --audit-level=high`
+- `npm run test:api`
+- `npm run test:web`
+- `npm run build`
 
-- As consultas do usuario, do admin e do realtime agora priorizam `response_status` legado antes de considerar `operational_status`.
-- A migration `011_fix_assumida_operational_status.sql` corrige bases ja migradas.
-- O teste novo cobre o cenario legado com `operational_status = 'recebida'` e exige retorno `assumida`.
+## Resultado da rodada de seguranca 2026-03-26
 
-### BUG-002
+- `npm audit --audit-level=high`: passou, sem achados `high`
+- `npm run test:api`: passou
+- `npm run test:web`: passou
+- `npm run build`: passou
 
-- A rota de edicao recalcula `last_scheduled_for` quando a agenda muda.
-- O teste novo cobre a troca de `09:00` para `20:00` com `last_scheduled_for` existente e exige proxima ocorrencia em `2026-03-14T23:00:00.000Z`.
+## O que não foi validado
 
-### RISK-001
-
-- O backend agora rejeita `expected_role` divergente antes de emitir cookie.
-- O frontend envia `expected_role` no login e faz logout compensatorio se receber papel divergente.
-- A cobertura foi adicionada em `apps/api/src/test/auth-routes.test.ts` e `apps/web/src/App.test.tsx`.
+- Navegação manual em navegador real
+- Ambiente com proxy/gateway intermediário para confirmar `RISK-001`
+- SSR/pré-render do frontend
+- `npm audit fix --force` não foi executado; vulnerabilidades `moderate` na cadeia do `eslint` permaneceram pendentes por exigir upgrade major

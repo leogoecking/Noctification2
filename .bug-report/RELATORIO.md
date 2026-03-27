@@ -1,73 +1,71 @@
-# Relatorio final
+# Relatório Final
 
 ## Resumo executivo
 
-- Escopo: analise do repositorio seguindo `AGENTS.md`, com foco em bugs reais.
-- Status geral:
-  - 3 bugs funcionais foram confirmados e corrigidos;
-  - lint, typecheck, testes e build passaram apos as correcoes;
-  - nao restou bug confirmado pendente.
+A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack antes de agir, validação com evidência, distinção entre bug confirmado e risco potencial e correção mínima e verificável. O repositório segue estruturalmente estável: `lint`, `typecheck`, testes da API, testes do Web e `build` passaram nas rodadas validadas. Somando a rodada anterior com a rodada de seguranca de 2026-03-26, 2 problemas funcionais confirmados e 1 vulnerabilidade confirmada foram corrigidos; 1 risco potencial e 1 residual de vulnerabilidade moderada permaneceram pendentes.
 
-## Visao geral do repositorio
+## Visão geral do repositório
 
-- Monorepo npm com `apps/api` e `apps/web`.
-- Backend em Express + Socket.IO + SQLite.
-- Frontend em React + Vite.
-- Suite de validacao disponivel e operacional.
+- Monorepo npm com:
+  - `apps/api`
+  - `apps/web`
+- Backend: Express + SQLite + Socket.IO + Web Push
+- Frontend: React + Vite + Vitest + Testing Library
 
-## Estrategia adotada
+## Estratégia adotada
 
-1. Reconhecimento da stack e das ferramentas disponiveis.
-2. Execucao de checks automatizados.
-3. Revisao manual dos fluxos criticos.
-4. Reproducao minima dos cenarios suspeitos.
-5. Triagem por impacto, confianca e risco de regressao.
+1. Reconhecimento estrutural do repositório
+2. Validação global
+3. Inspeção dirigida em áreas sensíveis
+4. Reprodução pontual de hipótese de bug
 
 ## Quantidade de achados por tipo
 
-- `bug_reproduzivel`: 3
-- `risco_potencial`: 0
-- `vulnerabilidade_confirmada`: 0
-- `integracao_quebrada`: 0
-- `erro_de_configuracao`: 0
+- `bug_reproduzivel`: 1
+- `erro_de_configuracao`: 1
+- `risco_potencial`: 1
+- `vulnerabilidade_confirmada`: 1
 
 ## Bugs confirmados
 
-- `BUG-001`: compatibilidade incorreta para `response_status='assumida'` em notificacoes legadas.
-- `BUG-002`: edicao de lembretes nao recalcula o proximo disparo quando `last_scheduled_for` ja existe.
-- `RISK-001`: login com papel divergente exibe erro na UI, mas preserva a sessao para o proximo mount da aplicacao.
+- `BUG-001`: loopback IPv6 `[::1]` não tratado na reescrita de runtime URLs do frontend
+- `CFG-001`: `npm test` da raiz não cobre o workspace web
+- `VULN-001`: lockfile com dependencias transitivas vulneraveis reportadas como `high` pelo `npm audit`
 
 ## Bugs corrigidos
 
-- `BUG-001`
-- `BUG-002`
-- `RISK-001`
+- `BUG-001`: loopback IPv6 `[::1]` agora e tratado na reescrita de runtime URLs
+- `CFG-001`: `npm test` da raiz agora cobre API e Web
+- `VULN-001`: lockfile atualizado para remover `flatted@3.4.0`, `picomatch@2.3.1/4.0.3` e `socket.io-parser@4.2.5`
 
 ## Bugs pendentes
 
-- Nenhum bug confirmado pendente.
+- Nenhum bug confirmado pendente desta rodada
 
 ## Vulnerabilidades confirmadas
 
-- Nenhuma confirmada nesta rodada.
+- `VULN-001`: corrigida
+- Residual pendente: 9 achados `moderate` na cadeia do `eslint`, dependentes de `npm audit fix --force` com upgrade major para `eslint@10.1.0`
 
 ## Riscos potenciais
 
-- Nenhum risco potencial relevante pendente sem reproducao.
+- `RISK-001`: remoção de subscription Web Push depende de body em DELETE
 
-## Padroes recorrentes
+## Padrões recorrentes observados
 
-- Regras de compatibilidade legada implementadas de forma inconsistente entre migration, rota e socket.
-- Estado interno persistido (`last_scheduled_for`) nao e invalidado quando a agenda do lembrete muda.
+- Contratos locais de validação não refletem sempre a superfície completa do monorepo
+- Alguns pontos de integração ainda dependem de convenções frágeis de runtime/HTTP
 
-## Limitacoes da analise
+## Limitações da análise
 
-- Nao houve execucao em navegador real.
-- Nao foi realizado `npm audit`.
-- A analise se concentrou em bugs com evidencia objetiva; itens especulativos foram evitados.
+- Sem navegação manual em browser real
+- Sem validação com proxy reverso intermediário
+- Sem SSR/pré-render do frontend
+- Sem auditoria online de dependências
 
-## Recomendacoes praticas
+## Recomendações práticas
 
-1. Manter cobertura automatica para compatibilidade legada de notificacoes.
-2. Manter teste de scheduler cobrindo edicao de agenda com ancora existente.
-3. Manter a validacao de `expected_role` no backend como contrato suportado pelo frontend.
+1. Tratar `RISK-001` redesenhando o contrato de unsubscribe Web Push
+2. Manter cobertura de teste para IPv4 e IPv6 loopback em runtime URLs
+3. Preservar o `npm test` da raiz como validacao completa do monorepo
+4. Planejar upgrade controlado de `eslint` antes de considerar `npm audit fix --force`

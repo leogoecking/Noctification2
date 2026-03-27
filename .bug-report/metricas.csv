@@ -1,4 +1,5 @@
 id,tipo,severidade,confianca_diagnostica,risco_de_regressao,arquivo,linha,prioridade,status
-BUG-001,bug_reproduzivel,alta,alta,baixo,apps/api/src/routes/me.ts,36,1,corrigido
-BUG-002,bug_reproduzivel,alta,alta,baixo,apps/api/src/routes/reminders-me.ts,340,2,corrigido
-RISK-001,bug_reproduzivel,media,alta,baixo,apps/web/src/App.tsx,123,3,corrigido
+BUG-001,bug_reproduzivel,media,alta,baixo,apps/web/src/lib/runtimeUrls.ts,10,1,corrigido
+CFG-001,erro_de_configuracao,media,alta,baixo,package.json,18,2,corrigido
+RISK-001,risco_potencial,media,media,baixo,apps/api/src/routes/me.ts,73,3,requer_decisao_humana
+VULN-001,vulnerabilidade_confirmada,alta,alta,baixo,package-lock.json,1,1,corrigido

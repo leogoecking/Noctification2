@@ -120,6 +120,64 @@ describe("notification routes", () => {
     expect(recipients.map((item) => item.login)).toEqual(["user"]);
   });
 
+  it("aceita source_task_id opcional em notificacao nova sem quebrar o legado", () => {
+    const createNotificationHandler = getRouteHandler(adminRouter, "/notifications", "post");
+    const timestamp = nowIso();
+
+    const taskResult = db
+      .prepare(
+        `
+          INSERT INTO tasks (
+            title,
+            description,
+            status,
+            priority,
+            creator_user_id,
+            assignee_user_id,
+            created_at,
+            updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `
+      )
+      .run(
+        "Investigar incidente",
+        "Base para notificacao vinculada",
+        "new",
+        "high",
+        adminUser.id,
+        regularUser.id,
+        timestamp,
+        timestamp
+      );
+
+    const response = createMockResponse();
+    createNotificationHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Atualizacao da tarefa",
+          message: "Acompanhamento em andamento",
+          priority: "high",
+          recipient_mode: "users",
+          recipient_ids: [regularUser.id],
+          source_task_id: Number(taskResult.lastInsertRowid)
+        }
+      },
+      response
+    );
+
+    expect(response.statusCode).toBe(201);
+    expect((response.body as { notification: { source_task_id: number | null } }).notification.source_task_id).toBe(
+      Number(taskResult.lastInsertRowid)
+    );
+
+    const stored = db
+      .prepare("SELECT source_task_id AS sourceTaskId FROM notifications ORDER BY id DESC LIMIT 1")
+      .get() as { sourceTaskId: number | null };
+
+    expect(stored.sourceTaskId).toBe(Number(taskResult.lastInsertRowid));
+  });
+
   it("rejeita filtro de status invalido no historico admin", () => {
     const listHistoryHandler = getRouteHandler(adminRouter, "/notifications", "get");
 

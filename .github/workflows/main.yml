@@ -33,7 +33,7 @@ jobs:
           echo "Verificando arquivos sensiveis versionados..."
 
           forbidden_files=$(find . \
-            \( -name ".env" -o -name ".env.local" -o -name "*.sqlite" -o -name "*.sqlite3" -o -name "*.db" \) \
+            \( -name ".env" -o -name ".env.local" -o -name "*.sqlite" -o -name "*.sqlite3" -o -name "*.db" -o -name "*.key" -o -name "*-key.pem" -o -name "*.p12" -o -name "*.pfx" \) \
             -not -path "./node_modules/*" \
             -not -path "./.git/*")
 
@@ -48,6 +48,7 @@ jobs:
           echo "Verificando padroes comuns de segredo hardcoded..."
 
           secret_literal_pattern="(JWT_SECRET|jwt_secret|SECRET_KEY|API_KEY|ACCESS_TOKEN|REFRESH_TOKEN)[[:space:]]*[:=][[:space:]]*['\"][^'\"]{8,}['\"]"
+          private_key_pattern="-----BEGIN (RSA |EC )?PRIVATE KEY-----"
 
 
           if grep -RInE "$secret_literal_pattern" . \
@@ -59,6 +60,14 @@ jobs:
             --exclude="*.yml" \
             --exclude="*.yaml"; then
             echo "Possivel segredo hardcoded encontrado. Revise o resultado acima."
+            exit 1
+          fi
+
+          if grep -RInE --binary-files=without-match "$private_key_pattern" . \
+            --exclude-dir=node_modules \
+            --exclude-dir=.git \
+            --exclude-dir=dist; then
+            echo "Material de chave privada encontrado no repositorio. Remova e rotacione a chave comprometida."
             exit 1
           fi
 
@@ -150,4 +159,3 @@ jobs:
 
 # OBS: validacao de credenciais padrao de admin desativada temporariamente
 # enquanto o sistema estiver em fase de testes.
-

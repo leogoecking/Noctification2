@@ -1,0 +1,8 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+APP_ROOT=/home/leo/Noctification2
+DB_FILE=/home/leo/Noctification2/apps/api/data/noctification.db
+BACKUP_DIR=/home/leo/Noctification2/backups/db
+RETENTION_DAYS=14
+
+0 2 * * * leo $APP_ROOT/ops/scripts/backup-db.sh >> $APP_ROOT/backups/db/noctification-backup.log 2>&1

@@ -10,6 +10,12 @@ vi.mock("./lib/api", () => ({
     register: vi.fn(),
     logout: vi.fn(),
     myNotifications: vi.fn(),
+    myTasks: vi.fn(),
+    myTask: vi.fn(),
+    createMyTask: vi.fn(),
+    updateMyTask: vi.fn(),
+    completeMyTask: vi.fn(),
+    cancelMyTask: vi.fn(),
     markRead: vi.fn(),
     markAllRead: vi.fn(),
     respondNotification: vi.fn(),
@@ -21,6 +27,12 @@ vi.mock("./lib/api", () => ({
     toggleUserStatus: vi.fn(),
     sendNotification: vi.fn(),
     adminNotifications: vi.fn(),
+    adminTasks: vi.fn(),
+    adminTask: vi.fn(),
+    createAdminTask: vi.fn(),
+    updateAdminTask: vi.fn(),
+    completeAdminTask: vi.fn(),
+    cancelAdminTask: vi.fn(),
     myReminders: vi.fn(),
     createMyReminder: vi.fn(),
     updateMyReminder: vi.fn(),
@@ -130,5 +142,28 @@ describe("App routing", () => {
       expect(screen.getByText("Use /admin/login para acesso administrativo")).toBeInTheDocument();
     });
     expect(screen.queryByText("AdminDashboardMock")).toBeNull();
+  });
+
+  it("renderiza painel de tarefas em /tasks para usuario autenticado", async () => {
+    window.history.replaceState({}, "", "/tasks");
+    mockedApi.me.mockResolvedValueOnce({
+      user: {
+        id: 2,
+        login: "user",
+        name: "Usuario",
+        role: "user"
+      }
+    });
+    mockedApi.myTasks.mockResolvedValueOnce({
+      tasks: [],
+      pagination: { page: 1, limit: 50, total: 0, totalPages: 1 }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("heading", { level: 1, name: "Tarefas" })).toBeInTheDocument();
+    expect(screen.getByText("Acompanhamento da sua fila operacional")).toBeInTheDocument();
   });
 });

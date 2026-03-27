@@ -126,6 +126,47 @@ describe("NotificationAlertCenter", () => {
     expect(onToast).not.toHaveBeenCalled();
   });
 
+  it("centraliza o aviso de permissao do navegador em um unico banner", async () => {
+    render(
+      <NotificationAlertCenter
+        isVisible
+        onError={vi.fn()}
+        onToast={vi.fn()}
+        onOpenNotifications={vi.fn()}
+      />
+    );
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("noctification:notification:new", {
+          detail: {
+            id: 111,
+            title: "Primeira",
+            message: "Mensagem 1",
+            priority: "normal",
+            createdAt: new Date().toISOString(),
+            sender: { id: 1, name: "Admin", login: "admin" }
+          }
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("noctification:notification:new", {
+          detail: {
+            id: 112,
+            title: "Segunda",
+            message: "Mensagem 2",
+            priority: "high",
+            createdAt: new Date().toISOString(),
+            sender: { id: 1, name: "Admin", login: "admin" }
+          }
+        })
+      );
+    });
+
+    expect(screen.getByText("Notificacoes do navegador")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Ativar" })).toHaveLength(1);
+  });
+
   it("atualiza o mesmo pop-up em retries sem empilhar duplicatas", async () => {
     render(
       <NotificationAlertCenter
@@ -248,6 +289,41 @@ describe("NotificationAlertCenter", () => {
     await waitFor(() => {
       expect(screen.queryByText("Nova tarefa")).not.toBeInTheDocument();
     });
+  });
+
+  it("explica quando a API de notificacoes nao esta disponivel no navegador", async () => {
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      writable: true,
+      value: undefined
+    });
+
+    render(
+      <NotificationAlertCenter
+        isVisible
+        onError={vi.fn()}
+        onToast={vi.fn()}
+        onOpenNotifications={vi.fn()}
+      />
+    );
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("noctification:notification:new", {
+          detail: {
+            id: 16,
+            title: "Nova tarefa",
+            message: "Verifique o painel",
+            priority: "normal",
+            createdAt: new Date().toISOString(),
+            sender: { id: 1, name: "Admin", login: "admin" }
+          }
+        })
+      );
+    });
+
+    expect(screen.getByText("Notificacoes nativas indisponiveis")).toBeInTheDocument();
+    expect(screen.getByText(/Use `localhost` em desenvolvimento ou publique com HTTPS/i)).toBeInTheDocument();
   });
 
   it("permite marcar como visualizada com confirmacao no backend", async () => {

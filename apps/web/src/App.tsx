@@ -1,42 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
-import { UserDashboard } from "./components/UserDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
-import { NotificationAlertCenter } from "./components/NotificationAlertCenter";
-import { ReminderUserPanel } from "./components/ReminderUserPanel";
-import { ReminderAlertCenter } from "./components/ReminderAlertCenter";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
+import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
 import type { AuthUser } from "./types";
+import {
+  AppHeader,
+  AppToastStack,
+  getPageTitle,
+  normalizePath,
+  UserWorkspace,
+  type AppPath
+} from "./components/app/appShell";
 
 interface Toast {
   id: number;
   message: string;
   tone: "ok" | "error";
 }
-
-type AppPath = "/" | "/login" | "/admin/login" | "/notifications" | "/reminders";
-
-const normalizePath = (rawPath: string): AppPath => {
-  if (rawPath === "/login") {
-    return "/login";
-  }
-
-  if (rawPath === "/admin/login") {
-    return "/admin/login";
-  }
-
-  if (rawPath === "/notifications") {
-    return "/notifications";
-  }
-
-  if (rawPath === "/reminders") {
-    return "/reminders";
-  }
-
-  return "/";
-};
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -75,7 +58,7 @@ export default function App() {
   const loadSession = useCallback(async () => {
     try {
       const response = await api.me();
-      setCurrentUser(response.user as AuthUser);
+      setCurrentUser(response.user);
     } catch {
       setCurrentUser(null);
     } finally {
@@ -121,7 +104,7 @@ export default function App() {
 
       try {
         const response = await api.login(loginValue, password, expectedRole);
-        const user = response.user as AuthUser;
+        const user = response.user;
 
         if (user.role !== expectedRole) {
           try {
@@ -158,7 +141,7 @@ export default function App() {
 
       try {
         const response = await api.register(name, loginValue, password);
-        setCurrentUser(response.user as AuthUser);
+        setCurrentUser(response.user);
         navigate("/", true);
         pushToast("Conta criada com sucesso", "ok");
       } catch (error) {
@@ -197,27 +180,14 @@ export default function App() {
     [pushToast]
   );
 
-  const pageTitle = useMemo(() => {
-    if (!currentUser) {
-      return currentPath === "/admin/login" ? "Console Administrativo" : "Acesso de Usuario";
-    }
-
-    if (currentUser.role === "admin") {
-      return "Console Administrativo";
-    }
-
-    if (currentPath === "/notifications") {
-      return "Todas as Notificacoes";
-    }
-
-    if (currentPath === "/reminders") {
-      return "Lembretes";
-    }
-
-    return "Painel Operacional";
-  }, [currentPath, currentUser]);
+  const pageTitle = useMemo(() => getPageTitle(currentPath, currentUser), [currentPath, currentUser]);
 
   useNotificationSocket({
+    enabled: currentUser?.role === "user",
+    onError: handleErrorToast
+  });
+
+  useWebPushSubscription({
     enabled: currentUser?.role === "user",
     onError: handleErrorToast
   });
@@ -225,40 +195,13 @@ export default function App() {
   return (
     <main className="min-h-screen bg-canvas text-textMain">
       <div className="mx-auto max-w-7xl px-4 py-6">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-accent">Plataforma interna</p>
-            <h1 className="font-display text-2xl text-textMain">{pageTitle}</h1>
-          </div>
-
-          {!currentUser && (
-            <div className="flex items-center gap-2">
-              <button
-                className={`rounded-xl px-3 py-2 text-sm ${currentPath === "/login" ? "bg-accent text-slate-900" : "border border-slate-600 text-textMuted"}`}
-                onClick={() => navigate("/login")}
-              >
-                /login
-              </button>
-              <button
-                className={`rounded-xl px-3 py-2 text-sm ${currentPath === "/admin/login" ? "bg-accent text-slate-900" : "border border-slate-600 text-textMuted"}`}
-                onClick={() => navigate("/admin/login")}
-              >
-                /admin/login
-              </button>
-            </div>
-          )}
-
-          {currentUser && (
-            <div className="flex items-center gap-3">
-              <span className="rounded-xl border border-slate-700 bg-panel px-3 py-2 text-sm text-textMuted">
-                {currentUser.name} ({currentUser.role})
-              </span>
-              <button className="rounded-xl bg-danger px-3 py-2 text-sm font-semibold text-white" onClick={logout}>
-                Sair
-              </button>
-            </div>
-          )}
-        </header>
+        <AppHeader
+          currentPath={currentPath}
+          currentUser={currentUser}
+          pageTitle={pageTitle}
+          onLogout={() => void logout()}
+          onNavigate={navigate}
+        />
 
         {loadingSession && <p className="text-sm text-textMuted">Carregando sessao...</p>}
 
@@ -280,70 +223,13 @@ export default function App() {
         )}
 
         {!loadingSession && currentUser?.role === "user" && (
-          <>
-            <nav className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-slate-700 bg-panel p-2">
-              <button
-                className={`rounded-xl px-4 py-2 text-sm transition ${
-                  currentPath === "/"
-                    ? "bg-accent text-slate-900"
-                    : "text-textMuted hover:bg-panelAlt hover:text-textMain"
-                }`}
-                onClick={() => navigate("/")}
-                type="button"
-              >
-                Painel
-              </button>
-              <button
-                className={`rounded-xl px-4 py-2 text-sm transition ${
-                  currentPath === "/notifications"
-                    ? "bg-accent text-slate-900"
-                    : "text-textMuted hover:bg-panelAlt hover:text-textMain"
-                }`}
-                onClick={() => navigate("/notifications")}
-                type="button"
-              >
-                Notificacoes
-              </button>
-              <button
-                className={`rounded-xl px-4 py-2 text-sm transition ${
-                  currentPath === "/reminders"
-                    ? "bg-accent text-slate-900"
-                    : "text-textMuted hover:bg-panelAlt hover:text-textMain"
-                }`}
-                onClick={() => navigate("/reminders")}
-                type="button"
-              >
-                Lembretes
-              </button>
-            </nav>
-
-            <NotificationAlertCenter
-              isVisible
-              onError={handleErrorToast}
-              onToast={handleOkToast}
-              onOpenNotifications={() => navigate("/notifications")}
-            />
-
-            <ReminderAlertCenter
-              isVisible
-              onError={handleErrorToast}
-              onToast={handleOkToast}
-              onOpenReminders={() => navigate("/reminders")}
-            />
-
-            {currentPath === "/reminders" ? (
-              <ReminderUserPanel onError={handleErrorToast} onToast={handleOkToast} />
-            ) : (
-              <UserDashboard
-                user={currentUser}
-                isNotificationsPage={currentPath === "/notifications"}
-                onOpenAllNotifications={() => navigate("/notifications")}
-                onBackToDashboard={() => navigate("/")}
-                onError={handleErrorToast}
-                onToast={handleOkToast}
-              />
-            )}
-          </>
+          <UserWorkspace
+            currentPath={currentPath}
+            currentUser={currentUser}
+            onNavigate={navigate}
+            onError={handleErrorToast}
+            onToast={handleOkToast}
+          />
         )}
 
         {!loadingSession && currentUser?.role === "admin" && (
@@ -351,20 +237,7 @@ export default function App() {
         )}
       </div>
 
-      <aside className="fixed bottom-4 right-4 z-50 space-y-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`w-80 animate-rise-in rounded-xl border px-4 py-3 text-sm shadow-lg ${
-              toast.tone === "ok"
-                ? "border-success/40 bg-success/20 text-green-100"
-                : "border-danger/40 bg-danger/20 text-red-100"
-            }`}
-          >
-            {toast.message}
-          </div>
-        ))}
-      </aside>
+      <AppToastStack toasts={toasts} />
     </main>
   );
 }

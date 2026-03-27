@@ -8,7 +8,7 @@ export interface RuntimeLocationLike {
 const VITE_DEV_SERVER_PORT = "5173";
 
 const isLoopbackHost = (hostname: string): boolean => {
-  return hostname === "localhost" || hostname === "127.0.0.1";
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]" || hostname === "::1";
 };
 
 const toOrigin = (location: RuntimeLocationLike): string => {

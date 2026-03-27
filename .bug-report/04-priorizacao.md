@@ -1,33 +1,51 @@
-# Priorizacao
+# 04 - Priorização
 
-## Ordem recomendada
+## Prioridade 1
 
-1. `BUG-001` - compatibilidade de notificacoes legadas
-   - Severidade real: alta
-   - Confianca: alta
-   - Risco de regressao: baixo
-   - Justificativa:
-     - ja existe evidencia objetiva de retorno incorreto;
-     - afeta UI do usuario, filtros e lembretes de progresso;
-     - a correcao e localizada em mapeamentos de compatibilidade.
+### BUG-001 - loopback IPv6 nao reescrito no runtime do frontend
 
-2. `BUG-002` - edicao de lembretes com agendamento antigo
-   - Severidade real: alta
-   - Confianca: alta
-   - Risco de regressao: baixo
-   - Justificativa:
-     - dispara lembretes em horario incorreto apos uma edicao valida;
-     - a causa raiz esta isolada entre a rota de atualizacao e o ponteiro do scheduler.
+- Tipo: `bug_reproduzivel`
+- Severidade: média
+- Confiança diagnóstica: alta
+- Risco de regressão: baixo
+- Motivo da prioridade:
+  - bug objetivo
+  - correção pequena
+  - impacto direto em cenários de acesso remoto/local-LAN usando `::1`
 
-3. `RISK-001` - sessao mantida apos login com papel divergente no frontend
-   - Severidade real: media
-   - Confianca: alta
-   - Risco de regressao: baixo
-   - Justificativa:
-     - o fluxo foi confirmado em teste dedicado;
-     - a sessao persiste apesar da UI sinalizar erro;
-     - o impacto e menor que os dois bugs ja corrigidos, mas agora e objetivo.
+## Prioridade 2
 
-## Itens que nao devem ser corrigidos automaticamente agora
+### CFG-001 - `npm test` da raiz não cobre o workspace web
 
-- Nenhum item exige refatoracao ampla.
+- Tipo: `erro_de_configuracao`
+- Severidade: média
+- Confiança diagnóstica: alta
+- Risco de regressão: baixo
+- Motivo da prioridade:
+  - pode esconder regressões do frontend em validação local
+  - diferença entre validação local e mental model do desenvolvedor
+
+## Prioridade 3
+
+### RISK-001 - unsubscribe Web Push depende de body em DELETE
+
+- Tipo: `risco_potencial`
+- Severidade: média
+- Confiança diagnóstica: média
+- Risco de regressão: baixo
+- Motivo da prioridade:
+  - não falhou no ambiente atual
+  - risco cresce quando houver proxy, gateway ou cliente alternativo
+
+## Prioridade 1
+
+### VULN-001 - dependencias transitivas com advisories high no lockfile
+
+- Tipo: `vulnerabilidade_confirmada`
+- Severidade: alta
+- Confiança diagnóstica: alta
+- Risco de regressão: baixo
+- Motivo da prioridade:
+  - havia evidencia objetiva via `npm audit --audit-level=high`
+  - a correcao viavel ficou restrita ao `package-lock.json`
+  - validacao objetiva disponivel com novo `npm audit`, testes e build

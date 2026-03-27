@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Noctification</title>
+  <rect width="512" height="512" rx="120" fill="#08121d" />
+  <path
+    d="M320 358h102l-28.6-28.6A42.68 42.68 0 0 1 382 299V236a126 126 0 1 0-252 0v63c0 11.33-4.5 22.19-12.68 30.4L88.4 358H192"
+    fill="none"
+    stroke="#22d3ee"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="32"
+  />
+  <path
+    d="M214 406a42 42 0 0 0 84 0"
+    fill="none"
+    stroke="#f8fafc"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="32"
+  />
+  <circle cx="366" cy="138" r="44" fill="#ef4444" />
+</svg>

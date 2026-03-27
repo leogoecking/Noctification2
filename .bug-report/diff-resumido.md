@@ -1,133 +1,35 @@
-# Diff resumido
+# Diff Resumido
 
-## Arquivos alterados nesta rodada
+## [apps/web/src/lib/runtimeUrls.ts](/home/leo/Noctification2/apps/web/src/lib/runtimeUrls.ts)
 
-- `.bug-report/premissas.md`
-  - Motivo: registrar premissas e limites da analise.
-  - Risco: nenhum para o produto.
-  - Validacao associada: nao aplicavel.
+- Motivo: corrigir reescrita de loopback IPv6 (`[::1]`).
+- Risco: baixo, utilitario puro.
+- Validacao associada:
+  - `npm run test --workspace @noctification/web -- src/lib/runtimeUrls.test.ts`
+  - `npm test`
 
-- `.bug-report/01-reconhecimento.md`
-  - Motivo: documentar estrutura, stack e estrategia.
-  - Risco: nenhum para o produto.
-  - Validacao associada: nao aplicavel.
+## [apps/web/src/lib/runtimeUrls.test.ts](/home/leo/Noctification2/apps/web/src/lib/runtimeUrls.test.ts)
 
-- `.bug-report/02-plano-de-analise.md`
-  - Motivo: registrar o plano adaptativo executado.
-  - Risco: nenhum para o produto.
-  - Validacao associada: nao aplicavel.
+- Motivo: cobrir o caso IPv6 que reproduzia o bug.
+- Risco: baixo.
+- Validacao associada:
+  - `npm run test --workspace @noctification/web -- src/lib/runtimeUrls.test.ts`
 
-- `.bug-report/03-achados-brutos.md`
-  - Motivo: registrar evidencias iniciais e reproducoes.
-  - Risco: nenhum para o produto.
-  - Validacao associada: checks e reproducoes locais.
+## [package.json](/home/leo/Noctification2/package.json)
 
-- `.bug-report/achados.json`
-  - Motivo: estruturar os achados em formato consumivel.
-  - Risco: nenhum para o produto.
-  - Validacao associada: coerencia com o relatorio.
+- Motivo: fazer `npm test` da raiz cobrir API e Web.
+- Risco: baixo funcional, medio apenas em tempo de execucao.
+- Validacao associada:
+  - `npm test`
+  - `npm run lint`
+  - `npm run typecheck`
 
-- `.bug-report/04-priorizacao.md`
-  - Motivo: ordenar os itens por impacto e confianca.
-  - Risco: nenhum para o produto.
-  - Validacao associada: coerencia com evidencias coletadas.
+## [package-lock.json](/home/leo/Noctification2/package-lock.json)
 
-- `.bug-report/05-validacao.md`
-  - Motivo: registrar o que foi efetivamente executado.
-  - Risco: nenhum para o produto.
-  - Validacao associada: saidas dos comandos e reproducoes.
-
-- `.bug-report/06-pos-correcao.md`
-  - Motivo: explicitar que nao houve etapa de correcao nesta rodada.
-  - Risco: nenhum para o produto.
-  - Validacao associada: nao aplicavel.
-
-- `.bug-report/RELATORIO.md`
-  - Motivo: consolidar o resultado final.
-  - Risco: nenhum para o produto.
-  - Validacao associada: coerencia com os arquivos anteriores.
-
-- `.bug-report/bugs-final.json`
-  - Motivo: consolidar o status final dos itens relevantes.
-  - Risco: nenhum para o produto.
-  - Validacao associada: coerencia com `achados.json`.
-
-- `.bug-report/metricas.csv`
-  - Motivo: fornecer visao tabular minima dos itens.
-  - Risco: nenhum para o produto.
-  - Validacao associada: coerencia com `bugs-final.json`.
-
-- `apps/api/src/routes/admin.ts`
-  - Motivo: corrigir derivacao de status operacional legado no historico admin.
-  - Risco: baixo.
-  - Validacao associada: `npm run test:api`.
-
-- `apps/api/src/routes/me.ts`
-  - Motivo: corrigir derivacao de status operacional legado para o usuario.
-  - Risco: baixo.
-  - Validacao associada: testes focados de notificacao + `npm run test:api`.
-
-- `apps/api/src/socket.ts`
-  - Motivo: corrigir compatibilidade legada usada pelo realtime de lembretes.
-  - Risco: baixo.
-  - Validacao associada: `npm run test:api`, `npm run build`.
-
-- `apps/api/migrations/011_fix_assumida_operational_status.sql`
-  - Motivo: reparar bases ja migradas com `operational_status` incorreto para `assumida`.
-  - Risco: baixo.
-  - Validacao associada: `npm run test:api`.
-
-- `apps/api/src/routes/reminders-me.ts`
-  - Motivo: recalcular a ancora do scheduler ao editar a agenda de um lembrete.
-  - Risco: baixo.
-  - Validacao associada: teste focado de lembrete + `npm run test:api`.
-
-- `apps/api/src/test/notification-routes.test.ts`
-  - Motivo: cobrir regressao de notificacao legada `assumida`.
-  - Risco: nenhum para o produto.
-  - Validacao associada: `npm run test --workspace @noctification/api -- src/test/notification-routes.test.ts`.
-
-- `apps/api/src/test/reminder-routes.test.ts`
-  - Motivo: cobrir regressao de reprocessamento do scheduler apos edicao.
-  - Risco: nenhum para o produto.
-  - Validacao associada: `npm run test --workspace @noctification/api -- src/test/reminder-routes.test.ts`.
-
-- `.bug-report/correcoes/BUG-001.md`
-  - Motivo: rastreabilidade da correcao do bug 001.
-  - Risco: nenhum para o produto.
-  - Validacao associada: documentacao.
-
-- `.bug-report/correcoes/BUG-002.md`
-  - Motivo: rastreabilidade da correcao do bug 002.
-  - Risco: nenhum para o produto.
-  - Validacao associada: documentacao.
-
-- `apps/api/src/routes/auth.ts`
-  - Motivo: rejeitar `expected_role` divergente antes de criar cookie de sessao.
-  - Risco: baixo.
-  - Validacao associada: `npm run test --workspace @noctification/api -- src/test/auth-routes.test.ts`.
-
-- `apps/api/src/test/auth-routes.test.ts`
-  - Motivo: cobrir a rejeicao de papel divergente sem cookie.
-  - Risco: nenhum para o produto.
-  - Validacao associada: `npm run test --workspace @noctification/api -- src/test/auth-routes.test.ts`.
-
-- `apps/web/src/lib/api.ts`
-  - Motivo: enviar `expected_role` no login do frontend.
-  - Risco: baixo.
-  - Validacao associada: `npm run test --workspace @noctification/web -- src/App.test.tsx`.
-
-- `apps/web/src/App.tsx`
-  - Motivo: adicionar logout compensatorio caso chegue papel divergente.
-  - Risco: baixo.
-  - Validacao associada: `npm run test --workspace @noctification/web -- src/App.test.tsx`.
-
-- `apps/web/src/App.test.tsx`
-  - Motivo: cobrir envio de `expected_role` e logout compensatorio.
-  - Risco: nenhum para o produto.
-  - Validacao associada: `npm run test --workspace @noctification/web -- src/App.test.tsx`.
-
-- `.bug-report/correcoes/RISK-001.md`
-  - Motivo: rastreabilidade da correcao do bug RISK-001.
-  - Risco: nenhum para o produto.
-  - Validacao associada: documentacao.
+- Motivo: remover as resolucoes vulneraveis `flatted@3.4.0`, `picomatch@2.3.1/4.0.3` e `socket.io-parser@4.2.5` apontadas pelo `npm audit`.
+- Risco: baixo, alteracao restrita ao lockfile com bumps transitivos de patch.
+- Validacao associada:
+  - `npm audit --audit-level=high`
+  - `npm run test:api`
+  - `npm run test:web`
+  - `npm run build`

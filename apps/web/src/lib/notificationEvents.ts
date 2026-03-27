@@ -2,7 +2,8 @@ export interface IncomingNotification {
   id: number;
   title: string;
   message: string;
-  priority: "normal" | "high" | "critical";
+  priority: "low" | "normal" | "high" | "critical";
+  sourceTaskId: number | null;
   createdAt: string;
   sender: {
     id: number;

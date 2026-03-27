@@ -15,6 +15,7 @@ export type AdminMenu =
   | "dashboard"
   | "send"
   | "users"
+  | "tasks"
   | "history_notifications"
   | "audit"
   | "reminders";

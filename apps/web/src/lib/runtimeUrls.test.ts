@@ -61,4 +61,24 @@ describe("runtimeUrls", () => {
       })
     ).toBe("http://10.0.0.20:4000/");
   });
+
+  it("rewrites ipv6 loopback env values to the current host when opened remotely", () => {
+    expect(
+      resolveRuntimeApiBase("http://[::1]:4000/api/v1", {
+        protocol: "http:",
+        hostname: "10.0.0.20",
+        port: "",
+        origin: "http://10.0.0.20"
+      })
+    ).toBe("http://10.0.0.20:4000/api/v1");
+
+    expect(
+      resolveRuntimeSocketUrl("http://[::1]:4000", {
+        protocol: "http:",
+        hostname: "10.0.0.20",
+        port: "",
+        origin: "http://10.0.0.20"
+      })
+    ).toBe("http://10.0.0.20:4000/");
+  });
 });

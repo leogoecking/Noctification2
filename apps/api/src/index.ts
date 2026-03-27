@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { config } from "./config";
 import { connectDatabase, runMigrations } from "./db";
 import { apiMigrationsDir } from "./paths";
-import { startReminderScheduler } from "./reminders/scheduler";
+import { startOperationalScheduler } from "./reminders/scheduler";
 import { setupSocket } from "./socket";
 import { createApp } from "./app";
 
@@ -13,12 +13,13 @@ const boot = () => {
   const httpServer = createServer();
   const io = setupSocket(httpServer, db, config);
   const app = createApp(db, io, config);
-  const stopReminderScheduler = config.enableReminderScheduler
-    ? startReminderScheduler(db, io)
-    : () => undefined;
+  const stopSchedulers =
+    config.enableReminderScheduler || config.enableTaskAutomationScheduler
+      ? startOperationalScheduler(db, io, config)
+      : () => undefined;
 
   console.log(
-    `[reminders] scheduler ${config.enableReminderScheduler ? "enabled" : "disabled"} (timezone=${config.reminderTimezone}, explicit=true)`
+    `[operations] reminder_scheduler=${config.enableReminderScheduler ? "enabled" : "disabled"} task_automation_scheduler=${config.enableTaskAutomationScheduler ? "enabled" : "disabled"} (timezone=${config.reminderTimezone}, explicit=true)`
   );
 
   httpServer.on("request", app);
@@ -28,7 +29,7 @@ const boot = () => {
   });
 
   const shutdown = () => {
-    stopReminderScheduler();
+    stopSchedulers();
     io.close(() => {
       httpServer.close(() => {
         db.close();

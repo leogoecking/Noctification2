@@ -1,70 +1,105 @@
-# Plano de analise
+# 02 - Plano de Análise
 
-## Ordem de execucao
+## Ordem de execução
 
-1. Reconhecimento da stack e das ferramentas realmente disponiveis.
-2. Execucao de `lint`, `typecheck`, testes de API, testes web e `build`.
-3. Revisao manual de:
-   - auth/sessao
-   - notificacoes e filtros
-   - socket/realtime
-   - lembretes e scheduler
-4. Reproducao minima dos achados com maior confianca.
-5. Triagem e priorizacao.
+1. Reconhecimento de stack, scripts, entrypoints e CI.
+2. Validação global:
+   - `npm run lint`
+   - `npm run typecheck`
+   - `npm test`
+   - `npm run test:web`
+3. Triagem dirigida em áreas sensíveis:
+   - scripts raiz
+   - runtime URL/frontend bootstrap
+   - web push
+4. Reproduções pontuais via `node --import tsx` quando houver hipótese objetiva.
 
 ## Ferramentas escolhidas
 
-- `npm run lint`
-  - Motivo: detectar erros objetivos de qualidade/sintaxe.
-  - Escopo: workspaces `api` e `web`.
-  - Confiabilidade: alta para problemas estaticos simples.
-  - Achados esperados: erros de lint relevantes.
+### `find`, `sed`, `nl`, `grep`
 
-- `npm run typecheck`
-  - Motivo: validar contratos TypeScript.
-  - Escopo: workspaces `api` e `web`.
-  - Confiabilidade: alta para inconsistencias de tipos.
-  - Achados esperados: incompatibilidades de interfaces e chamadas.
+- Motivo: inspeção estrutural e leitura de arquivos.
+- Escopo: reconhecimento e referências de linha.
+- Confiabilidade esperada: alta.
+- Tipo de achado esperado: configuração, contratos, inconsistências de código.
 
-- `npm run test:api`
-  - Motivo: validar rotas, regras de negocio e scheduler cobertos.
-  - Escopo: backend.
-  - Confiabilidade: alta no que esta coberto; limitada fora da cobertura.
-  - Achados esperados: regressao funcional nas rotas e no scheduler.
+### `npm run lint`
 
-- `npm run test:web`
-  - Motivo: validar fluxos principais de UI.
-  - Escopo: frontend.
-  - Confiabilidade: media/alta para os cenarios testados.
-  - Achados esperados: regressao de tela, filtros e atualizacao de estado.
+- Motivo: detectar erros estáticos relevantes.
+- Escopo: monorepo inteiro.
+- Confiabilidade esperada: média.
+- Tipo de achado esperado: problemas de qualidade e alguns bugs óbvios.
 
-- `npm run build`
-  - Motivo: comprovar integracao final e empacotamento.
-  - Escopo: monorepo.
-  - Confiabilidade: alta para problemas de compilacao/build.
-  - Achados esperados: erros de build ou dependencia entre modulos.
+### `npm run typecheck`
 
-- Reproducoes minimas com `node --import tsx -e ...`
-  - Motivo: demonstrar bugs nao cobertos pelos testes automatizados.
-  - Escopo: cenarios pontuais no backend.
-  - Confiabilidade: alta, pois exercitam o codigo real com banco em memoria.
+- Motivo: detectar incompatibilidades de tipo.
+- Escopo: monorepo inteiro.
+- Confiabilidade esperada: alta para regressões de contrato internas.
+- Tipo de achado esperado: integração quebrada, erro de configuração, bug de contrato.
 
-## Modulos prioritarios
+### `npm test` e `npm run test:web`
 
-- `apps/api/src/routes/me.ts`
-- `apps/api/src/routes/admin.ts`
-- `apps/api/src/socket.ts`
-- `apps/api/src/routes/reminders-me.ts`
-- `apps/api/src/reminders/scheduler.ts`
-- `apps/web/src/App.tsx`
+- Motivo: validar comportamento com evidência executável.
+- Escopo: API e Web.
+- Confiabilidade esperada: alta nos fluxos cobertos.
+- Tipo de achado esperado: bug reproduzível, integração quebrada.
 
-## Risco previsto
+### `node --import tsx -e ...`
 
-- Medio: varias regras dependem de compatibilidade com colunas legadas no SQLite.
-- Medio: scheduler depende de estado persistido (`last_scheduled_for`).
+- Motivo: reproduções pequenas e objetivas em módulos TS.
+- Escopo: funções puras e utilitários.
+- Confiabilidade esperada: alta.
+- Tipo de achado esperado: bug reproduzível.
 
-## Limitacoes
+## Módulos prioritários
 
-- Nao houve exercicio manual em navegador real.
-- Nao foi executado `npm audit`.
-- A validacao de bugs fora da cobertura automatica foi feita com reproducoes minimas locais.
+1. `apps/web/src/lib/runtimeUrls.ts`
+2. `package.json`
+3. `apps/api/src/routes/me.ts`
+4. `apps/web/src/lib/api.ts`
+5. `apps/web/src/main.tsx`
+
+## Limitações
+
+- Sem rede externa.
+- Sem `docker`.
+- Sem `rg`.
+- Não houve execução de smoke E2E em navegador real.
+
+## Adendo 2026-03-26 - plano de auditoria de dependencias
+
+## Ordem de execucao complementar
+
+1. Confirmar a arvore local com `npm ls flatted picomatch socket.io-parser --all`.
+2. Confirmar as versoes no `package-lock.json`.
+3. Executar `npm audit fix` apenas se a atualizacao puder ficar restrita ao lockfile.
+4. Revalidar com `npm audit --audit-level=high`.
+5. Executar testes e build do monorepo para validar ausencia de regressao.
+
+## Ferramentas escolhidas
+
+### `npm ls`
+
+- Motivo: mapear origem real das dependencias vulneraveis.
+- Escopo: monorepo inteiro.
+- Confiabilidade esperada: alta.
+- Tipo de achado esperado: vulnerabilidade confirmada e superficie afetada.
+
+### `npm audit` / `npm audit fix`
+
+- Motivo: reproduzir o advisory reportado e aplicar a menor correcao viavel.
+- Escopo: lockfile raiz.
+- Confiabilidade esperada: alta, dependente do registro npm.
+- Tipo de achado esperado: vulnerabilidade confirmada.
+
+### `npm run test:api`, `npm run test:web`, `npm run build`
+
+- Motivo: validar que a atualizacao transitiva nao quebrou runtime, testes ou bundling.
+- Escopo: workspaces `apps/api` e `apps/web`.
+- Confiabilidade esperada: alta no escopo coberto.
+- Tipo de achado esperado: regressao funcional ou integracao quebrada.
+
+## Limitacoes complementares
+
+- A verificacao via `npm audit` depende de acesso ao registro npm.
+- Os achados `moderate` residuais exigem upgrade major fora do escopo de baixo risco.

@@ -5,128 +5,27 @@ import type { AppConfig } from "../config";
 import { logAudit, nowIso } from "../db";
 import { authenticate } from "../middleware/auth";
 import {
-  isValidTimeOfDay,
   logReminderEvent,
-  normalizeReminderRow,
-  parseReminderRepeatType,
-  parseWeekdays,
-  stringifyWeekdays
+  normalizeReminderRow
 } from "../reminders/service";
-import { getZonedParts, parseDateOnly, parseTimeOfDay, zonedDateTimeToUtc } from "../reminders/timezone";
-import { emitReminderUpdated } from "../socket";
-import type { ReminderOccurrenceRow, ReminderRow } from "../reminders/types";
-
-const toNullableString = (value: unknown): string | null => {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-const MAX_TITLE_LENGTH = 120;
-const MAX_DESCRIPTION_LENGTH = 500;
-const MAX_TIMEZONE_LENGTH = 64;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-const isValidDateOnly = (value: string): boolean => {
-  if (!DATE_PATTERN.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-};
-
-const validateReminderFields = (params: {
-  title?: string | null;
-  description?: string | null;
-  startDate?: string | null;
-  timeOfDay?: string | null;
-  timezone?: string | null;
-  supportedTimezone: string;
-  repeatType?: ReturnType<typeof parseReminderRepeatType> | null;
-  weekdays?: number[];
-}) => {
-  if (params.title !== undefined) {
-    if (!params.title || params.title.length === 0) {
-      return "title e obrigatorio";
-    }
-
-    if (params.title.length > MAX_TITLE_LENGTH) {
-      return `title deve ter no maximo ${MAX_TITLE_LENGTH} caracteres`;
-    }
-  }
-
-  if (
-    params.description !== undefined &&
-    params.description !== null &&
-    params.description.length > MAX_DESCRIPTION_LENGTH
-  ) {
-    return `description deve ter no maximo ${MAX_DESCRIPTION_LENGTH} caracteres`;
-  }
-
-  if (params.startDate !== undefined && params.startDate !== null && !isValidDateOnly(params.startDate)) {
-    return "startDate deve estar no formato YYYY-MM-DD";
-  }
-
-  if (params.timeOfDay !== undefined && params.timeOfDay !== null && !isValidTimeOfDay(params.timeOfDay)) {
-    return "timeOfDay deve estar no formato HH:MM";
-  }
-
-  if (
-    params.timezone !== undefined &&
-    params.timezone !== null &&
-    (params.timezone.length === 0 || params.timezone.length > MAX_TIMEZONE_LENGTH)
-  ) {
-    return `timezone deve ter entre 1 e ${MAX_TIMEZONE_LENGTH} caracteres`;
-  }
-
-  if (
-    params.timezone !== undefined &&
-    params.timezone !== null &&
-    params.timezone !== params.supportedTimezone
-  ) {
-    return `timezone invalida. Use ${params.supportedTimezone}`;
-  }
-
-  if (params.repeatType === "weekly" && (!params.weekdays || params.weekdays.length === 0)) {
-    return "weekdays e obrigatorio para repeticao semanal";
-  }
-
-  return null;
-};
-
-const toDateOnlyString = (dateParts: { year: number; month: number; day: number }): string => {
-  return `${String(dateParts.year).padStart(4, "0")}-${String(dateParts.month).padStart(2, "0")}-${String(
-    dateParts.day
-  ).padStart(2, "0")}`;
-};
-
-const recalculateLastScheduledFor = (params: {
-  currentLastScheduledFor: string | null;
-  nextStartDate: string;
-  nextTimeOfDay: string;
-  nextTimezone: string;
-}): string | null => {
-  if (!params.currentLastScheduledFor) {
-    return null;
-  }
-
-  const anchorDate = getZonedParts(new Date(params.currentLastScheduledFor), params.nextTimezone);
-  const anchorDateOnly = toDateOnlyString(anchorDate);
-
-  if (params.nextStartDate > anchorDateOnly) {
-    return null;
-  }
-
-  return zonedDateTimeToUtc(
-    parseDateOnly(anchorDateOnly),
-    parseTimeOfDay(params.nextTimeOfDay),
-    params.nextTimezone
-  ).toISOString();
-};
+import {
+  completeUserReminderOccurrence,
+  deleteUserReminder,
+  fetchReminderById,
+  listUserReminderOccurrences,
+  listUserReminders,
+  parseOccurrenceListParams,
+  toggleUserReminder
+} from "../reminders/me-route-helpers";
+import {
+  parseReminderCreateInput,
+  parseReminderUpdateInput,
+  resolveReminderCreate,
+  resolveReminderUpdate,
+  toNullableString,
+  validateReminderFields
+} from "../reminders/route-helpers";
+import type { ReminderRow } from "../reminders/types";
 
 export const createReminderMeRouter = (
   db: Database.Database,
@@ -144,40 +43,8 @@ export const createReminderMeRouter = (
     }
 
     const active = toNullableString(req.query.active);
-    const conditions = ["user_id = ?", "deleted_at IS NULL"];
-    const values: Array<number | string> = [req.authUser.id];
-
-    if (active === "true" || active === "false") {
-      conditions.push("is_active = ?");
-      values.push(active === "true" ? 1 : 0);
-    }
-
-    const reminders = db
-      .prepare(
-        `
-          SELECT
-            id,
-            user_id AS userId,
-            title,
-            description,
-            start_date AS startDate,
-            time_of_day AS timeOfDay,
-            timezone,
-            repeat_type AS repeatType,
-            weekdays_json AS weekdaysJson,
-            is_active AS isActive,
-            last_scheduled_for AS lastScheduledFor,
-            created_at AS createdAt,
-            updated_at AS updatedAt
-          FROM reminders
-          WHERE ${conditions.join(" AND ")}
-          ORDER BY is_active DESC, created_at DESC
-        `
-      )
-      .all(...values) as ReminderRow[];
-
     res.json({
-      reminders: reminders.map(normalizeReminderRow)
+      reminders: listUserReminders(db, req.authUser.id, active)
     });
   });
 
@@ -187,29 +54,25 @@ export const createReminderMeRouter = (
       return;
     }
 
-    const title = toNullableString(req.body?.title);
-    const description = toNullableString(req.body?.description) ?? "";
-    const startDate = toNullableString(req.body?.startDate ?? req.body?.start_date);
-    const timeOfDay = toNullableString(req.body?.timeOfDay ?? req.body?.time_of_day);
-    const timezone = toNullableString(req.body?.timezone) ?? config.reminderTimezone;
-    const repeatType = parseReminderRepeatType(req.body?.repeatType ?? req.body?.repeat_type);
-    const weekdays = parseWeekdays(req.body?.weekdays);
+    const input = parseReminderCreateInput(req.body, config.reminderTimezone);
     const timestamp = nowIso();
 
-    if (!title || !startDate || !timeOfDay || !repeatType) {
+    if (!input.title || !input.startDate || !input.timeOfDay || !input.repeatType) {
       res.status(400).json({ error: "title, startDate, timeOfDay e repeatType sao obrigatorios" });
       return;
     }
 
+    const resolved = resolveReminderCreate(input);
+
     const validationError = validateReminderFields({
-      title,
-      description,
-      startDate,
-      timeOfDay,
-      timezone,
+      title: resolved.title,
+      description: resolved.description,
+      startDate: resolved.startDate,
+      timeOfDay: resolved.timeOfDay,
+      timezone: resolved.timezone,
       supportedTimezone: config.reminderTimezone,
-      repeatType,
-      weekdays
+      repeatType: resolved.repeatType,
+      weekdays: resolved.weekdays
     });
     if (validationError) {
       res.status(400).json({ error: validationError });
@@ -236,13 +99,13 @@ export const createReminderMeRouter = (
       )
       .run(
         req.authUser.id,
-        title,
-        description,
-        startDate,
-        timeOfDay,
-        timezone,
-        repeatType,
-        stringifyWeekdays(weekdays),
+        resolved.title,
+        resolved.description,
+        resolved.startDate,
+        resolved.timeOfDay,
+        resolved.timezone,
+        resolved.repeatType,
+        resolved.weekdaysJson,
         timestamp,
         timestamp
       );
@@ -308,16 +171,9 @@ export const createReminderMeRouter = (
       return;
     }
 
-    const title = toNullableString(req.body?.title);
-    const description = toNullableString(req.body?.description);
-    const startDate = toNullableString(req.body?.startDate ?? req.body?.start_date);
-    const timeOfDay = toNullableString(req.body?.timeOfDay ?? req.body?.time_of_day);
-    const timezone = toNullableString(req.body?.timezone);
-    const repeatTypeRaw = req.body?.repeatType ?? req.body?.repeat_type;
-    const repeatType = repeatTypeRaw !== undefined ? parseReminderRepeatType(repeatTypeRaw) : undefined;
-    const weekdays = req.body?.weekdays !== undefined ? parseWeekdays(req.body?.weekdays) : undefined;
+    const input = parseReminderUpdateInput(req.body);
 
-    if (repeatTypeRaw !== undefined && !repeatType) {
+    if (input.repeatTypeRaw !== undefined && !input.repeatType) {
       res.status(400).json({ error: "repeatType invalido" });
       return;
     }
@@ -350,38 +206,17 @@ export const createReminderMeRouter = (
       lastScheduledFor: string | null;
     };
 
-    const currentTimezone =
-      current.timezone === config.reminderTimezone ? current.timezone : config.reminderTimezone;
-    const nextRepeatType = repeatType ?? (current.repeatType as ReturnType<typeof parseReminderRepeatType>);
-    const nextWeekdays = weekdays ?? (JSON.parse(current.weekdaysJson) as number[]);
-    const nextStartDate = startDate ?? current.startDate;
-    const nextTimeOfDay = timeOfDay ?? current.timeOfDay;
-    const nextTimezone = timezone ?? currentTimezone;
-    const nextWeekdaysJson = stringifyWeekdays(nextWeekdays);
-    const scheduleChanged =
-      nextStartDate !== current.startDate ||
-      nextTimeOfDay !== current.timeOfDay ||
-      nextTimezone !== currentTimezone ||
-      nextRepeatType !== current.repeatType ||
-      nextWeekdaysJson !== current.weekdaysJson;
-    const nextLastScheduledFor = scheduleChanged
-      ? recalculateLastScheduledFor({
-          currentLastScheduledFor: current.lastScheduledFor,
-          nextStartDate,
-          nextTimeOfDay,
-          nextTimezone
-        })
-      : current.lastScheduledFor;
+    const resolved = resolveReminderUpdate(current, input, config.reminderTimezone);
 
     const validationError = validateReminderFields({
-      title: title ?? current.title,
-      description: description ?? current.description,
-      startDate: nextStartDate,
-      timeOfDay: nextTimeOfDay,
-      timezone: nextTimezone,
+      title: resolved.title,
+      description: resolved.description,
+      startDate: resolved.startDate,
+      timeOfDay: resolved.timeOfDay,
+      timezone: resolved.timezone,
       supportedTimezone: config.reminderTimezone,
-      repeatType: nextRepeatType,
-      weekdays: nextWeekdays
+      repeatType: resolved.repeatType,
+      weekdays: resolved.weekdays
     });
     if (validationError) {
       res.status(400).json({ error: validationError });
@@ -406,42 +241,20 @@ export const createReminderMeRouter = (
           AND deleted_at IS NULL
       `
     ).run(
-      title ?? current.title,
-      description ?? current.description,
-      nextStartDate,
-      nextTimeOfDay,
-      nextTimezone,
-      nextRepeatType,
-      nextWeekdaysJson,
-      nextLastScheduledFor,
+      resolved.title,
+      resolved.description,
+      resolved.startDate,
+      resolved.timeOfDay,
+      resolved.timezone,
+      resolved.repeatType,
+      resolved.weekdaysJson,
+      resolved.lastScheduledFor,
       nowIso(),
       reminderId,
       req.authUser.id
     );
 
-    const updated = db
-      .prepare(
-        `
-          SELECT
-            id,
-            user_id AS userId,
-            title,
-            description,
-            start_date AS startDate,
-            time_of_day AS timeOfDay,
-            timezone,
-            repeat_type AS repeatType,
-            weekdays_json AS weekdaysJson,
-            is_active AS isActive,
-            last_scheduled_for AS lastScheduledFor,
-            created_at AS createdAt,
-            updated_at AS updatedAt
-          FROM reminders
-          WHERE id = ?
-            AND deleted_at IS NULL
-        `
-      )
-      .get(reminderId) as ReminderRow;
+    const updated = fetchReminderById(db, reminderId);
 
     logReminderEvent(db, {
       reminderId,
@@ -459,42 +272,20 @@ export const createReminderMeRouter = (
     }
 
     const reminderId = Number(req.params.id);
-    const rawIsActive = req.body?.is_active ?? req.body?.isActive;
-
     if (!Number.isInteger(reminderId) || reminderId <= 0) {
       res.status(400).json({ error: "ID invalido" });
       return;
     }
 
-    if (typeof rawIsActive !== "boolean") {
-      res.status(400).json({ error: "is_active deve ser boolean" });
-      return;
-    }
-
-    const isActive = rawIsActive;
-
-    const result = db
-      .prepare(
-        `
-          UPDATE reminders
-          SET is_active = ?, updated_at = ?
-          WHERE id = ?
-            AND user_id = ?
-            AND deleted_at IS NULL
-        `
-      )
-      .run(isActive ? 1 : 0, nowIso(), reminderId, req.authUser.id);
-
-    if (result.changes === 0) {
-      res.status(404).json({ error: "Lembrete nao encontrado" });
-      return;
-    }
-
-    logReminderEvent(db, {
+    const result = toggleUserReminder(db, {
       reminderId,
       userId: req.authUser.id,
-      eventType: isActive ? "reminder.activated" : "reminder.deactivated"
+      rawIsActive: req.body?.is_active ?? req.body?.isActive
     });
+    if ("error" in result) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
 
     res.json({ ok: true });
   });
@@ -511,78 +302,14 @@ export const createReminderMeRouter = (
       return;
     }
 
-    const pendingOccurrences = db
-      .prepare(
-        `
-          SELECT id, retry_count AS retryCount
-          FROM reminder_occurrences
-          WHERE reminder_id = ?
-            AND user_id = ?
-            AND status = 'pending'
-        `
-      )
-      .all(reminderId, req.authUser.id) as Array<{ id: number; retryCount: number }>;
-
-    const timestamp = nowIso();
-    const result = db
-      .prepare(
-        `
-          UPDATE reminders
-          SET
-            is_active = 0,
-            deleted_at = ?,
-            updated_at = ?
-          WHERE id = ?
-            AND user_id = ?
-            AND deleted_at IS NULL
-        `
-      )
-      .run(timestamp, timestamp, reminderId, req.authUser.id);
-
-    if (result.changes === 0) {
-      res.status(404).json({ error: "Lembrete nao encontrado" });
+    const result = deleteUserReminder(db, io, {
+      reminderId,
+      userId: req.authUser.id
+    });
+    if ("error" in result) {
+      res.status(result.status).json({ error: result.error });
       return;
     }
-
-    db.prepare(
-      `
-        UPDATE reminder_occurrences
-        SET
-          status = 'cancelled',
-          next_retry_at = NULL,
-          updated_at = ?
-        WHERE reminder_id = ?
-          AND user_id = ?
-          AND status = 'pending'
-      `
-    ).run(timestamp, reminderId, req.authUser.id);
-
-    for (const occurrence of pendingOccurrences) {
-      logReminderEvent(db, {
-        reminderId,
-        occurrenceId: occurrence.id,
-        userId: req.authUser.id,
-        eventType: "reminder.occurrence.cancelled",
-        metadata: {
-          reason: "reminder_deleted",
-          retryCount: occurrence.retryCount
-        }
-      });
-
-      emitReminderUpdated(io, {
-        occurrenceId: occurrence.id,
-        reminderId,
-        userId: req.authUser.id,
-        status: "cancelled",
-        retryCount: occurrence.retryCount
-      });
-    }
-
-    logReminderEvent(db, {
-      reminderId,
-      userId: req.authUser.id,
-      eventType: "reminder.deleted"
-    });
 
     res.status(204).send();
   });
@@ -593,49 +320,10 @@ export const createReminderMeRouter = (
       return;
     }
 
-    const status = toNullableString(req.query.status);
-    const filter = toNullableString(req.query.filter);
-    const conditions = ["o.user_id = ?"];
-    const values: Array<number | string> = [req.authUser.id];
-
-    if (status) {
-      conditions.push("o.status = ?");
-      values.push(status);
-    }
-
-    if (filter === "today") {
-      conditions.push("date(datetime(o.scheduled_for, 'localtime')) = date('now', 'localtime')");
-    }
-
-    const occurrences = db
-      .prepare(
-        `
-          SELECT
-            o.id,
-            o.reminder_id AS reminderId,
-            o.user_id AS userId,
-            o.scheduled_for AS scheduledFor,
-            o.triggered_at AS triggeredAt,
-            o.status,
-            o.retry_count AS retryCount,
-            o.next_retry_at AS nextRetryAt,
-            o.completed_at AS completedAt,
-            o.expired_at AS expiredAt,
-            o.trigger_source AS triggerSource,
-            o.created_at AS createdAt,
-            o.updated_at AS updatedAt,
-            r.title,
-            r.description
-          FROM reminder_occurrences o
-          INNER JOIN reminders r ON r.id = o.reminder_id
-          WHERE ${conditions.join(" AND ")}
-          ORDER BY o.scheduled_for DESC
-          LIMIT 200
-        `
-      )
-      .all(...values) as ReminderOccurrenceRow[];
-
-    res.json({ occurrences });
+    const { status, filter } = parseOccurrenceListParams(req.query as Record<string, unknown>);
+    res.json({
+      occurrences: listUserReminderOccurrences(db, req.authUser.id, status, filter)
+    });
   });
 
   router.post("/reminder-occurrences/:id/complete", (req, res) => {
@@ -645,61 +333,15 @@ export const createReminderMeRouter = (
     }
 
     const occurrenceId = Number(req.params.id);
-    const timestamp = nowIso();
-    const result = db
-      .prepare(
-        `
-          UPDATE reminder_occurrences
-          SET
-            status = 'completed',
-            completed_at = ?,
-            updated_at = ?
-          WHERE id = ?
-            AND user_id = ?
-            AND status = 'pending'
-        `
-      )
-      .run(timestamp, timestamp, occurrenceId, req.authUser.id);
-
-    if (result.changes === 0) {
-      res.status(404).json({ error: "Ocorrencia nao encontrada ou ja concluida" });
+    const result = completeUserReminderOccurrence(db, io, {
+      occurrenceId,
+      userId: req.authUser.id
+    });
+    if ("error" in result) {
+      res.status(result.status).json({ error: result.error });
       return;
     }
-
-    const occurrence = db
-      .prepare(
-        `
-          SELECT reminder_id AS reminderId, retry_count AS retryCount
-          FROM reminder_occurrences
-          WHERE id = ?
-        `
-      )
-      .get(occurrenceId) as { reminderId: number; retryCount: number };
-
-    logReminderEvent(db, {
-      reminderId: occurrence.reminderId,
-      occurrenceId,
-      userId: req.authUser.id,
-      eventType: "reminder.occurrence.completed"
-    });
-
-    logAudit(db, {
-      actorUserId: req.authUser.id,
-      eventType: "reminder.occurrence.completed",
-      targetType: "reminder_occurrence",
-      targetId: occurrenceId
-    });
-
-    emitReminderUpdated(io, {
-      occurrenceId,
-      reminderId: occurrence.reminderId,
-      userId: req.authUser.id,
-      status: "completed",
-      retryCount: occurrence.retryCount,
-      completedAt: timestamp
-    });
-
-    res.json({ ok: true, completedAt: timestamp });
+    res.json(result);
   });
 
   return router;

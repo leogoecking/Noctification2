@@ -208,6 +208,9 @@ export const AdminHistoryPanel = ({
                   {item.recipient_mode === "all" ? "Todos" : "Usuarios especificos"}
                 </span>
               </div>
+              {item.source_task_id ? (
+                <p className="mt-2 text-xs text-accent">Tarefa vinculada #{item.source_task_id}</p>
+              ) : null}
               <p className="mt-2 text-sm text-textMuted">{item.message}</p>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-md bg-panel px-2 py-1 text-textMuted">Total: {item.stats.total}</span>
