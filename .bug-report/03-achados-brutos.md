@@ -43,3 +43,21 @@
   - backend lê `req.body` em `apps/api/src/routes/me.ts:73-82`
   - frontend envia body em DELETE em `apps/web/src/lib/api.ts`
 - Risco: alguns clientes, proxies e middlewares tratam body em DELETE de forma inconsistente, podendo impedir remoção de subscription em integrações futuras.
+
+### VULN-001
+
+- Tipo: `vulnerabilidade_confirmada`
+- Arquivo: `package-lock.json`
+- Sintoma: o lockfile continha dependencias transitivas com advisories `high` confirmados por `npm audit`.
+- Evidencia:
+  - `npm ls flatted picomatch socket.io-parser --all` mostrou:
+    - `flatted@3.4.0`
+    - `picomatch@2.3.1` e `4.0.3`
+    - `socket.io-parser@4.2.5`
+  - `npm audit --audit-level=high` reproduziu 3 achados `high`
+  - apos `npm audit fix`, o lockfile passou a conter:
+    - `flatted@3.4.2`
+    - `picomatch@2.3.2` e `4.0.4`
+    - `socket.io-parser@4.2.6`
+  - `npm audit --audit-level=high` deixou de reportar achados `high`
+- Observacao: restaram 9 achados `moderate` na cadeia do `eslint`, dependentes de `npm audit fix --force`.

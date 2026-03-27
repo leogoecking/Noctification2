@@ -2,7 +2,7 @@
 
 ## Resumo executivo
 
-A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack antes de agir, validação com evidência, distinção entre bug confirmado e risco potencial e correção mínima e verificável. O repositório segue estruturalmente estável: `lint`, `typecheck`, testes da API e testes do Web passaram. Nesta rodada, 2 problemas confirmados foram corrigidos e 1 risco potencial permaneceu pendente.
+A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack antes de agir, validação com evidência, distinção entre bug confirmado e risco potencial e correção mínima e verificável. O repositório segue estruturalmente estável: `lint`, `typecheck`, testes da API, testes do Web e `build` passaram nas rodadas validadas. Somando a rodada anterior com a rodada de seguranca de 2026-03-26, 2 problemas funcionais confirmados e 1 vulnerabilidade confirmada foram corrigidos; 1 risco potencial e 1 residual de vulnerabilidade moderada permaneceram pendentes.
 
 ## Visão geral do repositório
 
@@ -24,16 +24,19 @@ A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack
 - `bug_reproduzivel`: 1
 - `erro_de_configuracao`: 1
 - `risco_potencial`: 1
+- `vulnerabilidade_confirmada`: 1
 
 ## Bugs confirmados
 
 - `BUG-001`: loopback IPv6 `[::1]` não tratado na reescrita de runtime URLs do frontend
 - `CFG-001`: `npm test` da raiz não cobre o workspace web
+- `VULN-001`: lockfile com dependencias transitivas vulneraveis reportadas como `high` pelo `npm audit`
 
 ## Bugs corrigidos
 
 - `BUG-001`: loopback IPv6 `[::1]` agora e tratado na reescrita de runtime URLs
 - `CFG-001`: `npm test` da raiz agora cobre API e Web
+- `VULN-001`: lockfile atualizado para remover `flatted@3.4.0`, `picomatch@2.3.1/4.0.3` e `socket.io-parser@4.2.5`
 
 ## Bugs pendentes
 
@@ -41,7 +44,8 @@ A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack
 
 ## Vulnerabilidades confirmadas
 
-- Nenhuma confirmada nesta rodada
+- `VULN-001`: corrigida
+- Residual pendente: 9 achados `moderate` na cadeia do `eslint`, dependentes de `npm audit fix --force` com upgrade major para `eslint@10.1.0`
 
 ## Riscos potenciais
 
@@ -64,3 +68,4 @@ A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack
 1. Tratar `RISK-001` redesenhando o contrato de unsubscribe Web Push
 2. Manter cobertura de teste para IPv4 e IPv6 loopback em runtime URLs
 3. Preservar o `npm test` da raiz como validacao completa do monorepo
+4. Planejar upgrade controlado de `eslint` antes de considerar `npm audit fix --force`

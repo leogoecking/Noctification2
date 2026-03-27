@@ -86,3 +86,16 @@
 2. Correlacionar qualquer falha com código.
 3. Como a base passou, procurar bugs reproduzíveis por inspeção dirigida em áreas sensíveis.
 4. Separar bug confirmado de risco potencial e erro de configuração.
+
+## Adendo 2026-03-26 - superficie de risco de dependencias
+
+- Lockfile: `package-lock.json` v3.
+- Ferramenta de auditoria confirmada: `npm audit`.
+- Dependencias afetadas pelo resultado informado:
+  - `flatted` via `eslint -> file-entry-cache -> flat-cache`
+  - `picomatch` via `tailwindcss/chokidar/micromatch` e via `vite`/`vitest`/`tinyglobby`
+  - `socket.io-parser` via `socket.io` e `socket.io-client`
+- Areas de maior risco desta rodada:
+  - runtime realtime da API/Web por uso de `socket.io-parser`
+  - cadeia de build/teste do frontend por uso de `picomatch`
+  - cadeia de lint por uso de `flatted`

@@ -22,5 +22,13 @@
     "arquivo": "apps/api/src/routes/me.ts",
     "linha": 73,
     "prioridade": 3
+  },
+  {
+    "id": "VULN-001",
+    "tipo": "vulnerabilidade_confirmada",
+    "status": "corrigido",
+    "arquivo": "package-lock.json",
+    "linha": 1,
+    "prioridade": 1
   }
 ]

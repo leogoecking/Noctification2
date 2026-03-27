@@ -21,9 +21,18 @@ const addUtcDays = (date: Date, amount: number): Date => {
   return next;
 };
 
+const daysInUtcMonth = (year: number, monthIndex: number): number => {
+  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+};
+
 const addUtcMonths = (date: Date, amount: number): Date => {
   const next = new Date(date.getTime());
-  next.setUTCMonth(next.getUTCMonth() + amount);
+  const totalMonths = date.getUTCFullYear() * 12 + date.getUTCMonth() + amount;
+  const monthIndex = ((totalMonths % 12) + 12) % 12;
+  const year = (totalMonths - monthIndex) / 12;
+  const day = Math.min(date.getUTCDate(), daysInUtcMonth(year, monthIndex));
+
+  next.setUTCFullYear(year, monthIndex, day);
   return next;
 };
 

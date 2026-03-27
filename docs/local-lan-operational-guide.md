@@ -102,6 +102,9 @@ Arquivos gerados em:
 - `.deploy/certs/noctification.lan.pem`
 - `.deploy/certs/noctification.lan-key.pem`
 
+Esses arquivos devem permanecer apenas na maquina local e fora do Git.
+Se a chave privada da CA ou do servidor tiver sido exposta, descarte toda a cadeia local, gere outra com o script e reinstale a nova CA raiz nos clientes antes de voltar a confiar no HTTPS local.
+
 ### 6. Configurar resolucao do hostname
 
 Voce precisa fazer `noctification.lan` apontar para o IP da maquina servidora.

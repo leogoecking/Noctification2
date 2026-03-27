@@ -102,5 +102,43 @@
     ],
     "prioridade": 3,
     "corrigir_agora": false
+  },
+  {
+    "id": "VULN-001",
+    "tipo": "vulnerabilidade_confirmada",
+    "status": "confirmado",
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "raiz do monorepo",
+    "arquivo": "package-lock.json",
+    "linha": 1,
+    "componente": "lockfile de dependencias",
+    "sintoma": "O lockfile resolvia versoes com advisories high em flatted, picomatch e socket.io-parser.",
+    "evidencia": [
+      "npm audit --audit-level=high reproduziu 3 achados high",
+      "npm ls flatted picomatch socket.io-parser --all mapeou a arvore afetada",
+      "git diff -- package-lock.json mostrou atualizacao para flatted@3.4.2, picomatch@2.3.2/4.0.4 e socket.io-parser@4.2.6"
+    ],
+    "causa_raiz": "O package-lock.json estava resolvendo versoes transitivas anteriores aos patches de seguranca publicados no registro npm.",
+    "impacto": {
+      "usuario": "medio",
+      "sistema": "alto",
+      "negocio": "alto"
+    },
+    "reproducao": [
+      "Executar npm audit --audit-level=high na raiz",
+      "Observar os achados high para flatted, picomatch e socket.io-parser",
+      "Executar npm ls flatted picomatch socket.io-parser --all e confirmar as versoes vulneraveis resolvidas"
+    ],
+    "correcao_recomendada": "Atualizar o lockfile via npm audit fix sem alterar contratos publicos ou dependencias principais.",
+    "validacao": [
+      "Executar npm audit --audit-level=high e confirmar ausencia de achados high",
+      "Executar npm run test:api",
+      "Executar npm run test:web",
+      "Executar npm run build"
+    ],
+    "prioridade": 1,
+    "corrigir_agora": true
   }
 ]

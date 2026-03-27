@@ -12,3 +12,5 @@ coverage/
 !.deploy/shared/backups/.gitkeep
 .deploy/shared/logs/*
 !.deploy/shared/logs/.gitkeep
+.deploy/certs/*
+!.deploy/certs/.gitkeep

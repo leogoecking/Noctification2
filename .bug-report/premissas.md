@@ -19,3 +19,15 @@
   - `npm run test:web`
   - reprodução pontual via `node --import tsx -e ...`
 - Como `lint`, `typecheck` e as suítes passaram, a maior parte dos achados restantes é de configuração ou risco potencial, não regressão evidente.
+
+## Adendo 2026-03-26 - rodada de seguranca de dependencias
+
+- Escopo desta rodada: reproduzir e tratar o resultado de `npm audit --audit-level=high` informado pelo usuario.
+- Estado inicial desta rodada: worktree limpa; apos a correcao automatica, apenas `package-lock.json` foi alterado.
+- Rede externa foi necessaria para `npm audit fix` e para a verificacao final de `npm audit --audit-level=high`.
+- Ferramentas confirmadas nesta rodada:
+  - `npm audit`
+  - `npm audit fix`
+  - `npm ls`
+  - `git diff`
+- Limitacao confirmada: os achados residuais de severidade `moderate` na cadeia do `eslint` exigem `npm audit fix --force` com upgrade major para `eslint@10.1.0`, o que foge da politica de correcao de baixo risco desta rodada.

@@ -23,3 +23,13 @@
   - `npm test`
   - `npm run lint`
   - `npm run typecheck`
+
+## [package-lock.json](/home/leo/Noctification2/package-lock.json)
+
+- Motivo: remover as resolucoes vulneraveis `flatted@3.4.0`, `picomatch@2.3.1/4.0.3` e `socket.io-parser@4.2.5` apontadas pelo `npm audit`.
+- Risco: baixo, alteracao restrita ao lockfile com bumps transitivos de patch.
+- Validacao associada:
+  - `npm audit --audit-level=high`
+  - `npm run test:api`
+  - `npm run test:web`
+  - `npm run build`

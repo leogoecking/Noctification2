@@ -65,3 +65,41 @@
 - Sem `docker`.
 - Sem `rg`.
 - Não houve execução de smoke E2E em navegador real.
+
+## Adendo 2026-03-26 - plano de auditoria de dependencias
+
+## Ordem de execucao complementar
+
+1. Confirmar a arvore local com `npm ls flatted picomatch socket.io-parser --all`.
+2. Confirmar as versoes no `package-lock.json`.
+3. Executar `npm audit fix` apenas se a atualizacao puder ficar restrita ao lockfile.
+4. Revalidar com `npm audit --audit-level=high`.
+5. Executar testes e build do monorepo para validar ausencia de regressao.
+
+## Ferramentas escolhidas
+
+### `npm ls`
+
+- Motivo: mapear origem real das dependencias vulneraveis.
+- Escopo: monorepo inteiro.
+- Confiabilidade esperada: alta.
+- Tipo de achado esperado: vulnerabilidade confirmada e superficie afetada.
+
+### `npm audit` / `npm audit fix`
+
+- Motivo: reproduzir o advisory reportado e aplicar a menor correcao viavel.
+- Escopo: lockfile raiz.
+- Confiabilidade esperada: alta, dependente do registro npm.
+- Tipo de achado esperado: vulnerabilidade confirmada.
+
+### `npm run test:api`, `npm run test:web`, `npm run build`
+
+- Motivo: validar que a atualizacao transitiva nao quebrou runtime, testes ou bundling.
+- Escopo: workspaces `apps/api` e `apps/web`.
+- Confiabilidade esperada: alta no escopo coberto.
+- Tipo de achado esperado: regressao funcional ou integracao quebrada.
+
+## Limitacoes complementares
+
+- A verificacao via `npm audit` depende de acesso ao registro npm.
+- Os achados `moderate` residuais exigem upgrade major fora do escopo de baixo risco.

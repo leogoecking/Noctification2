@@ -36,3 +36,16 @@
 - Motivo da prioridade:
   - não falhou no ambiente atual
   - risco cresce quando houver proxy, gateway ou cliente alternativo
+
+## Prioridade 1
+
+### VULN-001 - dependencias transitivas com advisories high no lockfile
+
+- Tipo: `vulnerabilidade_confirmada`
+- Severidade: alta
+- Confiança diagnóstica: alta
+- Risco de regressão: baixo
+- Motivo da prioridade:
+  - havia evidencia objetiva via `npm audit --audit-level=high`
+  - a correcao viavel ficou restrita ao `package-lock.json`
+  - validacao objetiva disponivel com novo `npm audit`, testes e build

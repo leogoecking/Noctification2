@@ -240,4 +240,55 @@ describe("task automation", () => {
 
     db.close();
   });
+
+  it("limita a recorrencia mensal ao ultimo dia valido do mes de destino", () => {
+    const db = connectDatabase(":memory:");
+    runMigrations(db, apiMigrationsDir);
+    seedUsers(db);
+
+    db.prepare(
+      `
+        INSERT INTO tasks (
+          id, title, description, status, priority, creator_user_id, assignee_user_id, due_at,
+          repeat_type, repeat_weekdays_json, started_at, completed_at, created_at, updated_at
+        ) VALUES (
+          31, 'Fechamento mensal', '', 'done', 'normal', 1, 2, '2026-01-31T09:00:00.000Z',
+          'monthly', '[]', '2026-01-31T08:00:00.000Z', '2026-01-31T09:10:00.000Z',
+          '2026-01-31T08:00:00.000Z', '2026-01-31T09:10:00.000Z'
+        )
+      `
+    ).run();
+
+    const { io } = createIoStub();
+
+    runTaskAutomationCycle(db, io, config, {
+      now: () => new Date("2026-02-01T12:00:00.000Z")
+    });
+
+    const generatedTask = db
+      .prepare(
+        `
+          SELECT
+            recurrence_source_task_id AS recurrenceSourceTaskId,
+            due_at AS dueAt,
+            repeat_type AS repeatType
+          FROM tasks
+          WHERE recurrence_source_task_id = 31
+          LIMIT 1
+        `
+      )
+      .get() as {
+      recurrenceSourceTaskId: number | null;
+      dueAt: string | null;
+      repeatType: string;
+    };
+
+    expect(generatedTask).toMatchObject({
+      recurrenceSourceTaskId: 31,
+      dueAt: "2026-02-28T09:00:00.000Z",
+      repeatType: "monthly"
+    });
+
+    db.close();
+  });
 });

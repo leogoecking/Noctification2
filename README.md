@@ -62,6 +62,9 @@ Ele gera em `.deploy/certs/`:
 - `noctification.lan.pem`
 - `noctification.lan-key.pem`
 
+Esses artefatos sao locais e nao devem ser versionados.
+Se alguma chave privada dessa cadeia tiver sido commitada antes, trate a CA e os certificados gerados como comprometidos, gere uma nova cadeia e reinstale apenas a nova CA raiz confiavel nos clientes.
+
 Depois:
 
 1. instale `local-root-ca.pem` como CA confiavel nos notebooks/celulares que vao acessar o sistema
