@@ -1,34 +1,35 @@
 [
   {
-    "id": "BUG-001",
-    "tipo": "bug_reproduzivel",
-    "status": "corrigido",
-    "arquivo": "apps/web/src/lib/runtimeUrls.ts",
-    "linha": 10,
-    "prioridade": 1
-  },
-  {
-    "id": "CFG-001",
-    "tipo": "erro_de_configuracao",
-    "status": "corrigido",
-    "arquivo": "package.json",
-    "linha": 18,
-    "prioridade": 2
-  },
-  {
-    "id": "RISK-001",
-    "tipo": "risco_potencial",
-    "status": "requer_decisao_humana",
-    "arquivo": "apps/api/src/routes/me.ts",
-    "linha": 73,
-    "prioridade": 3
-  },
-  {
-    "id": "VULN-001",
-    "tipo": "vulnerabilidade_confirmada",
-    "status": "corrigido",
-    "arquivo": "package-lock.json",
+    "id": "APR-001",
+    "tipo": "melhoria",
+    "severidade": "baixa",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/api/src/app.ts",
     "linha": 1,
-    "prioridade": 1
+    "prioridade": 1,
+    "status": "corrigido"
+  },
+  {
+    "id": "APR-002",
+    "tipo": "melhoria",
+    "severidade": "baixa",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "linha": 1,
+    "prioridade": 2,
+    "status": "corrigido"
+  },
+  {
+    "id": "APR-003",
+    "tipo": "melhoria",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/api/src/modules/apr/service.ts",
+    "linha": 1,
+    "prioridade": 3,
+    "status": "corrigido"
   }
 ]

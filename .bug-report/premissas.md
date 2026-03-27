@@ -1,33 +1,35 @@
-# Premissas e Limites
+## Premissas assumidas
 
-- Escopo desta rodada: identificar regras operacionais do `AGENTS.md` e analisar o repositório em busca de bugs e riscos reais, sem corrigir código.
-- Estado inicial: worktree já estava muito alterado antes desta análise; nenhuma mudança existente foi revertida.
-- Ferramentas confirmadas no ambiente:
-  - `npm`
-  - `node`
-  - `git`
-  - `sqlite3`
-- Ferramentas indisponíveis na amostra verificada:
-  - `rg`
-  - `docker`
-- Rede não foi usada. `npm audit` não foi executado por depender de acesso externo e não ser necessário para a triagem inicial.
-- O repositório é um monorepo Node/TypeScript com `apps/api` e `apps/web`.
-- Evidência forte coletada nesta análise:
-  - `npm run lint`
-  - `npm run typecheck`
-  - `npm test`
-  - `npm run test:web`
-  - reprodução pontual via `node --import tsx -e ...`
-- Como `lint`, `typecheck` e as suítes passaram, a maior parte dos achados restantes é de configuração ou risco potencial, não regressão evidente.
+- O repositório é um monorepo `npm` com workspaces ativos em `apps/api` e `apps/web`.
+- O objetivo desta intervenção é apenas preparar a estrutura inicial do módulo APR, sem ativar fluxos funcionais novos por padrão.
+- A feature flag `ENABLE_APR_MODULE` deve nascer desligada para preservar o comportamento atual.
+- No frontend, a rota `/apr` deve existir no código, mas sem interferir na navegação atual quando a flag estiver desligada.
 
-## Adendo 2026-03-26 - rodada de seguranca de dependencias
+## Limitações do ambiente
 
-- Escopo desta rodada: reproduzir e tratar o resultado de `npm audit --audit-level=high` informado pelo usuario.
-- Estado inicial desta rodada: worktree limpa; apos a correcao automatica, apenas `package-lock.json` foi alterado.
-- Rede externa foi necessaria para `npm audit fix` e para a verificacao final de `npm audit --audit-level=high`.
-- Ferramentas confirmadas nesta rodada:
-  - `npm audit`
-  - `npm audit fix`
-  - `npm ls`
-  - `git diff`
-- Limitacao confirmada: os achados residuais de severidade `moderate` na cadeia do `eslint` exigem `npm audit fix --force` com upgrade major para `eslint@10.1.0`, o que foge da politica de correcao de baixo risco desta rodada.
+- A ferramenta `rg` não está instalada; a inspeção foi feita com `find`, `grep`, `sed` e leitura direta de arquivos.
+- `pnpm` não está instalado; a execução seguirá com `npm`, que já está configurado no monorepo.
+- A validação será restrita a `build`, `test` e `typecheck` disponíveis localmente.
+
+## Ferramentas ausentes
+
+- `rg`
+- `pnpm`
+
+## Dúvidas relevantes
+
+- Nenhuma dependência entre `packages/apr-core` e os apps foi solicitada nesta fase; o pacote será criado como esqueleto reaproveitável.
+- A ativação operacional da flag em frontend e backend dependerá de configuração de ambiente em fases posteriores.
+
+## Escopo inferido
+
+- Criar estrutura mínima de backend, frontend e pacote compartilhado para APR.
+- Adicionar rota de health isolada no backend.
+- Adicionar placeholder visual simples no frontend.
+- Registrar a integração inicial em documentação técnica.
+
+## Complemento desta frente
+
+- Nesta iteração, o placeholder do frontend APR foi substituído por uma feature isolada em `apps/web/src/features/apr`.
+- A navegação existente deve continuar intacta; o único ponto de integração fora da feature é o `appShell`.
+- O menu APR só pode aparecer quando `VITE_ENABLE_APR_MODULE=true`.

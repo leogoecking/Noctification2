@@ -11,6 +11,7 @@ import { createReminderAdminRouter } from "./routes/reminders-admin";
 import { createReminderMeRouter } from "./routes/reminders-me";
 import { createTaskAdminRouterWithIo } from "./routes/tasks-admin";
 import { createTaskMeRouterWithIo } from "./routes/tasks-me";
+import { createAprRouter } from "./modules/apr/route";
 
 const isCorsOriginAllowed = (allowedOrigins: Set<string>, origin?: string): boolean => {
   if (!origin) {
@@ -62,6 +63,10 @@ export const createApp = (db: Database.Database, io: Server, config: AppConfig) 
   app.use("/api/v1/me", createMeRouter(db, io, config));
   app.use("/api/v1/me", createReminderMeRouter(db, io, config));
   app.use("/api/v1/me", createTaskMeRouterWithIo(db, io, config));
+
+  if (config.enableAprModule) {
+    app.use("/api/v1/apr", createAprRouter(db, config));
+  }
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Rota nao encontrada" });

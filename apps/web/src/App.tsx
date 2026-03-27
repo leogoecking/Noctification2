@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { AdminDashboard } from "./components/AdminDashboard";
+import { AprPage } from "./features/apr/AprPage";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
@@ -20,6 +21,8 @@ interface Toast {
   message: string;
   tone: "ok" | "error";
 }
+
+const APR_MODULE_ENABLED = import.meta.env.VITE_ENABLE_APR_MODULE === "true";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -87,7 +90,7 @@ export default function App() {
     }
 
     if (currentUser.role === "admin") {
-      if (currentPath !== "/") {
+      if (currentPath !== "/" && (!APR_MODULE_ENABLED || currentPath !== "/apr")) {
         navigate("/", true);
       }
       return;
@@ -232,9 +235,12 @@ export default function App() {
           />
         )}
 
-        {!loadingSession && currentUser?.role === "admin" && (
-          <AdminDashboard onError={handleErrorToast} onToast={handleOkToast} />
-        )}
+        {!loadingSession && currentUser?.role === "admin" &&
+          (currentPath === "/apr" && APR_MODULE_ENABLED ? (
+            <AprPage onError={handleErrorToast} onToast={handleOkToast} />
+          ) : (
+            <AdminDashboard onError={handleErrorToast} onToast={handleOkToast} />
+          ))}
       </div>
 
       <AppToastStack toasts={toasts} />

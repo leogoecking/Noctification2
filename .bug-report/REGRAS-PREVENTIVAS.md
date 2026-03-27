@@ -1,21 +1,7 @@
-# Regras Preventivas
+## Sugestoes preventivas
 
-## Lint e type rules
-
-- Adicionar teste obrigatório para utilitários que normalizam hosts/URLs.
-- Criar regra de revisão para scripts raiz de monorepo quando houver novos workspaces.
-
-## Testes ausentes prioritários
-
-- Caso `[::1]` em `apps/web/src/lib/runtimeUrls.test.ts`
-- Teste de contrato para unsubscribe Web Push sem body em DELETE, ou com query/path alternativo
-
-## CI recomendada
-
-- Garantir que o script raiz `test` reflita o conjunto de suítes esperado pela equipe
-- Manter `test:web` separado, mas evitar que `npm test` passe ideia de cobertura total se não for o caso
-
-## Políticas de revisão
-
-- Toda lógica de detecção de localhost deve cobrir IPv4 e IPv6
-- Contratos HTTP fora do padrão comum devem vir acompanhados de justificativa e teste
+- Manter qualquer modulo novo atras de flag operacional ate a validacao funcional completa.
+- Adicionar teste de montagem condicional para toda rota nova protegida por env flag.
+- Adicionar teste de roteamento manual para cada novo path especial no frontend.
+- Considerar regra de CI que valide `build`, `test` e `typecheck` em pull requests.
+- Quando `packages/apr-core` passar a ser consumido, adicionar `typecheck` proprio ao workspace.

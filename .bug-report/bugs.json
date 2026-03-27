@@ -1,142 +1,37 @@
 [
   {
-    "id": "BUG-001",
-    "tipo": "bug_reproduzivel",
+    "id": "APR-001",
+    "tipo": "melhoria",
     "status": "confirmado",
-    "severidade": "media",
+    "severidade": "baixa",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/web runtime",
-    "arquivo": "apps/web/src/lib/runtimeUrls.ts",
-    "linha": 10,
-    "componente": "runtimeUrls",
-    "sintoma": "Loopback IPv6 [::1] nao e tratado como localhost na reescrita de URLs.",
+    "escopo": "monorepo/apps-api-apps-web-packages",
+    "arquivo": "apps/api/src/app.ts",
+    "linha": 1,
+    "componente": "APR bootstrap",
+    "sintoma": "O repositório nao tinha estrutura inicial do modulo APR.",
     "evidencia": [
-      "apps/web/src/lib/runtimeUrls.ts:10-12",
-      "reproducao via node --import tsx"
+      "Inspecao estrutural do monorepo",
+      "Ausencia dos caminhos solicitados",
+      "Roteamento existente identificado para extensao incremental"
     ],
-    "causa_raiz": "A funcao isLoopbackHost cobre apenas localhost e 127.0.0.1, omitindo [::1].",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "medio",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Executar resolveRuntimeApiBase com configuredValue=http://[::1]:4000/api/v1",
-      "Usar location.hostname diferente de loopback, por exemplo 10.0.0.20",
-      "Observar que a URL continua apontando para [::1]"
-    ],
-    "correcao_recomendada": "Incluir [::1] na deteccao de loopback em runtimeUrls.",
-    "validacao": [
-      "Adicionar teste unitario para [::1] em runtimeUrls.test.ts",
-      "Rodar npm run test:web"
-    ],
-    "prioridade": 1,
-    "corrigir_agora": true
-  },
-  {
-    "id": "CFG-001",
-    "tipo": "erro_de_configuracao",
-    "status": "confirmado",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "raiz do monorepo",
-    "arquivo": "package.json",
-    "linha": 18,
-    "componente": "scripts",
-    "sintoma": "npm test valida apenas a API e nao o frontend.",
-    "evidencia": [
-      "package.json:18",
-      "npm test executou apenas @noctification/api",
-      "npm run test:web executou a suite web separadamente"
-    ],
-    "causa_raiz": "O script raiz test aponta so para o workspace da API.",
+    "causa_raiz": "Modulo APR ainda nao havia sido iniciado no monorepo.",
     "impacto": {
       "usuario": "baixo",
-      "sistema": "medio",
+      "sistema": "baixo",
       "negocio": "medio"
     },
     "reproducao": [
-      "Executar npm test na raiz",
-      "Observar que apenas a suite da API e disparada"
+      "Inspecionar a estrutura em apps/api/src",
+      "Inspecionar a estrutura em apps/web/src",
+      "Confirmar ausencia de packages/apr-core"
     ],
-    "correcao_recomendada": "Fazer o script raiz cobrir API e Web ou renomear para evitar falsa cobertura.",
+    "correcao_recomendada": "Criar esqueleto do modulo com feature flag desligada por padrao e rotas isoladas.",
     "validacao": [
-      "Executar npm test apos ajustar o script",
-      "Confirmar disparo das duas suites"
-    ],
-    "prioridade": 2,
-    "corrigir_agora": true
-  },
-  {
-    "id": "RISK-001",
-    "tipo": "risco_potencial",
-    "status": "confirmado",
-    "severidade": "media",
-    "confianca_diagnostica": "media",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/api + apps/web web-push",
-    "arquivo": "apps/api/src/routes/me.ts",
-    "linha": 73,
-    "componente": "web-push unsubscribe",
-    "sintoma": "Remocao de subscription depende de request body em DELETE.",
-    "evidencia": [
-      "apps/api/src/routes/me.ts:73-82",
-      "apps/web/src/lib/api.ts removeWebPushSubscription usa DELETE com bodyJson"
-    ],
-    "causa_raiz": "O contrato HTTP depende de um padrao que alguns proxies e clientes tratam de forma inconsistente.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "baixo",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Enviar DELETE sem body para /me/web-push/subscription",
-      "Observar erro 400 endpoint obrigatorio"
-    ],
-    "correcao_recomendada": "Mover o endpoint para query string ou path parameter, ou aceitar ambas as formas.",
-    "validacao": [
-      "Teste de rota cobrindo DELETE sem body e com query/path",
-      "Teste frontend do fluxo de unsubscribe"
-    ],
-    "prioridade": 3,
-    "corrigir_agora": false
-  },
-  {
-    "id": "VULN-001",
-    "tipo": "vulnerabilidade_confirmada",
-    "status": "confirmado",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "raiz do monorepo",
-    "arquivo": "package-lock.json",
-    "linha": 1,
-    "componente": "lockfile de dependencias",
-    "sintoma": "O lockfile resolvia versoes com advisories high em flatted, picomatch e socket.io-parser.",
-    "evidencia": [
-      "npm audit --audit-level=high reproduziu 3 achados high",
-      "npm ls flatted picomatch socket.io-parser --all mapeou a arvore afetada",
-      "git diff -- package-lock.json mostrou atualizacao para flatted@3.4.2, picomatch@2.3.2/4.0.4 e socket.io-parser@4.2.6"
-    ],
-    "causa_raiz": "O package-lock.json estava resolvendo versoes transitivas anteriores aos patches de seguranca publicados no registro npm.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "alto",
-      "negocio": "alto"
-    },
-    "reproducao": [
-      "Executar npm audit --audit-level=high na raiz",
-      "Observar os achados high para flatted, picomatch e socket.io-parser",
-      "Executar npm ls flatted picomatch socket.io-parser --all e confirmar as versoes vulneraveis resolvidas"
-    ],
-    "correcao_recomendada": "Atualizar o lockfile via npm audit fix sem alterar contratos publicos ou dependencias principais.",
-    "validacao": [
-      "Executar npm audit --audit-level=high e confirmar ausencia de achados high",
-      "Executar npm run test:api",
-      "Executar npm run test:web",
-      "Executar npm run build"
+      "npm run build",
+      "npm run test",
+      "npm run typecheck"
     ],
     "prioridade": 1,
     "corrigir_agora": true

@@ -1,71 +1,14 @@
 [
   {
-    "id": "BUG-001",
-    "tipo": "bug_reproduzivel",
+    "id": "APR-001",
+    "tipo": "melhoria",
     "status": "confirmado",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/web",
-    "arquivo": "apps/web/src/lib/runtimeUrls.ts",
-    "linha": 10,
-    "componente": "runtimeUrls",
-    "sintoma": "URLs configuradas com [::1] nao sao reescritas para o host atual em acesso remoto/local-LAN.",
+    "descricao": "Estrutura inicial do modulo APR ausente no backend, frontend e pacote compartilhado.",
     "evidencia": [
-      "apps/web/src/lib/runtimeUrls.ts:10-12",
-      "reproducao via node --import tsx mantendo http://[::1]:4000/api/v1 e http://[::1]:4000/"
-    ]
-  },
-  {
-    "id": "CFG-001",
-    "tipo": "erro_de_configuracao",
-    "status": "confirmado",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "raiz do monorepo",
-    "arquivo": "package.json",
-    "linha": 18,
-    "componente": "scripts",
-    "sintoma": "npm test nao cobre o workspace web.",
-    "evidencia": [
-      "package.json:18",
-      "npm test executou apenas @noctification/api",
-      "npm run test:web precisou ser executado separadamente"
-    ]
-  },
-  {
-    "id": "RISK-001",
-    "tipo": "risco_potencial",
-    "status": "hipotese_forte",
-    "severidade": "media",
-    "confianca_diagnostica": "media",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/api + apps/web",
-    "arquivo": "apps/api/src/routes/me.ts",
-    "linha": 73,
-    "componente": "web push unsubscribe",
-    "sintoma": "A remocao da subscription depende de body em DELETE.",
-    "evidencia": [
-      "apps/api/src/routes/me.ts:73-82",
-      "apps/web/src/lib/api.ts removeWebPushSubscription envia body em DELETE"
-    ]
-  },
-  {
-    "id": "VULN-001",
-    "tipo": "vulnerabilidade_confirmada",
-    "status": "confirmado",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "raiz do monorepo",
-    "arquivo": "package-lock.json",
-    "linha": 1,
-    "componente": "lockfile de dependencias",
-    "sintoma": "Dependencias transitivas com advisories high confirmados por npm audit.",
-    "evidencia": [
-      "npm audit --audit-level=high reportou flatted<=3.4.1, picomatch<=2.3.1||4.0.0-4.0.3 e socket.io-parser 4.0.0-4.2.5",
-      "npm ls flatted picomatch socket.io-parser --all mostrou flatted@3.4.0, picomatch@2.3.1/4.0.3 e socket.io-parser@4.2.5"
-    ]
+      "Ausencia de apps/api/src/modules/apr",
+      "Ausencia de apps/web/src/features/apr",
+      "Ausencia de packages/apr-core"
+    ],
+    "corrigir_agora": true
   }
 ]

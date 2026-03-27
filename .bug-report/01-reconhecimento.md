@@ -1,101 +1,47 @@
-# 01 - Reconhecimento do Repositório
+## Visão estrutural do repositório
 
-## Visão estrutural
-
-- Tipo: monorepo npm workspaces.
-- Workspaces detectados:
-  - `apps/api`
-  - `apps/web`
-- Pastas relevantes:
-  - `apps/api/src`
-  - `apps/api/migrations`
-  - `apps/web/src`
-  - `docs`
-  - `ops`
+- Tipo: monorepo `npm` com dois apps principais (`apps/api`, `apps/web`).
+- Workspaces confirmados em `package.json`: `apps/api` e `apps/web`.
+- Há documentação operacional em `docs/` e scripts de deploy/validação em `ops/`.
 
 ## Stack detectada
 
-### Backend
+- Backend: Node.js + TypeScript + Express + Socket.IO + Better SQLite3 + Vitest.
+- Frontend: React 18 + TypeScript + Vite + Vitest.
+- Gerenciador de pacotes ativo: `npm`.
+- Lint: ESLint.
+- Typecheck: TypeScript (`tsc --noEmit`).
+- Build: `tsc` no backend; `tsc -b` + `vite build` no frontend.
 
-- Linguagem: TypeScript
-- Runtime: Node.js
-- Framework HTTP: Express
-- Banco: SQLite via `better-sqlite3`
-- Realtime: Socket.IO
-- Push: `web-push`
-- Testes: Vitest + Supertest
-- Lint: ESLint
-- Typecheck: TypeScript `tsc --noEmit`
+## Ferramentas disponíveis
 
-### Frontend
-
-- Linguagem: TypeScript
-- UI: React 18
-- Build/dev server: Vite
-- Estilo: Tailwind CSS
-- Testes: Vitest + Testing Library + JSDOM
-- Lint: ESLint
-- Typecheck: TypeScript `tsc --noEmit`
+- Disponíveis: `node`, `npm`, `git`, `find`, `grep`, `sed`.
+- Indisponíveis: `rg`, `pnpm`.
 
 ## Entrypoints confirmados
 
-### API
+- API: `apps/api/src/index.ts`, `apps/api/src/app.ts`.
+- Web: `apps/web/src/main.tsx`, `apps/web/src/App.tsx`.
+- Configuração backend: `apps/api/src/config.ts`.
+- Roteamento frontend: `apps/web/src/App.tsx` e `apps/web/src/components/app/appShell.tsx`.
 
-- Bootstrap HTTP: `apps/api/src/index.ts`
-- App Express: `apps/api/src/app.ts`
-- Socket: `apps/api/src/socket.ts`
-- Rotas:
-  - `apps/api/src/routes/auth.ts`
-  - `apps/api/src/routes/admin.ts`
-  - `apps/api/src/routes/me.ts`
-  - `apps/api/src/routes/reminders-admin.ts`
-  - `apps/api/src/routes/reminders-me.ts`
-  - `apps/api/src/routes/tasks-admin.ts`
-  - `apps/api/src/routes/tasks-me.ts`
+## Módulos críticos
 
-### Web
+- Autenticação: `apps/api/src/routes/auth.ts`, `apps/api/src/auth.ts`.
+- Rotas do usuário: `apps/api/src/routes/me.ts`.
+- Rotas administrativas: `apps/api/src/routes/admin.ts`.
+- Socket.IO: `apps/api/src/socket.ts` e módulos associados.
+- Notificações, lembretes e tarefas: áreas já ativas em `apps/api/src/routes/*`, `apps/api/src/tasks/*`, `apps/api/src/reminders/*` e componentes equivalentes no frontend.
 
-- Entry: `apps/web/src/main.tsx`
-- Shell principal: `apps/web/src/App.tsx`
+## Áreas de maior risco
 
-## Infra e automação
+- `apps/api/src/app.ts`: qualquer alteração aqui pode afetar registro global de rotas.
+- `apps/api/src/config.ts`: mudanças de env podem impactar inicialização da API.
+- `apps/web/src/App.tsx` e `apps/web/src/components/app/appShell.tsx`: concentram navegação manual do frontend.
 
-- CI detectada: `.github/workflows/main.yml`
-- Jobs principais:
-  - verificação de arquivos proibidos
-  - lint
-  - typecheck
-  - `npm audit`
-  - testes API
-  - testes Web
+## Estratégia proposta para análise
 
-## Ferramentas disponíveis e indisponíveis
-
-- Disponíveis: `npm`, `node`, `git`, `sqlite3`
-- Indisponíveis: `rg`, `docker`
-
-## Áreas de maior risco observadas
-
-- Contratos de runtime do frontend (`apps/web/src/lib/runtimeUrls.ts`, `apps/web/src/main.tsx`)
-- Scripts raiz e fluxo local de validação (`package.json`)
-- Integração Web Push (`apps/api/src/routes/me.ts`, `apps/web/src/lib/api.ts`)
-
-## Estratégia proposta
-
-1. Validar integridade global com lint, typecheck e testes.
-2. Correlacionar qualquer falha com código.
-3. Como a base passou, procurar bugs reproduzíveis por inspeção dirigida em áreas sensíveis.
-4. Separar bug confirmado de risco potencial e erro de configuração.
-
-## Adendo 2026-03-26 - superficie de risco de dependencias
-
-- Lockfile: `package-lock.json` v3.
-- Ferramenta de auditoria confirmada: `npm audit`.
-- Dependencias afetadas pelo resultado informado:
-  - `flatted` via `eslint -> file-entry-cache -> flat-cache`
-  - `picomatch` via `tailwindcss/chokidar/micromatch` e via `vite`/`vitest`/`tinyglobby`
-  - `socket.io-parser` via `socket.io` e `socket.io-client`
-- Areas de maior risco desta rodada:
-  - runtime realtime da API/Web por uso de `socket.io-parser`
-  - cadeia de build/teste do frontend por uso de `picomatch`
-  - cadeia de lint por uso de `flatted`
+- Seguir o padrão já existente de rotas isoladas e composição central em `createApp`.
+- Introduzir APR por feature flag desligada por padrão.
+- Evitar tocar em autenticação, Socket.IO, notificações, lembretes e tarefas.
+- Validar por testes focados, `typecheck` e `build` dos apps existentes.

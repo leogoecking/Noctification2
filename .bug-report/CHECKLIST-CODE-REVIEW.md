@@ -1,7 +1,7 @@
-# Checklist de Code Review
+## Checklist derivado desta entrega
 
-- Verificar se scripts raiz cobrem todos os workspaces esperados.
-- Verificar se utilitários de runtime tratam `localhost`, `127.0.0.1` e `[::1]` de forma consistente.
-- Verificar se contratos HTTP evitam depender de body em `DELETE`.
-- Verificar se testes de utilitários de URL cobrem IPv4, IPv6 e host remoto.
-- Verificar se validações locais e CI têm a mesma cobertura prática.
+- Confirmar que novas features nascem atras de flag desligada por padrao.
+- Confirmar que novas rotas sao registradas sem alterar contratos existentes.
+- Confirmar que o frontend nao muda a navegacao padrao quando a flag estiver desligada.
+- Confirmar que novos workspaces nao introduzem scripts obrigatorios desnecessarios.
+- Confirmar que existe validacao objetiva por build, test e typecheck.

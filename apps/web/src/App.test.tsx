@@ -166,4 +166,22 @@ describe("App routing", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Tarefas" })).toBeInTheDocument();
     expect(screen.getByText("Acompanhamento da sua fila operacional")).toBeInTheDocument();
   });
+
+  it("permite acesso admin a /apr quando a flag do modulo esta ativa", async () => {
+    window.history.replaceState({}, "", "/apr");
+    mockedApi.me.mockResolvedValueOnce({
+      user: {
+        id: 1,
+        login: "admin",
+        name: "Administrador",
+        role: "admin"
+      }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "APR" })).toBeInTheDocument();
+    expect(screen.getByText("Auditoria de producao rural")).toBeInTheDocument();
+  });
 });

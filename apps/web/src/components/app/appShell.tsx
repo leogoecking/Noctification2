@@ -3,7 +3,10 @@ import { ReminderAlertCenter } from "../ReminderAlertCenter";
 import { ReminderUserPanel } from "../ReminderUserPanel";
 import { TaskUserPanel } from "../TaskUserPanel";
 import { UserDashboard } from "../UserDashboard";
+import { AprPage } from "../../features/apr/AprPage";
 import type { AuthUser } from "../../types";
+
+const APR_MODULE_ENABLED = import.meta.env.VITE_ENABLE_APR_MODULE === "true";
 
 export type AppPath =
   | "/"
@@ -11,7 +14,8 @@ export type AppPath =
   | "/admin/login"
   | "/notifications"
   | "/reminders"
-  | "/tasks";
+  | "/tasks"
+  | "/apr";
 
 interface Toast {
   id: number;
@@ -40,6 +44,10 @@ export const normalizePath = (rawPath: string): AppPath => {
     return "/tasks";
   }
 
+  if (rawPath === "/apr" && APR_MODULE_ENABLED) {
+    return "/apr";
+  }
+
   return "/";
 };
 
@@ -65,6 +73,10 @@ export const getPageTitle = (
 
   if (currentPath === "/tasks") {
     return "Tarefas";
+  }
+
+  if (currentPath === "/apr") {
+    return "APR";
   }
 
   return "Painel Operacional";
@@ -118,6 +130,32 @@ export const AppHeader = ({
 
     {currentUser && (
       <div className="flex items-center gap-3">
+        {currentUser.role === "admin" && APR_MODULE_ENABLED && (
+          <>
+            <button
+              className={`rounded-xl px-3 py-2 text-sm ${
+                currentPath === "/"
+                  ? "bg-accent text-slate-900"
+                  : "border border-slate-600 text-textMuted"
+              }`}
+              onClick={() => onNavigate("/")}
+              type="button"
+            >
+              Console
+            </button>
+            <button
+              className={`rounded-xl px-3 py-2 text-sm ${
+                currentPath === "/apr"
+                  ? "bg-accent text-slate-900"
+                  : "border border-slate-600 text-textMuted"
+              }`}
+              onClick={() => onNavigate("/apr")}
+              type="button"
+            >
+              APR
+            </button>
+          </>
+        )}
         <span className="rounded-xl border border-slate-700 bg-panel px-3 py-2 text-sm text-textMuted">
           {currentUser.name} ({currentUser.role})
         </span>
@@ -156,7 +194,7 @@ export const UserWorkspace = ({
 }: UserWorkspaceProps) => (
   <>
     <nav className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-slate-700 bg-panel p-2">
-      {USER_NAV_ITEMS.map((item) => (
+      {[...USER_NAV_ITEMS, ...(APR_MODULE_ENABLED ? [{ label: "APR", path: "/apr" as AppPath }] : [])].map((item) => (
         <button
           key={item.path}
           className={`rounded-xl px-4 py-2 text-sm transition ${
@@ -188,6 +226,8 @@ export const UserWorkspace = ({
 
     {currentPath === "/tasks" ? (
       <TaskUserPanel user={currentUser} onError={onError} onToast={onToast} />
+    ) : currentPath === "/apr" ? (
+      <AprPage onError={onError} onToast={onToast} />
     ) : currentPath === "/reminders" ? (
       <ReminderUserPanel onError={onError} onToast={onToast} />
     ) : (

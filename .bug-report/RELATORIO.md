@@ -1,71 +1,66 @@
-# Relatório Final
-
 ## Resumo executivo
 
-A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack antes de agir, validação com evidência, distinção entre bug confirmado e risco potencial e correção mínima e verificável. O repositório segue estruturalmente estável: `lint`, `typecheck`, testes da API, testes do Web e `build` passaram nas rodadas validadas. Somando a rodada anterior com a rodada de seguranca de 2026-03-26, 2 problemas funcionais confirmados e 1 vulnerabilidade confirmada foram corrigidos; 1 risco potencial e 1 residual de vulnerabilidade moderada permaneceram pendentes.
+Foi preparada a estrutura inicial do modulo APR no `Noctification2` com diff minimo e sem alterar fluxos existentes por padrao. A ativacao ficou protegida por feature flags desligadas.
+Nesta etapa adicional, o frontend APR deixou de ser placeholder e passou a operar como feature isolada no `apps/web`, sem refatorar telas fora do modulo.
 
-## Visão geral do repositório
+## Visao geral do repositorio
 
-- Monorepo npm com:
-  - `apps/api`
-  - `apps/web`
-- Backend: Express + SQLite + Socket.IO + Web Push
-- Frontend: React + Vite + Vitest + Testing Library
+- Monorepo `npm`
+- Apps: `apps/api`, `apps/web`
+- Novo workspace: `packages/apr-core`
 
-## Estratégia adotada
+## Estrategia adotada
 
-1. Reconhecimento estrutural do repositório
-2. Validação global
-3. Inspeção dirigida em áreas sensíveis
-4. Reprodução pontual de hipótese de bug
+- Seguir o padrao existente de composicao central no backend
+- Seguir o roteamento manual ja usado no frontend
+- Isolar tudo atras de feature flag
 
 ## Quantidade de achados por tipo
 
-- `bug_reproduzivel`: 1
-- `erro_de_configuracao`: 1
-- `risco_potencial`: 1
-- `vulnerabilidade_confirmada`: 1
+- `melhoria`: 1
+- `bug_reproduzivel`: 0
+- `vulnerabilidade_confirmada`: 0
+- `risco_potencial`: 0
 
 ## Bugs confirmados
 
-- `BUG-001`: loopback IPv6 `[::1]` não tratado na reescrita de runtime URLs do frontend
-- `CFG-001`: `npm test` da raiz não cobre o workspace web
-- `VULN-001`: lockfile com dependencias transitivas vulneraveis reportadas como `high` pelo `npm audit`
+- Nenhum bug funcional preexistente foi alvo desta entrega.
 
 ## Bugs corrigidos
 
-- `BUG-001`: loopback IPv6 `[::1]` agora e tratado na reescrita de runtime URLs
-- `CFG-001`: `npm test` da raiz agora cobre API e Web
-- `VULN-001`: lockfile atualizado para remover `flatted@3.4.0`, `picomatch@2.3.1/4.0.3` e `socket.io-parser@4.2.5`
+- Nenhum bug; a entrega corresponde a uma melhoria controlada (`APR-001`).
+- Evolucao controlada `APR-002`: feature frontend APR com meses, resumo, CRUD manual, audit, history e importacao, isolada do restante do sistema.
+- Evolucao controlada `APR-003`: catalogo de colaboradores, snapshots, restore do ultimo snapshot e operacoes destrutivas APR com validacao explicita.
 
 ## Bugs pendentes
 
-- Nenhum bug confirmado pendente desta rodada
+- Nenhum no escopo desta fase.
 
 ## Vulnerabilidades confirmadas
 
-- `VULN-001`: corrigida
-- Residual pendente: 9 achados `moderate` na cadeia do `eslint`, dependentes de `npm audit fix --force` com upgrade major para `eslint@10.1.0`
+- Nenhuma no escopo validado.
 
 ## Riscos potenciais
 
-- `RISK-001`: remoção de subscription Web Push depende de body em DELETE
+- Habilitacao desencontrada entre frontend e backend em ambientes diferentes.
 
-## Padrões recorrentes observados
+## Principais padroes recorrentes
 
-- Contratos locais de validação não refletem sempre a superfície completa do monorepo
-- Alguns pontos de integração ainda dependem de convenções frágeis de runtime/HTTP
+- Backend centraliza montagem em `createApp`.
+- Frontend centraliza rotas em `App` e `appShell`.
+- Flags operacionais ja fazem parte do padrao do repositório.
 
-## Limitações da análise
+## Limitacoes da analise
 
-- Sem navegação manual em browser real
-- Sem validação com proxy reverso intermediário
-- Sem SSR/pré-render do frontend
-- Sem auditoria online de dependências
+- Sem validacao e2e em navegador.
+- Sem rollout operacional.
+- Sem integracao funcional do dominio APR nesta fase.
+- A validacao do frontend APR foi feita por testes de componente e checks de build/typecheck, nao por navegacao real autenticada.
 
-## Recomendações práticas
+## Recomendacoes praticas
 
-1. Tratar `RISK-001` redesenhando o contrato de unsubscribe Web Push
-2. Manter cobertura de teste para IPv4 e IPv6 loopback em runtime URLs
-3. Preservar o `npm test` da raiz como validacao completa do monorepo
-4. Planejar upgrade controlado de `eslint` antes de considerar `npm audit fix --force`
+- Habilitar APR primeiro em ambiente de teste.
+- Introduzir contrato compartilhado real em `packages/apr-core` quando o dominio APR ganhar payloads e tipos.
+- Adicionar smoke test dedicado quando a feature deixar de ser placeholder.
+- Quando a flag for ativada, validar a experiencia de importacao com arquivos reais `csv/xlsx/xls`.
+- Restringir `clear-all` e `restore-last` a operadores autorizados e sempre revisar o `confirm_text` e o `reason` antes da execucao.

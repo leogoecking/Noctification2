@@ -6,7 +6,7 @@ import { createApp } from "../app";
 import { connectDatabase, runMigrations } from "../db";
 import { setupSocket } from "../socket";
 import type { AppConfig } from "../config";
-import { createMockResponse } from "./route-test-helpers";
+import { createMockResponse, getRouteHandler, type MockRequest } from "./route-test-helpers";
 
 const testConfig: AppConfig = {
   nodeEnv: "test",
@@ -22,6 +22,7 @@ const testConfig: AppConfig = {
   allowInsecureFixedAdmin: true,
   enableReminderScheduler: false,
   enableTaskAutomationScheduler: true,
+  enableAprModule: false,
   taskAutomationDueSoonMinutes: 90,
   taskAutomationStaleHours: 12,
   adminSeed: {
@@ -77,6 +78,21 @@ describe("health routes", () => {
     ) => void;
   };
 
+  const getMountedRouter = (appInstance: ReturnType<typeof createApp>, mountPath: string) => {
+    const appWithRouter = appInstance as unknown as {
+      _router?: {
+        stack: Array<{
+          handle?: unknown;
+          regexp?: RegExp;
+        }>;
+      };
+    };
+
+    return appWithRouter._router?.stack.find(
+      (entry) => String(entry.regexp).includes(mountPath.split("/").join("\\/"))
+    )?.handle as { stack: unknown[] } | undefined;
+  };
+
   it("explicita o estado dos schedulers e as janelas da automacao no health publico", async () => {
     const healthHandler = getAppRouteHandler("/api/v1/health", "get");
     const response = createMockResponse();
@@ -92,6 +108,33 @@ describe("health routes", () => {
     expect((response.body as { taskAutomation: unknown }).taskAutomation).toEqual({
       dueSoonWindowMinutes: 90,
       staleWindowHours: 12
+    });
+  });
+
+  it("mantem a rota APR desabilitada por padrao", async () => {
+    const aprRouter = getMountedRouter(app, "/api/v1/apr");
+
+    expect(aprRouter).toBeUndefined();
+  });
+
+  it("expoe o health do modulo APR quando a flag estiver ativa", async () => {
+    const enabledConfig: AppConfig = {
+      ...testConfig,
+      enableAprModule: true
+    };
+    const enabledApp = createApp(db, setupSocket(createServer(), db, enabledConfig), enabledConfig);
+    const aprRouter = getMountedRouter(enabledApp, "/api/v1/apr");
+    const response = createMockResponse();
+
+    expect(aprRouter).toBeDefined();
+
+    const healthHandler = getRouteHandler(aprRouter as never, "/health", "get");
+    healthHandler({} as MockRequest, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual({
+      status: "ok",
+      module: "apr"
     });
   });
 });

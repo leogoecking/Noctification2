@@ -1,44 +1,52 @@
-# 05 - Validação
+## Validacao executada
 
-## Validação executada nesta rodada
+- Data: 2026-03-27
+- Escopo: monorepo raiz
 
-- `npm run lint`
-- `npm run typecheck`
-- `npm test`
-- `npm run test:web`
-- `node --import tsx -e "...resolveRuntimeApiBase/resolveRuntimeSocketUrl..."`
-- `npm run test --workspace @noctification/web -- src/lib/runtimeUrls.test.ts`
+### Comandos
 
-## Resultado
-
-- Lint: passou
-- Typecheck: passou
-- Testes API: passaram
-- Testes Web: passaram
-- Correcoes validadas:
-  - `BUG-001` corrigido e coberto por teste dedicado
-  - `CFG-001` corrigido com validacao do novo `npm test` raiz
-  - `VULN-001` corrigido com revalidacao de `npm audit --audit-level=high`, testes e build
-
-## Validacao executada na rodada de seguranca 2026-03-26
-
-- `npm ls flatted picomatch socket.io-parser --all`
-- `npm audit fix`
-- `npm audit --audit-level=high`
-- `npm run test:api`
-- `npm run test:web`
 - `npm run build`
+- `npm run test`
+- `npm run typecheck`
 
-## Resultado da rodada de seguranca 2026-03-26
+### Resultado
 
-- `npm audit --audit-level=high`: passou, sem achados `high`
-- `npm run test:api`: passou
-- `npm run test:web`: passou
-- `npm run build`: passou
+- `build`: aprovado
+- `test`: aprovado
+- `typecheck`: aprovado
 
-## O que não foi validado
+### Observacoes
 
-- Navegação manual em navegador real
-- Ambiente com proxy/gateway intermediário para confirmar `RISK-001`
-- SSR/pré-render do frontend
-- `npm audit fix --force` não foi executado; vulnerabilidades `moderate` na cadeia do `eslint` permaneceram pendentes por exigir upgrade major
+- O ambiente emite warnings de npm sobre `globalignorefile`, mas a execucao concluiu com sucesso.
+- Os testes do backend para APR foram adaptados para inspecao do router do Express, evitando dependencia de abertura de porta no sandbox.
+
+## Validacao adicional do frontend APR
+
+- Escopo: `apps/web/src/features/apr`
+- Comandos:
+  - `npm run test --workspace @noctification/web -- src/features/apr/AprPage.test.tsx src/App.test.tsx`
+  - `npm run typecheck --workspace @noctification/web`
+  - `npm run build --workspace @noctification/web`
+  - `npm run build`
+  - `npm run test`
+  - `npm run typecheck`
+- Resultado:
+  - todos os comandos aprovados
+- Observacoes:
+  - o build global continuou atualizando o artefato gerado `apps/web/tsconfig.tsbuildinfo`
+  - o ambiente manteve warnings de npm sobre `globalignorefile`, sem impacto funcional
+
+## Validacao adicional das operacoes avancadas APR
+
+- Escopo: `apps/api/src/modules/apr`
+- Comandos:
+  - `npm run test --workspace @noctification/api -- src/test/apr-migrations.test.ts src/test/apr-service.test.ts src/test/apr-routes.test.ts src/test/apr-destructive.test.ts src/test/apr-import-integration.test.ts`
+  - `npm run build --workspace @noctification/api`
+  - `npm run typecheck --workspace @noctification/api`
+  - `npm run build`
+  - `npm run test`
+  - `npm run typecheck`
+- Resultado:
+  - todos os comandos aprovados
+- Observacoes:
+  - as protecoes destrutivas ficaram cobertas por testes especificos em `apr-destructive.test.ts`

@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "workspaces": [
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "packages/apr-core"
   ],
   "scripts": {
     "setup": "node scripts/setup.cjs",

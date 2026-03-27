@@ -57,6 +57,7 @@ export interface AppConfig {
   allowInsecureFixedAdmin: boolean;
   enableReminderScheduler: boolean;
   enableTaskAutomationScheduler?: boolean;
+  enableAprModule?: boolean;
   taskAutomationDueSoonMinutes?: number;
   taskAutomationStaleHours?: number;
   webPushSubject?: string;
@@ -108,6 +109,7 @@ export const config: AppConfig = {
     nodeEnv !== "production"
   ),
   enableTaskAutomationScheduler: toBoolean(process.env.ENABLE_TASK_AUTOMATION_SCHEDULER, false),
+  enableAprModule: toBoolean(process.env.ENABLE_APR_MODULE, false),
   taskAutomationDueSoonMinutes: toNumber(
     process.env.TASK_AUTOMATION_DUE_SOON_MINUTES,
     120

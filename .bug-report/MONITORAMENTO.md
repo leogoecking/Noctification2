@@ -1,20 +1,13 @@
-# Monitoramento
+## Sinais recomendados para fases futuras do APR
 
-## Sinais úteis
+- Health check dedicado do modulo APR
+- Logs de ativacao da flag `ENABLE_APR_MODULE`
+- Logs de acesso a `/api/v1/apr/health`
+- Contador de requests 2xx/4xx/5xx do namespace `/api/v1/apr`
+- Smoke monitor para o path `/apr` quando a flag estiver ativa
 
-- Erros de conexão do frontend para `::1` ou falhas de fetch/socket em ambiente LAN
-- Falhas de unsubscribe Web Push com `400 endpoint obrigatorio`
-- Divergência entre regressões percebidas no frontend e ausência de falha em `npm test`
+## Alertas uteis
 
-## Logs e alertas recomendados
-
-- Logar URL base resolvida em ambiente de debug para frontend local/LAN
-- Medir taxa de erro em endpoints de Web Push:
-  - `PUT /me/web-push/subscription`
-  - `DELETE /me/web-push/subscription`
-- Alertar quando o backend receber alto volume de `400 endpoint obrigatorio`
-
-## Health checks
-
-- Smoke test para `runtimeUrls` com `localhost`, `127.0.0.1` e `[::1]`
-- Smoke test de unsubscribe Web Push em ambiente com proxy, se esse cenário fizer parte da operação
+- APR habilitado no backend e desabilitado no frontend
+- APR habilitado no frontend e desabilitado no backend
+- Crescimento de respostas 404 no namespace `/api/v1/apr`
