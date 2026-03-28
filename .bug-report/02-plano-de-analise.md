@@ -1,105 +1,88 @@
-# 02 - Plano de Análise
+# Fase 2 - Plano de analise adaptativo
 
-## Ordem de execução
+## Ordem de execucao
 
-1. Reconhecimento de stack, scripts, entrypoints e CI.
-2. Validação global:
-   - `npm run lint`
-   - `npm run typecheck`
-   - `npm test`
-   - `npm run test:web`
-3. Triagem dirigida em áreas sensíveis:
-   - scripts raiz
-   - runtime URL/frontend bootstrap
-   - web push
-4. Reproduções pontuais via `node --import tsx` quando houver hipótese objetiva.
+1. `packages/apr-core`: testes e typecheck.
+2. `apps/api`: typecheck, lint e testes.
+3. `apps/web`: typecheck, lint e testes.
+4. Se houver falhas: leitura dirigida apenas dos modulos relacionados.
+5. Se tudo passar: revisao manual dos modulos de maior risco para buscar bugs nao cobertos.
+6. Triagem, priorizacao, correcao minima e revalidacao apenas do escopo afetado.
 
 ## Ferramentas escolhidas
 
-### `find`, `sed`, `nl`, `grep`
+### `npm run test --workspace @noctification/apr-core`
 
-- Motivo: inspeção estrutural e leitura de arquivos.
-- Escopo: reconhecimento e referências de linha.
-- Confiabilidade esperada: alta.
-- Tipo de achado esperado: configuração, contratos, inconsistências de código.
+- Por que usar: valida regras centrais APR compartilhadas.
+- Escopo: `packages/apr-core/src`.
+- Confiabilidade esperada: alta para regressao de logica de comparacao/importacao/normalizacao.
+- Tipo de achado esperado: `bug_reproduzivel`, `problema_de_qualidade`, `integracao_quebrada`.
 
-### `npm run lint`
+### `npm run typecheck --workspace @noctification/apr-core`
 
-- Motivo: detectar erros estáticos relevantes.
-- Escopo: monorepo inteiro.
-- Confiabilidade esperada: média.
-- Tipo de achado esperado: problemas de qualidade e alguns bugs óbvios.
+- Por que usar: garante consistencia estatica do pacote compartilhado.
+- Escopo: `packages/apr-core`.
+- Confiabilidade esperada: alta para quebras de contrato TypeScript.
+- Tipo de achado esperado: `integracao_quebrada`, `problema_de_qualidade`.
 
-### `npm run typecheck`
+### `npm run typecheck --workspace @noctification/api`
 
-- Motivo: detectar incompatibilidades de tipo.
-- Escopo: monorepo inteiro.
-- Confiabilidade esperada: alta para regressões de contrato internas.
-- Tipo de achado esperado: integração quebrada, erro de configuração, bug de contrato.
+- Por que usar: alta cobertura estatica sobre rotas, services e integracao interna.
+- Escopo: `apps/api/src`.
+- Confiabilidade esperada: alta para incompatibilidades de tipos e APIs internas.
+- Tipo de achado esperado: `integracao_quebrada`, `erro_de_configuracao`, `problema_de_qualidade`.
 
-### `npm test` e `npm run test:web`
+### `npm run lint --workspace @noctification/api`
 
-- Motivo: validar comportamento com evidência executável.
-- Escopo: API e Web.
-- Confiabilidade esperada: alta nos fluxos cobertos.
-- Tipo de achado esperado: bug reproduzível, integração quebrada.
+- Por que usar: identificar erros reais de variaveis, fluxo e higiene minima.
+- Escopo: `apps/api/**/*.ts`.
+- Confiabilidade esperada: media; lint isolado nao sera tratado automaticamente como bug.
+- Tipo de achado esperado: `problema_de_qualidade`, possivelmente apoio a `bug_reproduzivel`.
 
-### `node --import tsx -e ...`
+### `npm run test --workspace @noctification/api`
 
-- Motivo: reproduções pequenas e objetivas em módulos TS.
-- Escopo: funções puras e utilitários.
-- Confiabilidade esperada: alta.
-- Tipo de achado esperado: bug reproduzível.
+- Por que usar: melhor fonte automatizada para confirmar comportamento quebrado em autenticao, reminders, tasks, APR e web push.
+- Escopo: `apps/api/src/test`.
+- Confiabilidade esperada: alta quando falhar com reproducao consistente.
+- Tipo de achado esperado: `bug_reproduzivel`, `integracao_quebrada`, `erro_de_configuracao`.
 
-## Módulos prioritários
+### `npm run typecheck --workspace @noctification/web`
 
-1. `apps/web/src/lib/runtimeUrls.ts`
-2. `package.json`
-3. `apps/api/src/routes/me.ts`
-4. `apps/web/src/lib/api.ts`
-5. `apps/web/src/main.tsx`
+- Por que usar: detecta divergencias entre componentes, hooks e tipos compartilhados com a API.
+- Escopo: `apps/web/src`.
+- Confiabilidade esperada: alta para contratos de props, hooks e APIs internas.
+- Tipo de achado esperado: `integracao_quebrada`, `problema_de_qualidade`.
 
-## Limitações
+### `npm run lint --workspace @noctification/web`
 
-- Sem rede externa.
-- Sem `docker`.
-- Sem `rg`.
-- Não houve execução de smoke E2E em navegador real.
+- Por que usar: verifica erros estruturais simples em React/TypeScript.
+- Escopo: `apps/web/**/*.{ts,tsx}`.
+- Confiabilidade esperada: media.
+- Tipo de achado esperado: `problema_de_qualidade`.
 
-## Adendo 2026-03-26 - plano de auditoria de dependencias
+### `npm run test --workspace @noctification/web`
 
-## Ordem de execucao complementar
+- Por que usar: confirma comportamento de navegação, hooks e telas criticas.
+- Escopo: testes de interface em `apps/web/src`.
+- Confiabilidade esperada: media/alta para regressao funcional em UI.
+- Tipo de achado esperado: `bug_reproduzivel`, `integracao_quebrada`.
 
-1. Confirmar a arvore local com `npm ls flatted picomatch socket.io-parser --all`.
-2. Confirmar as versoes no `package-lock.json`.
-3. Executar `npm audit fix` apenas se a atualizacao puder ficar restrita ao lockfile.
-4. Revalidar com `npm audit --audit-level=high`.
-5. Executar testes e build do monorepo para validar ausencia de regressao.
+## Modulos prioritarios
 
-## Ferramentas escolhidas
+- Autenticacao e sessao.
+- Rotas `me` e `admin`.
+- Schedulers e automacao (`reminders`, `tasks`).
+- Web push e sockets.
+- Integracao APR entre `apr-core`, API e frontend.
 
-### `npm ls`
+## Risco previsto
 
-- Motivo: mapear origem real das dependencias vulneraveis.
-- Escopo: monorepo inteiro.
-- Confiabilidade esperada: alta.
-- Tipo de achado esperado: vulnerabilidade confirmada e superficie afetada.
+- Medio no backend por volume de regras de negocio e uso de SQLite + schedulers.
+- Medio no frontend por acoplamento com ambiente (`window`, service worker, runtime URLs).
+- Baixo no pacote compartilhado, mas com impacto transversal se houver erro.
 
-### `npm audit` / `npm audit fix`
+## Limitacoes
 
-- Motivo: reproduzir o advisory reportado e aplicar a menor correcao viavel.
-- Escopo: lockfile raiz.
-- Confiabilidade esperada: alta, dependente do registro npm.
-- Tipo de achado esperado: vulnerabilidade confirmada.
-
-### `npm run test:api`, `npm run test:web`, `npm run build`
-
-- Motivo: validar que a atualizacao transitiva nao quebrou runtime, testes ou bundling.
-- Escopo: workspaces `apps/api` e `apps/web`.
-- Confiabilidade esperada: alta no escopo coberto.
-- Tipo de achado esperado: regressao funcional ou integracao quebrada.
-
-## Limitacoes complementares
-
-- A verificacao via `npm audit` depende de acesso ao registro npm.
-- Os achados `moderate` residuais exigem upgrade major fora do escopo de baixo risco.
+- `rg` ausente; busca textual sera menos eficiente.
+- Sem depender de internet ou de servicos externos.
+- Validacoes end-to-end com navegador real nao estao confirmadas neste ambiente.

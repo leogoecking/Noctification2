@@ -2,33 +2,34 @@
   {
     "id": "BUG-001",
     "tipo": "bug_reproduzivel",
-    "status": "corrigido",
-    "arquivo": "apps/web/src/lib/runtimeUrls.ts",
-    "linha": 10,
-    "prioridade": 1
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 26,
+    "prioridade": 1,
+    "status": "corrigido"
   },
   {
-    "id": "CFG-001",
-    "tipo": "erro_de_configuracao",
-    "status": "corrigido",
-    "arquivo": "package.json",
-    "linha": 18,
-    "prioridade": 2
+    "id": "QLT-001",
+    "tipo": "problema_de_qualidade",
+    "severidade": "baixa",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/api/src/modules/apr/import.ts",
+    "linha": 3,
+    "prioridade": 2,
+    "status": "corrigido"
   },
   {
-    "id": "RISK-001",
+    "id": "ENV-001",
     "tipo": "risco_potencial",
-    "status": "requer_decisao_humana",
-    "arquivo": "apps/api/src/routes/me.ts",
-    "linha": 73,
-    "prioridade": 3
-  },
-  {
-    "id": "VULN-001",
-    "tipo": "vulnerabilidade_confirmada",
-    "status": "corrigido",
-    "arquivo": "package-lock.json",
-    "linha": 1,
-    "prioridade": 1
+    "severidade": "baixa",
+    "confianca_diagnostica": "baixa",
+    "risco_de_regressao": "baixo",
+    "arquivo": "",
+    "linha": 0,
+    "prioridade": 99,
+    "status": "nao_confirmado"
   }
 ]

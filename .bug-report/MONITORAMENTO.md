@@ -1,20 +1,28 @@
 # Monitoramento
 
-## Sinais úteis
+## Metricas uteis
 
-- Erros de conexão do frontend para `::1` ou falhas de fetch/socket em ambiente LAN
-- Falhas de unsubscribe Web Push com `400 endpoint obrigatorio`
-- Divergência entre regressões percebidas no frontend e ausência de falha em `npm test`
+- Taxa de falha de suites por workspace (`api`, `web`, `apr-core`).
+- Tempo medio de execucao de `lint`, `typecheck` e testes por workspace.
+- Numero de flags ativas por ambiente e mudancas recentes em configuracao.
 
-## Logs e alertas recomendados
+## Logs e sinais
 
-- Logar URL base resolvida em ambiente de debug para frontend local/LAN
-- Medir taxa de erro em endpoints de Web Push:
-  - `PUT /me/web-push/subscription`
-  - `DELETE /me/web-push/subscription`
-- Alertar quando o backend receber alto volume de `400 endpoint obrigatorio`
+- Registrar no pipeline qual conjunto de variaveis relevantes de feature flag foi aplicado ao job, sem expor segredos.
+- Destacar falhas recorrentes de roteamento frontend e inconsistencias entre ambiente e expectativa de teste.
 
-## Health checks
+## Alertas
 
-- Smoke test para `runtimeUrls` com `localhost`, `127.0.0.1` e `[::1]`
-- Smoke test de unsubscribe Web Push em ambiente com proxy, se esse cenário fizer parte da operação
+- Alertar quando testes comecarem a falhar apenas em certos ambientes/branches.
+- Alertar quando `lint` falhar por residuos simples apos merge, pois isso costuma indicar falta de validacao local minima.
+
+## Tracing e health checks
+
+- No frontend, manter rastreabilidade de flags criticas em logs de bootstrap em ambiente de desenvolvimento quando isso nao expuser dados sensiveis.
+- Na API, continuar usando o healthcheck existente e incluir no processo de release a validacao de rotas mais sensiveis quando houver mudancas de auth/scheduler.
+
+## Sinais para producao
+
+- Divergencia entre flags esperadas e comportamento observado da UI.
+- Aumento de erros de navegacao/rotas bloqueadas apos alteracoes em toggles.
+- Regressao de pipelines por falhas localizadas em um workspace especifico.

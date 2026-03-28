@@ -6,66 +6,68 @@
     "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/web",
-    "arquivo": "apps/web/src/lib/runtimeUrls.ts",
-    "linha": 10,
-    "componente": "runtimeUrls",
-    "sintoma": "URLs configuradas com [::1] nao sao reescritas para o host atual em acesso remoto/local-LAN.",
+    "escopo": "apps/web roteamento e testes de feature flag APR",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 26,
+    "componente": "App routing / APR feature flag",
+    "sintoma": "A suite web falha no caso que espera redirecionamento de /apr para o dashboard quando o modulo APR esta desativado.",
     "evidencia": [
-      "apps/web/src/lib/runtimeUrls.ts:10-12",
-      "reproducao via node --import tsx mantendo http://[::1]:4000/api/v1 e http://[::1]:4000/"
-    ]
+      "npm run test --workspace @noctification/web falhou em src/App.test.tsx",
+      "apps/web/.env define VITE_ENABLE_APR_MODULE=true",
+      "App.tsx e appShell.tsx liam a flag em escopo de modulo"
+    ],
+    "causa_raiz": "O valor de VITE_ENABLE_APR_MODULE era capturado em constante de modulo, tornando o comportamento dos testes dependente do .env local e impedindo isolamento previsivel da flag.",
+    "impacto": {
+      "usuario": "baixo",
+      "sistema": "medio",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Manter apps/web/.env com VITE_ENABLE_APR_MODULE=true",
+      "Executar npm run test --workspace @noctification/web",
+      "Observar falha do teste App routing que esperava dashboard em /apr com modulo inativo"
+    ],
+    "correcao_recomendada": "Centralizar a leitura da flag em helper chamado em tempo de execucao e isolar o teste com vi.stubEnv.",
+    "validacao": [
+      "npm run test --workspace @noctification/web",
+      "npm run typecheck --workspace @noctification/web",
+      "npm run test"
+    ],
+    "prioridade": 1,
+    "corrigir_agora": true
   },
   {
-    "id": "CFG-001",
-    "tipo": "erro_de_configuracao",
+    "id": "QLT-001",
+    "tipo": "problema_de_qualidade",
     "status": "confirmado",
-    "severidade": "media",
+    "severidade": "baixa",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "raiz do monorepo",
-    "arquivo": "package.json",
-    "linha": 18,
-    "componente": "scripts",
-    "sintoma": "npm test nao cobre o workspace web.",
+    "escopo": "apps/api modulo APR import",
+    "arquivo": "apps/api/src/modules/apr/import.ts",
+    "linha": 3,
+    "componente": "APR import parser",
+    "sintoma": "A validacao de lint da API falhava com import nao utilizado.",
     "evidencia": [
-      "package.json:18",
-      "npm test executou apenas @noctification/api",
-      "npm run test:web precisou ser executado separadamente"
-    ]
-  },
-  {
-    "id": "RISK-001",
-    "tipo": "risco_potencial",
-    "status": "hipotese_forte",
-    "severidade": "media",
-    "confianca_diagnostica": "media",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/api + apps/web",
-    "arquivo": "apps/api/src/routes/me.ts",
-    "linha": 73,
-    "componente": "web push unsubscribe",
-    "sintoma": "A remocao da subscription depende de body em DELETE.",
-    "evidencia": [
-      "apps/api/src/routes/me.ts:73-82",
-      "apps/web/src/lib/api.ts removeWebPushSubscription envia body em DELETE"
-    ]
-  },
-  {
-    "id": "VULN-001",
-    "tipo": "vulnerabilidade_confirmada",
-    "status": "confirmado",
-    "severidade": "alta",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "raiz do monorepo",
-    "arquivo": "package-lock.json",
-    "linha": 1,
-    "componente": "lockfile de dependencias",
-    "sintoma": "Dependencias transitivas com advisories high confirmados por npm audit.",
-    "evidencia": [
-      "npm audit --audit-level=high reportou flatted<=3.4.1, picomatch<=2.3.1||4.0.0-4.0.3 e socket.io-parser 4.0.0-4.2.5",
-      "npm ls flatted picomatch socket.io-parser --all mostrou flatted@3.4.0, picomatch@2.3.1/4.0.3 e socket.io-parser@4.2.5"
-    ]
+      "npm run lint --workspace @noctification/api falhou",
+      "ESLint apontou type File importado e nao usado"
+    ],
+    "causa_raiz": "Import residual de tipo nao referenciado no arquivo.",
+    "impacto": {
+      "usuario": "baixo",
+      "sistema": "baixo",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Executar npm run lint --workspace @noctification/api",
+      "Observar erro em apps/api/src/modules/apr/import.ts linha 3"
+    ],
+    "correcao_recomendada": "Remover o import nao utilizado.",
+    "validacao": [
+      "npm run lint --workspace @noctification/api",
+      "npm run lint"
+    ],
+    "prioridade": 2,
+    "corrigir_agora": true
   }
 ]

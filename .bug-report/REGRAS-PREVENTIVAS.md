@@ -1,21 +1,26 @@
-# Regras Preventivas
+# Regras preventivas
 
-## Lint e type rules
+## Sugestoes de lint e disciplina
 
-- Adicionar teste obrigatório para utilitários que normalizam hosts/URLs.
-- Criar regra de revisão para scripts raiz de monorepo quando houver novos workspaces.
+- Manter `@typescript-eslint/no-unused-vars` como erro.
+- Tratar qualquer teste dependente de `import.meta.env` como obrigacao de stub/mocking explicito.
 
-## Testes ausentes prioritários
+## Type rules
 
-- Caso `[::1]` em `apps/web/src/lib/runtimeUrls.test.ts`
-- Teste de contrato para unsubscribe Web Push sem body em DELETE, ou com query/path alternativo
+- Preferir helpers dedicados para feature flags em vez de constantes espalhadas em componentes.
+- Evitar leitura de flag de ambiente em escopo de modulo quando o comportamento precisar ser testavel/isolavel.
 
-## CI recomendada
+## Testes ausentes prioritarios
 
-- Garantir que o script raiz `test` reflita o conjunto de suítes esperado pela equipe
-- Manter `test:web` separado, mas evitar que `npm test` passe ideia de cobertura total se não for o caso
+- Adicionar caso explicito cobrindo APR ativo e inativo via stub da flag no frontend.
+- Considerar teste unitario do helper de feature flags se o numero de flags crescer.
 
-## Políticas de revisão
+## Validacoes de CI recomendadas
 
-- Toda lógica de detecção de localhost deve cobrir IPv4 e IPv6
-- Contratos HTTP fora do padrão comum devem vir acompanhados de justificativa e teste
+- Manter `npm run lint`, `npm run typecheck` e `npm run test` como gates minimos.
+- Se o projeto passar a usar mais feature flags, incluir testes parametrizados por ambiente para caminhos criticos.
+
+## Politicas de revisao uteis
+
+- Em PRs que mudam flags/feature toggles, exigir evidencia de comportamento ligado e desligado.
+- Em PRs de manutencao, separar correcoes funcionais de limpeza cosmética quando possivel.

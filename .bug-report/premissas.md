@@ -1,33 +1,34 @@
-# Premissas e Limites
+# Premissas, limites e escopo
 
-- Escopo desta rodada: identificar regras operacionais do `AGENTS.md` e analisar o repositório em busca de bugs e riscos reais, sem corrigir código.
-- Estado inicial: worktree já estava muito alterado antes desta análise; nenhuma mudança existente foi revertida.
-- Ferramentas confirmadas no ambiente:
-  - `npm`
-  - `node`
-  - `git`
-  - `sqlite3`
-- Ferramentas indisponíveis na amostra verificada:
-  - `rg`
-  - `docker`
-- Rede não foi usada. `npm audit` não foi executado por depender de acesso externo e não ser necessário para a triagem inicial.
-- O repositório é um monorepo Node/TypeScript com `apps/api` e `apps/web`.
-- Evidência forte coletada nesta análise:
-  - `npm run lint`
-  - `npm run typecheck`
-  - `npm test`
-  - `npm run test:web`
-  - reprodução pontual via `node --import tsx -e ...`
-- Como `lint`, `typecheck` e as suítes passaram, a maior parte dos achados restantes é de configuração ou risco potencial, não regressão evidente.
+- Data da analise: 2026-03-28.
+- Repositorio analisado em `/home/leo/Noctification2`.
+- Estado inicial do git: limpo (`git status --short` sem alteracoes).
+- Instrucoes operacionais consideradas: [`AGENTS.md`](/home/leo/Noctification2/AGENTS.md).
+- Escopo inferido: analise completa do monorepo, por partes, com foco em bugs reais confirmaveis e correcao incremental de baixo risco quando houver evidencia suficiente.
 
-## Adendo 2026-03-26 - rodada de seguranca de dependencias
+## Premissas assumidas
 
-- Escopo desta rodada: reproduzir e tratar o resultado de `npm audit --audit-level=high` informado pelo usuario.
-- Estado inicial desta rodada: worktree limpa; apos a correcao automatica, apenas `package-lock.json` foi alterado.
-- Rede externa foi necessaria para `npm audit fix` e para a verificacao final de `npm audit --audit-level=high`.
-- Ferramentas confirmadas nesta rodada:
-  - `npm audit`
-  - `npm audit fix`
-  - `npm ls`
-  - `git diff`
-- Limitacao confirmada: os achados residuais de severidade `moderate` na cadeia do `eslint` exigem `npm audit fix --force` com upgrade major para `eslint@10.1.0`, o que foge da politica de correcao de baixo risco desta rodada.
+- As dependencias ja estao instaladas, pois existe `node_modules/` no repositorio.
+- O fluxo principal de validacao e baseado em `npm`, conforme scripts na raiz e nos workspaces.
+- A validacao deve ser incremental por workspace/modulo antes de considerar execucoes globais.
+- O ambiente local tem acesso apenas ao filesystem do workspace; nao vou depender de internet.
+
+## Limitacoes do ambiente
+
+- `rg` nao esta instalado; buscas foram feitas com `find`, `git ls-files`, `grep`, `sed`.
+- `pnpm`, `yarn`, `docker`, `docker-compose`, `pytest`, `cargo`, `go`, `javac`, `mvn` e `gradle` nao estao disponiveis.
+- Nao ha evidencia ainda de browsers/headed UI ou servicos externos levantados durante esta analise.
+
+## Ferramentas disponiveis confirmadas
+
+- `git`
+- `node`
+- `npm`
+- `sqlite3`
+- `python3`
+
+## Duvidas relevantes
+
+- Ainda nao confirmado se todos os scripts de teste passam sem depender de variaveis locais adicionais.
+- Ainda nao confirmado se ha falhas funcionais nao cobertas pelos testes automatizados atuais.
+- Ainda nao confirmado se os modulos `APR`, `tasks`, `reminders` e `web push` mantem consistencia entre API e frontend em todos os fluxos.

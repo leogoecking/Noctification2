@@ -1,35 +1,31 @@
-# Diff Resumido
+# Diff resumido
 
-## [apps/web/src/lib/runtimeUrls.ts](/home/leo/Noctification2/apps/web/src/lib/runtimeUrls.ts)
+## [`apps/web/src/lib/featureFlags.ts`](/home/leo/Noctification2/apps/web/src/lib/featureFlags.ts)
 
-- Motivo: corrigir reescrita de loopback IPv6 (`[::1]`).
-- Risco: baixo, utilitario puro.
-- Validacao associada:
-  - `npm run test --workspace @noctification/web -- src/lib/runtimeUrls.test.ts`
-  - `npm test`
-
-## [apps/web/src/lib/runtimeUrls.test.ts](/home/leo/Noctification2/apps/web/src/lib/runtimeUrls.test.ts)
-
-- Motivo: cobrir o caso IPv6 que reproduzia o bug.
+- Motivo da mudanca: centralizar leitura da flag APR.
 - Risco: baixo.
-- Validacao associada:
-  - `npm run test --workspace @noctification/web -- src/lib/runtimeUrls.test.ts`
+- Validacao associada: `npm run typecheck --workspace @noctification/web`, `npm run test --workspace @noctification/web`.
 
-## [package.json](/home/leo/Noctification2/package.json)
+## [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx)
 
-- Motivo: fazer `npm test` da raiz cobrir API e Web.
-- Risco: baixo funcional, medio apenas em tempo de execucao.
-- Validacao associada:
-  - `npm test`
-  - `npm run lint`
-  - `npm run typecheck`
+- Motivo da mudanca: remover acoplamento do roteamento APR a constante de modulo.
+- Risco: baixo.
+- Validacao associada: `npm run typecheck --workspace @noctification/web`, `npm run test --workspace @noctification/web`, `npm run test`.
 
-## [package-lock.json](/home/leo/Noctification2/package-lock.json)
+## [`apps/web/src/components/app/appShell.tsx`](/home/leo/Noctification2/apps/web/src/components/app/appShell.tsx)
 
-- Motivo: remover as resolucoes vulneraveis `flatted@3.4.0`, `picomatch@2.3.1/4.0.3` e `socket.io-parser@4.2.5` apontadas pelo `npm audit`.
-- Risco: baixo, alteracao restrita ao lockfile com bumps transitivos de patch.
-- Validacao associada:
-  - `npm audit --audit-level=high`
-  - `npm run test:api`
-  - `npm run test:web`
-  - `npm run build`
+- Motivo da mudanca: alinhar navegacao e normalizacao de paths a leitura dinamica da flag APR.
+- Risco: baixo.
+- Validacao associada: `npm run typecheck --workspace @noctification/web`, `npm run test --workspace @noctification/web`.
+
+## [`apps/web/src/App.test.tsx`](/home/leo/Noctification2/apps/web/src/App.test.tsx)
+
+- Motivo da mudanca: tornar a suite deterministica e independente do `.env` local.
+- Risco: baixo.
+- Validacao associada: `npm run test --workspace @noctification/web`.
+
+## [`apps/api/src/modules/apr/import.ts`](/home/leo/Noctification2/apps/api/src/modules/apr/import.ts)
+
+- Motivo da mudanca: corrigir quebra de `lint` por import nao utilizado.
+- Risco: muito baixo.
+- Validacao associada: `npm run lint --workspace @noctification/api`, `npm run lint`.

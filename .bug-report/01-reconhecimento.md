@@ -1,101 +1,108 @@
-# 01 - Reconhecimento do Repositório
+# Fase 1 - Reconhecimento do repositorio
 
-## Visão estrutural
+## Visao estrutural
 
-- Tipo: monorepo npm workspaces.
+- Tipo de repositorio: monorepo Node.js/TypeScript com workspaces npm.
 - Workspaces detectados:
   - `apps/api`
   - `apps/web`
-- Pastas relevantes:
-  - `apps/api/src`
-  - `apps/api/migrations`
-  - `apps/web/src`
-  - `docs`
-  - `ops`
+  - `packages/apr-core`
+- Pastas de apoio relevantes:
+  - `docs/`
+  - `ops/`
+  - `scripts/`
+  - `.github/workflows/`
 
-## Stack detectada
+## Stack detectada com evidencia
 
-### Backend
+- Runtime principal: Node.js.
+  Evidencia: scripts com `node`, `tsx` e `vite` em `package.json`.
+- Gerenciador de pacotes: npm workspaces.
+  Evidencia: campo `workspaces` na raiz e `package-lock.json`.
+- Backend: Express + Socket.IO + SQLite (`better-sqlite3`).
+  Evidencia: [`apps/api/package.json`](/home/leo/Noctification2/apps/api/package.json), [`apps/api/src/app.ts`](/home/leo/Noctification2/apps/api/src/app.ts), [`apps/api/src/index.ts`](/home/leo/Noctification2/apps/api/src/index.ts).
+- Frontend: React 18 + Vite + TypeScript.
+  Evidencia: [`apps/web/package.json`](/home/leo/Noctification2/apps/web/package.json), [`apps/web/src/main.tsx`](/home/leo/Noctification2/apps/web/src/main.tsx), [`apps/web/vite.config.ts`](/home/leo/Noctification2/apps/web/vite.config.ts).
+- Pacote compartilhado: biblioteca TypeScript `@noctification/apr-core`.
+  Evidencia: [`packages/apr-core/package.json`](/home/leo/Noctification2/packages/apr-core/package.json).
+- Test runner: Vitest em API, web e pacote compartilhado.
+- Lint: ESLint com `@typescript-eslint` e `react-hooks`.
+- Typecheck: `tsc --noEmit` e build TypeScript por workspace.
+- CI: GitHub Actions com lint, typecheck, testes, auditoria e verificacoes de seguranca.
+  Evidencia: [`.github/workflows/main.yml`](/home/leo/Noctification2/.github/workflows/main.yml).
 
-- Linguagem: TypeScript
-- Runtime: Node.js
-- Framework HTTP: Express
-- Banco: SQLite via `better-sqlite3`
-- Realtime: Socket.IO
-- Push: `web-push`
-- Testes: Vitest + Supertest
-- Lint: ESLint
-- Typecheck: TypeScript `tsc --noEmit`
+## Ferramentas disponiveis e indisponiveis
 
-### Frontend
+- Disponiveis: `git`, `node`, `npm`, `sqlite3`, `python3`.
+- Indisponiveis confirmadas: `rg`, `pnpm`, `yarn`, `bun`, `docker`, `docker-compose`, `pytest`, `cargo`, `go`, `javac`, `mvn`, `gradle`.
 
-- Linguagem: TypeScript
-- UI: React 18
-- Build/dev server: Vite
-- Estilo: Tailwind CSS
-- Testes: Vitest + Testing Library + JSDOM
-- Lint: ESLint
-- Typecheck: TypeScript `tsc --noEmit`
+## Pontos de entrada
 
-## Entrypoints confirmados
+- API HTTP:
+  - [`apps/api/src/index.ts`](/home/leo/Noctification2/apps/api/src/index.ts)
+  - Healthcheck em `/api/v1/health`
+- Composicao da API:
+  - [`apps/api/src/app.ts`](/home/leo/Noctification2/apps/api/src/app.ts)
+- Frontend:
+  - [`apps/web/src/main.tsx`](/home/leo/Noctification2/apps/web/src/main.tsx)
+  - [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx)
+- Scripts operacionais:
+  - `scripts/setup.cjs`
+  - `scripts/dev.cjs`
+  - `scripts/prepare-deploy.cjs`
+  - `scripts/prepare-local-lan.cjs`
+  - `ops/scripts/*.sh`
 
-### API
+## Estrutura funcional relevante
 
-- Bootstrap HTTP: `apps/api/src/index.ts`
-- App Express: `apps/api/src/app.ts`
-- Socket: `apps/api/src/socket.ts`
-- Rotas:
-  - `apps/api/src/routes/auth.ts`
-  - `apps/api/src/routes/admin.ts`
-  - `apps/api/src/routes/me.ts`
-  - `apps/api/src/routes/reminders-admin.ts`
-  - `apps/api/src/routes/reminders-me.ts`
-  - `apps/api/src/routes/tasks-admin.ts`
-  - `apps/api/src/routes/tasks-me.ts`
+- API:
+  - autenticacao e sessao
+  - notificacoes admin/me
+  - reminders
+  - tasks e automacao
+  - APR
+  - web push
+  - testes integrados em `apps/api/src/test`
+- Web:
+  - login
+  - dashboard admin
+  - dashboard do usuario
+  - notificacoes, reminders e tasks
+  - feature APR
+  - hooks de socket e web push
+- Core:
+  - normalizacao/importacao/comparacao APR
 
-### Web
+## Infra e automacao
 
-- Entry: `apps/web/src/main.tsx`
-- Shell principal: `apps/web/src/App.tsx`
-
-## Infra e automação
-
-- CI detectada: `.github/workflows/main.yml`
-- Jobs principais:
-  - verificação de arquivos proibidos
+- Workflow CI com:
+  - varredura de arquivos sensiveis
+  - busca de segredos hardcoded
+  - `npm ci`
   - lint
   - typecheck
   - `npm audit`
   - testes API
-  - testes Web
+  - testes web
+- Templates e scripts de deploy Debian, nginx, systemd, backup e certificados locais.
 
-## Ferramentas disponíveis e indisponíveis
+## Modulos criticos e areas de maior risco
 
-- Disponíveis: `npm`, `node`, `git`, `sqlite3`
-- Indisponíveis: `rg`, `docker`
+- [`apps/api/src/routes/auth.ts`](/home/leo/Noctification2/apps/api/src/routes/auth.ts) e helpers correlatos.
+  Motivo: autenticacao, sessao, controle de acesso.
+- [`apps/api/src/routes/me.ts`](/home/leo/Noctification2/apps/api/src/routes/me.ts) e [`apps/api/src/routes/admin.ts`](/home/leo/Noctification2/apps/api/src/routes/admin.ts).
+  Motivo: superficie principal da API.
+- Modulos `reminders`, `tasks` e `socket*`.
+  Motivo: logica de estado, scheduler e eventos em tempo real.
+- Modulo APR (`apps/api/src/modules/apr`, `apps/web/src/features/apr`, `packages/apr-core/src`).
+  Motivo: integracao multiworkspace e regras de dominio.
+- Hooks e runtime URLs do frontend.
+  Motivo: acoplamento com API/socket e chance de regressao de ambiente.
 
-## Áreas de maior risco observadas
+## Estrategia proposta para analise
 
-- Contratos de runtime do frontend (`apps/web/src/lib/runtimeUrls.ts`, `apps/web/src/main.tsx`)
-- Scripts raiz e fluxo local de validação (`package.json`)
-- Integração Web Push (`apps/api/src/routes/me.ts`, `apps/web/src/lib/api.ts`)
-
-## Estratégia proposta
-
-1. Validar integridade global com lint, typecheck e testes.
-2. Correlacionar qualquer falha com código.
-3. Como a base passou, procurar bugs reproduzíveis por inspeção dirigida em áreas sensíveis.
-4. Separar bug confirmado de risco potencial e erro de configuração.
-
-## Adendo 2026-03-26 - superficie de risco de dependencias
-
-- Lockfile: `package-lock.json` v3.
-- Ferramenta de auditoria confirmada: `npm audit`.
-- Dependencias afetadas pelo resultado informado:
-  - `flatted` via `eslint -> file-entry-cache -> flat-cache`
-  - `picomatch` via `tailwindcss/chokidar/micromatch` e via `vite`/`vitest`/`tinyglobby`
-  - `socket.io-parser` via `socket.io` e `socket.io-client`
-- Areas de maior risco desta rodada:
-  - runtime realtime da API/Web por uso de `socket.io-parser`
-  - cadeia de build/teste do frontend por uso de `picomatch`
-  - cadeia de lint por uso de `flatted`
+1. Validar primeiro o pacote compartilhado `packages/apr-core`, porque ele influencia API e web.
+2. Rodar `typecheck`, `lint` e testes por workspace, registrando falhas com evidencias brutas.
+3. Correlacionar qualquer falha com leitura direcionada do modulo afetado.
+4. Inspecionar manualmente modulos criticos mesmo se a automacao passar, buscando inconsistencias logicas demonstraveis.
+5. Corrigir apenas bugs confirmados com baixo risco de regressao e validacao objetiva.

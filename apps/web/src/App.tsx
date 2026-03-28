@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { AdminDashboard } from "./components/AdminDashboard";
+import { AprPage } from "./features/apr/AprPage";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
+import { isAprModuleEnabled } from "./lib/featureFlags";
 import type { AuthUser } from "./types";
 import {
   AppHeader,
@@ -22,6 +24,7 @@ interface Toast {
 }
 
 export default function App() {
+  const aprModuleEnabled = isAprModuleEnabled();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [submittingAuth, setSubmittingAuth] = useState(false);
@@ -87,7 +90,7 @@ export default function App() {
     }
 
     if (currentUser.role === "admin") {
-      if (currentPath !== "/") {
+      if (currentPath !== "/" && (!aprModuleEnabled || currentPath !== "/apr")) {
         navigate("/", true);
       }
       return;
@@ -96,7 +99,7 @@ export default function App() {
     if (currentUser.role === "user" && currentPath === "/admin/login") {
       navigate("/", true);
     }
-  }, [currentPath, currentUser, loadingSession, navigate]);
+  }, [aprModuleEnabled, currentPath, currentUser, loadingSession, navigate]);
 
   const login = useCallback(
     async (loginValue: string, password: string, expectedRole: AuthUser["role"]) => {
@@ -232,9 +235,12 @@ export default function App() {
           />
         )}
 
-        {!loadingSession && currentUser?.role === "admin" && (
-          <AdminDashboard onError={handleErrorToast} onToast={handleOkToast} />
-        )}
+        {!loadingSession && currentUser?.role === "admin" &&
+          (currentPath === "/apr" && aprModuleEnabled ? (
+            <AprPage onError={handleErrorToast} onToast={handleOkToast} />
+          ) : (
+            <AdminDashboard onError={handleErrorToast} onToast={handleOkToast} />
+          ))}
       </div>
 
       <AppToastStack toasts={toasts} />

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { api, ApiError } from "./lib/api";
 
@@ -60,7 +60,12 @@ const mockedApi = vi.mocked(api);
 describe("App routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("VITE_ENABLE_APR_MODULE", "false");
     mockedApi.me.mockRejectedValue(new Error("Nao autenticado"));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("renderiza tela de admin em /admin/login", async () => {
@@ -165,5 +170,22 @@ describe("App routing", () => {
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("heading", { level: 1, name: "Tarefas" })).toBeInTheDocument();
     expect(screen.getByText("Acompanhamento da sua fila operacional")).toBeInTheDocument();
+  });
+
+  it("redireciona admin de /apr para dashboard quando o modulo nao esta ativo", async () => {
+    window.history.replaceState({}, "", "/apr");
+    mockedApi.me.mockResolvedValueOnce({
+      user: {
+        id: 1,
+        login: "admin",
+        name: "Administrador",
+        role: "admin"
+      }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("Dashboard operacional")).toBeInTheDocument();
   });
 });

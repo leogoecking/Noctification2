@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "workspaces": [
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "packages/apr-core"
   ],
   "scripts": {
     "setup": "node scripts/setup.cjs",
@@ -28,5 +29,8 @@
     "@typescript-eslint/parser": "^8.32.1",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "eslint-plugin-react-hooks": "^5.2.0"
+  },
+  "overrides": {
+    "path-to-regexp": "0.1.13"
   }
 }

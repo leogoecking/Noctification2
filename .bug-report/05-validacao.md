@@ -1,44 +1,57 @@
-# 05 - Validação
+# Fase 6 - Validacao das correcoes
 
-## Validação executada nesta rodada
+## Validacoes executadas
 
-- `npm run lint`
-- `npm run typecheck`
-- `npm test`
-- `npm run test:web`
-- `node --import tsx -e "...resolveRuntimeApiBase/resolveRuntimeSocketUrl..."`
-- `npm run test --workspace @noctification/web -- src/lib/runtimeUrls.test.ts`
+### Rodada funcional manual por HTTP
 
-## Resultado
+- Frontend servido localmente em `http://127.0.0.1:5173` durante a rodada:
+  - `GET /` -> `200 OK`, HTML principal do Vite entregue com `#root`, manifesto e bootstrap React.
+- API acessivel em `http://127.0.0.1:4000/api/v1`:
+  - `GET /health` -> `200 OK`
+  - `POST /auth/login` como admin -> `200 OK`, cookie `nc_access`
+  - `GET /auth/me` como admin -> `200 OK`
+  - `POST /auth/register` para usuario novo -> `201 Created`, cookie `nc_access`
+  - `GET /auth/me` como usuario -> `200 OK`
+  - `GET /admin/users` -> `200 OK`
+  - `POST /admin/notifications` -> `201 Created`
+  - `GET /me/notifications?status=unread` -> `200 OK`
+  - `POST /me/notifications/{id}/respond` -> `200 OK`
+  - `POST /me/tasks` -> `201 Created`
+  - `PATCH /me/tasks/{id}` -> `200 OK`
+  - `POST /me/tasks/{id}/comments` -> `201 Created`
+  - `POST /me/tasks/{id}/complete` -> `200 OK`
+  - `GET /me/tasks?status=done` -> `200 OK`
+  - `POST /me/reminders` -> `201 Created`
+  - `PATCH /me/reminders/{id}` -> `200 OK`
+  - `PATCH /me/reminders/{id}/toggle` -> `200 OK`
+  - `GET /me/reminders` -> `200 OK`
+  - `GET /admin/reminders/health` -> `200 OK`
 
-- Lint: passou
-- Typecheck: passou
-- Testes API: passaram
-- Testes Web: passaram
-- Correcoes validadas:
-  - `BUG-001` corrigido e coberto por teste dedicado
-  - `CFG-001` corrigido com validacao do novo `npm test` raiz
-  - `VULN-001` corrigido com revalidacao de `npm audit --audit-level=high`, testes e build
+### Pacote compartilhado
 
-## Validacao executada na rodada de seguranca 2026-03-26
+- `npm run typecheck --workspace @noctification/apr-core` -> passou
+- `npm run test --workspace @noctification/apr-core` -> 3 arquivos / 9 testes passaram
 
-- `npm ls flatted picomatch socket.io-parser --all`
-- `npm audit fix`
-- `npm audit --audit-level=high`
-- `npm run test:api`
-- `npm run test:web`
-- `npm run build`
+### API
 
-## Resultado da rodada de seguranca 2026-03-26
+- `npm run typecheck --workspace @noctification/api` -> passou
+- `npm run test --workspace @noctification/api` -> 15 arquivos passaram, 1 arquivo com 14 testes skipados
+- `npm run lint --workspace @noctification/api` -> falhou antes da correcao, passou depois
 
-- `npm audit --audit-level=high`: passou, sem achados `high`
-- `npm run test:api`: passou
-- `npm run test:web`: passou
-- `npm run build`: passou
+### Web
 
-## O que não foi validado
+- `npm run typecheck --workspace @noctification/web` -> passou
+- `npm run lint --workspace @noctification/web` -> passou
+- `npm run test --workspace @noctification/web` -> falhou antes da correcao em `src/App.test.tsx`, passou depois com 17 arquivos / 94 testes
 
-- Navegação manual em navegador real
-- Ambiente com proxy/gateway intermediário para confirmar `RISK-001`
-- SSR/pré-render do frontend
-- `npm audit fix --force` não foi executado; vulnerabilidades `moderate` na cadeia do `eslint` permaneceram pendentes por exigir upgrade major
+### Validacao agregada
+
+- `npm run lint` -> passou
+- `npm run typecheck` -> passou
+- `npm run test` -> passou
+
+## O que nao foi validado
+
+- Nao executei browser real com interacao visual da UI nem fluxo de service worker/web push em navegador real.
+- Nao validei deploy Debian/nginx/systemd durante esta rodada.
+- A API em `:4000` ja estava ocupada antes da subida manual; a rodada HTTP validou a instancia existente que expunha o contrato esperado do projeto.

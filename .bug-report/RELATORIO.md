@@ -1,71 +1,83 @@
-# Relatório Final
+# Relatorio Final
 
 ## Resumo executivo
 
-A análise seguiu as regras operacionais do `AGENTS.md`: reconhecimento da stack antes de agir, validação com evidência, distinção entre bug confirmado e risco potencial e correção mínima e verificável. O repositório segue estruturalmente estável: `lint`, `typecheck`, testes da API, testes do Web e `build` passaram nas rodadas validadas. Somando a rodada anterior com a rodada de seguranca de 2026-03-26, 2 problemas funcionais confirmados e 1 vulnerabilidade confirmada foram corrigidos; 1 risco potencial e 1 residual de vulnerabilidade moderada permaneceram pendentes.
+- Repositorio identificado como monorepo Node.js/TypeScript com `apps/api`, `apps/web` e `packages/apr-core`.
+- A analise combinou reconhecimento estrutural, validacoes por workspace, leitura dirigida de modulos criticos e revalidacao agregada.
+- Foram confirmados 2 itens relevantes:
+  - 1 `bug_reproduzivel`
+  - 1 `problema_de_qualidade`
+- Ambos foram corrigidos com mudancas localizadas e revalidados com sucesso.
 
-## Visão geral do repositório
+## Visao geral do repositorio
 
-- Monorepo npm com:
-  - `apps/api`
-  - `apps/web`
-- Backend: Express + SQLite + Socket.IO + Web Push
-- Frontend: React + Vite + Vitest + Testing Library
+- Backend: Express + Socket.IO + SQLite.
+- Frontend: React + Vite.
+- Shared package: `@noctification/apr-core`.
+- CI: GitHub Actions com verificacoes de seguranca, lint, typecheck, audit e testes.
 
-## Estratégia adotada
+## Estrategia adotada
 
-1. Reconhecimento estrutural do repositório
-2. Validação global
-3. Inspeção dirigida em áreas sensíveis
-4. Reprodução pontual de hipótese de bug
+1. Reconhecimento do monorepo e das ferramentas disponiveis.
+2. Validacao incremental de `apr-core`, API e web.
+3. Correlacao das falhas com o codigo-fonte.
+4. Correcao minima e revalidacao local do escopo afetado.
+5. Execucao final agregada na raiz (`lint`, `typecheck`, `test`).
+6. Rodada funcional manual por HTTP cobrindo auth, notificacoes, tarefas e lembretes.
 
 ## Quantidade de achados por tipo
 
 - `bug_reproduzivel`: 1
-- `erro_de_configuracao`: 1
-- `risco_potencial`: 1
-- `vulnerabilidade_confirmada`: 1
+- `problema_de_qualidade`: 1
+- `vulnerabilidade_confirmada`: 0
+- `integracao_quebrada`: 0
+- `erro_de_configuracao`: 0
+- `risco_potencial`: 0
+- `divida_tecnica`: 0
+- `melhoria`: 0
 
 ## Bugs confirmados
 
-- `BUG-001`: loopback IPv6 `[::1]` não tratado na reescrita de runtime URLs do frontend
-- `CFG-001`: `npm test` da raiz não cobre o workspace web
-- `VULN-001`: lockfile com dependencias transitivas vulneraveis reportadas como `high` pelo `npm audit`
+### BUG-001
+
+- Contexto: frontend web.
+- Sintoma: teste de roteamento APR falhava em ambiente com `.env` local ativando o modulo.
+- Causa raiz: feature flag lida em escopo de modulo, acoplando a suite ao ambiente local.
+- Status: corrigido.
 
 ## Bugs corrigidos
 
-- `BUG-001`: loopback IPv6 `[::1]` agora e tratado na reescrita de runtime URLs
-- `CFG-001`: `npm test` da raiz agora cobre API e Web
-- `VULN-001`: lockfile atualizado para remover `flatted@3.4.0`, `picomatch@2.3.1/4.0.3` e `socket.io-parser@4.2.5`
+- `BUG-001`
+- `QLT-001`
 
 ## Bugs pendentes
 
-- Nenhum bug confirmado pendente desta rodada
+- Nenhum bug reproduzivel pendente foi confirmado nesta rodada.
 
 ## Vulnerabilidades confirmadas
 
-- `VULN-001`: corrigida
-- Residual pendente: 9 achados `moderate` na cadeia do `eslint`, dependentes de `npm audit fix --force` com upgrade major para `eslint@10.1.0`
+- Nenhuma vulnerabilidade confirmada com evidencia suficiente nesta analise.
 
 ## Riscos potenciais
 
-- `RISK-001`: remoção de subscription Web Push depende de body em DELETE
+- Novos testes ligados a feature flags Vite podem voltar a depender do `.env` local se nao isolarem explicitamente o ambiente.
+- Os avisos de `npm config globalignorefile` merecem revisao do ambiente do runner/desenvolvedor, mas nao foram atribuiveis ao codigo versionado.
 
-## Padrões recorrentes observados
+## Principais padroes recorrentes
 
-- Contratos locais de validação não refletem sempre a superfície completa do monorepo
-- Alguns pontos de integração ainda dependem de convenções frágeis de runtime/HTTP
+- Acoplamento sutil entre testes frontend e configuracao de ambiente.
+- Pequenos residuos de manutencao que afetam qualidade automatizada (`lint`) sem necessariamente quebrar runtime.
 
-## Limitações da análise
+## Limitacoes da analise
 
-- Sem navegação manual em browser real
-- Sem validação com proxy reverso intermediário
-- Sem SSR/pré-render do frontend
-- Sem auditoria online de dependências
+- Sem execucao de browser real ou e2e visual.
+- Sem validacao de deploy Debian/nginx/systemd.
+- Sem uso de internet ou scanners externos.
+- `rg` indisponivel; a busca textual foi feita com ferramentas alternativas.
+- A API em `:4000` ja estava ativa antes da subida manual; o smoke HTTP validou essa instancia exposta localmente.
 
-## Recomendações práticas
+## Recomendacoes praticas
 
-1. Tratar `RISK-001` redesenhando o contrato de unsubscribe Web Push
-2. Manter cobertura de teste para IPv4 e IPv6 loopback em runtime URLs
-3. Preservar o `npm test` da raiz como validacao completa do monorepo
-4. Planejar upgrade controlado de `eslint` antes de considerar `npm audit fix --force`
+- Centralizar consumo de feature flags do frontend em um helper/modulo unico.
+- Exigir stub explicito de variaveis Vite em testes que dependam de flags.
+- Manter `lint`, `typecheck` e testes por workspace como etapa rapida obrigatoria antes de validar a raiz.

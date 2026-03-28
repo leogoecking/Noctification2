@@ -1,51 +1,31 @@
-# 04 - Priorização
+# Fase 4 - Priorizacao
 
-## Prioridade 1
+## Itens relevantes triados
 
-### BUG-001 - loopback IPv6 nao reescrito no runtime do frontend
+### 1. BUG-001
 
 - Tipo: `bug_reproduzivel`
-- Severidade: média
-- Confiança diagnóstica: alta
-- Risco de regressão: baixo
-- Motivo da prioridade:
-  - bug objetivo
-  - correção pequena
-  - impacto direto em cenários de acesso remoto/local-LAN usando `::1`
+- Severidade: media
+- Confianca diagnostica: alta
+- Risco de regressao da correcao: baixo
+- Decisao: corrigir agora
+- Justificativa:
+  - Tinha reproducao objetiva
+  - Quebrava a suite web no ambiente analisado
+  - A correcao poderia ser pequena, localizada e validada rapidamente
 
-## Prioridade 2
+### 2. QLT-001
 
-### CFG-001 - `npm test` da raiz não cobre o workspace web
+- Tipo: `problema_de_qualidade`
+- Severidade: baixa
+- Confianca diagnostica: alta
+- Risco de regressao da correcao: baixo
+- Decisao: corrigir agora
+- Justificativa:
+  - Nao era bug funcional, mas quebrava `lint`
+  - A alteracao era trivial e sem impacto comportamental
 
-- Tipo: `erro_de_configuracao`
-- Severidade: média
-- Confiança diagnóstica: alta
-- Risco de regressão: baixo
-- Motivo da prioridade:
-  - pode esconder regressões do frontend em validação local
-  - diferença entre validação local e mental model do desenvolvedor
+## Itens nao priorizados para correcao adicional imediata
 
-## Prioridade 3
-
-### RISK-001 - unsubscribe Web Push depende de body em DELETE
-
-- Tipo: `risco_potencial`
-- Severidade: média
-- Confiança diagnóstica: média
-- Risco de regressão: baixo
-- Motivo da prioridade:
-  - não falhou no ambiente atual
-  - risco cresce quando houver proxy, gateway ou cliente alternativo
-
-## Prioridade 1
-
-### VULN-001 - dependencias transitivas com advisories high no lockfile
-
-- Tipo: `vulnerabilidade_confirmada`
-- Severidade: alta
-- Confiança diagnóstica: alta
-- Risco de regressão: baixo
-- Motivo da prioridade:
-  - havia evidencia objetiva via `npm audit --audit-level=high`
-  - a correcao viavel ficou restrita ao `package-lock.json`
-  - validacao objetiva disponivel com novo `npm audit`, testes e build
+- Nenhum outro bug reproduzivel foi encontrado nas validacoes automatizadas e na leitura dirigida dos modulos tocados.
+- Os avisos de `npm config globalignorefile` nao foram atribuidos ao repositorio por falta de evidencia em arquivo versionado.

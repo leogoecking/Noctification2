@@ -1,7 +1,7 @@
-# Checklist de Code Review
+# Checklist de code review derivado dos achados
 
-- Verificar se scripts raiz cobrem todos os workspaces esperados.
-- Verificar se utilitários de runtime tratam `localhost`, `127.0.0.1` e `[::1]` de forma consistente.
-- Verificar se contratos HTTP evitam depender de body em `DELETE`.
-- Verificar se testes de utilitários de URL cobrem IPv4, IPv6 e host remoto.
-- Verificar se validações locais e CI têm a mesma cobertura prática.
+- Verificar se testes frontend que dependem de feature flags isolam explicitamente variaveis de ambiente.
+- Conferir se leituras de `import.meta.env` nao estao congelando comportamento em escopo de modulo sem necessidade.
+- Confirmar que novas suites de teste nao dependem de `.env` local do desenvolvedor.
+- Rodar `lint`, `typecheck` e testes do workspace afetado antes de validar a raiz.
+- Revisar imports residuais e simbolos nao utilizados antes de merge.
