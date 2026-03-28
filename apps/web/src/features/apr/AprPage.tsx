@@ -444,45 +444,17 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
   </body>
 </html>`;
 
-    const printFrame = document.createElement("iframe");
-    printFrame.setAttribute("title", "apr-audit-pdf-export");
-    printFrame.style.position = "fixed";
-    printFrame.style.right = "0";
-    printFrame.style.bottom = "0";
-    printFrame.style.width = "0";
-    printFrame.style.height = "0";
-    printFrame.style.border = "0";
+    const reportBlob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
+    const reportUrl = URL.createObjectURL(reportBlob);
+    const previewLink = document.createElement("a");
+    previewLink.href = reportUrl;
+    previewLink.target = "_blank";
+    previewLink.rel = "noopener noreferrer";
+    previewLink.click();
 
-    const cleanup = () => {
-      window.setTimeout(() => {
-        printFrame.remove();
-      }, 1000);
-    };
-
-    printFrame.onload = () => {
-      const frameWindow = printFrame.contentWindow;
-      if (!frameWindow) {
-        cleanup();
-        onError("Nao foi possivel preparar a exportacao em PDF");
-        return;
-      }
-
-      frameWindow.focus();
-      frameWindow.print();
-      cleanup();
-    };
-
-    document.body.appendChild(printFrame);
-    const frameDocument = printFrame.contentDocument;
-    if (!frameDocument) {
-      cleanup();
-      onError("Nao foi possivel preparar a exportacao em PDF");
-      return;
-    }
-
-    frameDocument.open();
-    frameDocument.write(reportHtml);
-    frameDocument.close();
+    window.setTimeout(() => {
+      URL.revokeObjectURL(reportUrl);
+    }, 60_000);
   }, [audit.details, audit.summary.divergentes, onError, selectedMonth]);
 
   const visibleSubjectSuggestions = useMemo(() => {

@@ -340,21 +340,27 @@ describe("AprPage", () => {
     expect(onToast).toHaveBeenCalledWith("Importacao APR concluida");
   });
 
-  it("exporta relatorio de divergentes em janela de impressao", async () => {
-    const write = vi.fn();
-    const print = vi.fn();
-    const focus = vi.fn();
+  it("exporta relatorio de divergentes em nova aba de visualizacao sem imprimir automaticamente", async () => {
     mockedAprApi.getAudit.mockResolvedValue(divergentAudit);
+    const createObjectUrl = vi.fn(() => "blob:apr-report");
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      value: createObjectUrl,
+      configurable: true
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      value: revokeObjectUrl,
+      configurable: true
+    });
+    const click = vi.fn();
+    let createdLink: HTMLAnchorElement | null = null;
     const originalCreateElement = document.createElement.bind(document);
     vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
       const element = originalCreateElement(tagName);
-      if (tagName.toLowerCase() === "iframe") {
-        Object.defineProperty(element, "contentWindow", {
-          value: { focus, print },
-          configurable: true
-        });
-        Object.defineProperty(element, "contentDocument", {
-          value: { open: vi.fn(), write, close: vi.fn() },
+      if (tagName.toLowerCase() === "a") {
+        createdLink = element as HTMLAnchorElement;
+        Object.defineProperty(element, "click", {
+          value: click,
           configurable: true
         });
       }
@@ -365,33 +371,19 @@ describe("AprPage", () => {
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Exportar PDF" })).toBeEnabled());
 
-    const appendChildSpy = vi.spyOn(document.body, "appendChild").mockImplementation((node) => {
-      const result = node;
-      queueMicrotask(() => {
-        const iframeNode = node as HTMLIFrameElement;
-        const onload = iframeNode.onload as ((this: HTMLIFrameElement, event: Event) => void) | null;
-        if (typeof onload === "function") {
-          onload.call(iframeNode, new Event("load"));
-        }
-      });
-      return result;
-    });
-
     fireEvent.click(screen.getByRole("button", { name: "Exportar PDF" }));
 
-    await waitFor(() => expect(appendChildSpy).toHaveBeenCalled());
-    expect(write).toHaveBeenCalled();
-    const exportedHtml = write.mock.calls[0]?.[0] as string;
-    expect(exportedHtml).toContain("<th>ID</th>");
-    expect(exportedHtml).toContain("<th>Status</th>");
-    expect(exportedHtml).toContain("<th>Assunto</th>");
-    expect(exportedHtml).toContain("<th>Nome do colaborador</th>");
-    expect(exportedHtml).not.toContain("Assunto sistema");
-    expect(exportedHtml).not.toContain("Assunto manual");
-    expect(exportedHtml).not.toContain("Colaborador sistema");
-    expect(exportedHtml).not.toContain("Colaborador manual");
-    expect(exportedHtml).not.toContain("Campos alterados");
-    await waitFor(() => expect(print).toHaveBeenCalled());
+    await waitFor(() => expect(createObjectUrl).toHaveBeenCalled());
+    const firstCreateObjectUrlCall = createObjectUrl.mock.calls[0] as unknown as [unknown];
+    const reportBlob = firstCreateObjectUrlCall[0];
+    expect(reportBlob).toBeInstanceOf(Blob);
+    expect(click).toHaveBeenCalled();
+    expect(createdLink).not.toBeNull();
+    const link = createdLink as unknown as HTMLAnchorElement;
+    expect(link.href).toContain("blob:apr-report");
+    expect(link.target).toBe("_blank");
+    expect(link.rel).toBe("noopener noreferrer");
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
   });
 
   it("mostra nas divergencias apenas id, status, assunto e colaborador", async () => {
