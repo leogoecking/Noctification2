@@ -1,7 +1,4 @@
-import type {
-  NotificationItem,
-  PaginationInfo
-} from "../types";
+import type { NotificationItem } from "../types";
 import { request } from "./apiCore";
 
 type NotificationListResponse = { notifications: NotificationItem[] };
