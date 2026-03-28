@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { TextDecoder } from "node:util";
+import ExcelJS from "exceljs";
 import { IncomingForm, type Fields, type Files } from "formidable";
-import * as XLSX from "xlsx";
 import {
   csvMaybeBroken,
   groupRowsByDateMonth,
@@ -24,7 +24,7 @@ export interface ParsedAprUpload {
   grouped: Map<string, ReturnType<typeof normalizeAndValidateRows>["rows"]>;
 }
 
-const ALLOWED_EXTENSIONS = new Set(["csv", "xlsx", "xls"]);
+const ALLOWED_EXTENSIONS = new Set(["csv", "xlsx"]);
 
 const decodeCsvBuffer = (buffer: Buffer): string => {
   let text = new TextDecoder("utf-8").decode(buffer);
@@ -38,18 +38,54 @@ const decodeCsvBuffer = (buffer: Buffer): string => {
   return text;
 };
 
-const parseSpreadsheetBuffer = (buffer: Buffer, extension: string): AprSpreadsheetRow[] => {
+const worksheetToRows = (worksheet: ExcelJS.Worksheet): AprSpreadsheetRow[] => {
+  const headerRow = worksheet.getRow(1);
+  const headers = Array.from({ length: headerRow.cellCount }, (_, index) =>
+    headerRow.getCell(index + 1).text.trim()
+  );
+
+  if (!headers.some((header) => header.length > 0)) {
+    return [];
+  }
+
+  const rows: AprSpreadsheetRow[] = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) {
+      return;
+    }
+
+    const values = headers.reduce<Record<string, string>>((accumulator, header, index) => {
+      if (!header) {
+        return accumulator;
+      }
+
+      accumulator[header] = row.getCell(index + 1).text.trim();
+      return accumulator;
+    }, {});
+
+    if (Object.values(values).some((value) => value.length > 0)) {
+      rows.push(values as AprSpreadsheetRow);
+    }
+  });
+
+  return rows;
+};
+
+const parseSpreadsheetBuffer = async (buffer: Buffer, extension: string): Promise<AprSpreadsheetRow[]> => {
   if (extension === "csv") {
     return parseCsvText(decodeCsvBuffer(buffer));
   }
 
-  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
-  const firstSheet = workbook.Sheets[workbook.SheetNames[0] ?? ""];
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(
+    buffer as unknown as Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0]
+  );
+  const firstSheet = workbook.worksheets[0];
   if (!firstSheet) {
     return [];
   }
 
-  return XLSX.utils.sheet_to_json(firstSheet, { defval: "" }) as AprSpreadsheetRow[];
+  return worksheetToRows(firstSheet);
 };
 
 const getSingleFieldValue = (value: string | string[] | undefined): string =>
@@ -97,11 +133,11 @@ export const parseAprImportRequest = async (
   const fileName = String(file.originalFilename ?? "").trim();
   const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
   if (!ALLOWED_EXTENSIONS.has(extension)) {
-    throw new Error("Extensao invalida. Use csv, xlsx ou xls");
+    throw new Error("Extensao invalida. Use csv ou xlsx");
   }
 
   const buffer = await fs.readFile(file.filepath);
-  const rawRows = parseSpreadsheetBuffer(buffer, extension);
+  const rawRows = await parseSpreadsheetBuffer(buffer, extension);
   const normalized = normalizeAndValidateRows(rawRows);
 
   if (!normalized.rows.length) {

@@ -88,7 +88,7 @@ export const AprSidebar = ({
 
     <article className="rounded-2xl border border-slate-700 bg-panel p-4">
       <h3 className="font-display text-base text-textMain">Importacao</h3>
-      <p className="mt-1 text-sm text-textMuted">Envia CSV, XLSX ou XLS para a base APR deste modulo.</p>
+      <p className="mt-1 text-sm text-textMuted">Envia CSV ou XLSX para a base APR deste modulo.</p>
 
       <div className="mt-4 space-y-3">
         <label className="block">
@@ -108,7 +108,7 @@ export const AprSidebar = ({
           <input
             className="block w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-slate-900"
             type="file"
-            accept=".csv,.xlsx,.xls"
+            accept=".csv,.xlsx"
             onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
           />
         </label>

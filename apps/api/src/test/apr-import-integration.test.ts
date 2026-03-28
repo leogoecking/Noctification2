@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Readable } from "node:stream";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Request } from "express";
 import { connectDatabase, runMigrations } from "../db";
@@ -45,6 +45,28 @@ const createMultipartRequest = (params: {
   stream.method = "POST";
   stream.url = "/api/v1/apr/import/manual";
   return stream as Request;
+};
+
+const buildXlsxBuffer = async (
+  rows: Array<{
+    ID: string;
+    "Data de abertura": string;
+    Assunto: string;
+    Colaborador: string;
+  }>
+): Promise<Buffer> => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("APR");
+  worksheet.columns = [
+    { header: "ID", key: "ID" },
+    { header: "Data de abertura", key: "Data de abertura" },
+    { header: "Assunto", key: "Assunto" },
+    { header: "Colaborador", key: "Colaborador" }
+  ];
+  rows.forEach((row) => worksheet.addRow(row));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 };
 
 describe("APR import integration", () => {
@@ -101,9 +123,8 @@ describe("APR import integration", () => {
     });
   });
 
-  it("suporta xlsx e xls e rejeita refMonth ou extensao invalidos", async () => {
-    const workbook = XLSX.utils.book_new();
-    const sheet = XLSX.utils.json_to_sheet([
+  it("suporta xlsx e rejeita refMonth ou extensao invalidos", async () => {
+    const xlsxBuffer = await buildXlsxBuffer([
       {
         ID: "APR-200",
         "Data de abertura": "2026-04-01",
@@ -111,7 +132,6 @@ describe("APR import integration", () => {
         Colaborador: "Renan"
       }
     ]);
-    XLSX.utils.book_append_sheet(workbook, sheet, "APR");
 
     const xlsxRequest = createMultipartRequest({
       fields: { refMonth: "2026-04" },
@@ -119,24 +139,12 @@ describe("APR import integration", () => {
         name: "apr-system.xlsx",
         contentType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        content: XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
+        content: xlsxBuffer
       }
     });
     const xlsxParsed = await parseAprImportRequest(xlsxRequest, "system");
     const xlsxResult = importAprRowsService(db, xlsxParsed);
     expect(xlsxResult.totalValid).toBe(1);
-
-    const xlsRequest = createMultipartRequest({
-      fields: { refMonth: "2026-04" },
-      file: {
-        name: "apr-manual.xls",
-        contentType: "application/vnd.ms-excel",
-        content: XLSX.write(workbook, { type: "buffer", bookType: "xls" })
-      }
-    });
-    const xlsParsed = await parseAprImportRequest(xlsRequest, "manual");
-    const xlsResult = importAprRowsService(db, xlsParsed);
-    expect(xlsResult.totalValid).toBe(1);
 
     const badMonthRequest = createMultipartRequest({
       fields: { refMonth: "04/2026" },
@@ -153,13 +161,13 @@ describe("APR import integration", () => {
     const badExtRequest = createMultipartRequest({
       fields: { refMonth: "2026-04" },
       file: {
-        name: "apr.txt",
-        contentType: "text/plain",
+        name: "apr.xls",
+        contentType: "application/vnd.ms-excel",
         content: Buffer.from("invalid")
       }
     });
     await expect(parseAprImportRequest(badExtRequest, "manual")).rejects.toThrow(
-      "Extensao invalida. Use csv, xlsx ou xls"
+      "Extensao invalida. Use csv ou xlsx"
     );
   });
 
