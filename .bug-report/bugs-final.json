@@ -22,7 +22,18 @@
     "prioridade": 2
   },
   {
-    "id": "ACH-003",
+    "id": "BUG-003",
+    "tipo": "bug_reproduzivel",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "linha": 303,
+    "status": "corrigido",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "prioridade": 3
+  },
+  {
+    "id": "ACH-004",
     "tipo": "problema_de_qualidade",
     "arquivo": "ambiente",
     "linha": 0,

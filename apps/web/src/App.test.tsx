@@ -167,7 +167,7 @@ describe("App routing", () => {
     expect(screen.getByText("Acompanhamento da sua fila operacional")).toBeInTheDocument();
   });
 
-  it("permite acesso admin a /apr quando a flag do modulo esta ativa", async () => {
+  it("redireciona admin de /apr para dashboard quando o modulo nao esta ativo", async () => {
     window.history.replaceState({}, "", "/apr");
     mockedApi.me.mockResolvedValueOnce({
       user: {
@@ -181,7 +181,6 @@ describe("App routing", () => {
     render(<App />);
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole("button", { name: "APR" })).toBeInTheDocument();
-    expect(screen.getByText("Auditoria de producao rural")).toBeInTheDocument();
+    expect(screen.getByText("Dashboard operacional")).toBeInTheDocument();
   });
 });

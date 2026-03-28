@@ -26,9 +26,21 @@
   - sem alteracao de API
   - validacao objetiva por teste do componente e inspeção do HTML exportado
 
+### BUG-003
+
+- Tipo: `bug_reproduzivel`
+- Severidade: media
+- Confianca diagnostica: alta
+- Risco de regressao: baixo
+- Escopo: `apps/web/src/features/apr`
+- Motivo da prioridade:
+  - corrige a selecao dos itens realmente divergentes no card de auditoria
+  - adiciona paginação local objetiva com 5 itens por pagina
+  - validacao simples e automatizada
+
 ## Item nao tratado como correcao de produto
 
-### ACH-003
+### ACH-004
 
 - Tipo: `problema_de_qualidade`
 - Acao: apenas documentado

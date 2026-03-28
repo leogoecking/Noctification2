@@ -200,8 +200,8 @@ describe("AprPage", () => {
     await waitFor(() => expect(mockedAprApi.listMonths).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockedAprApi.getMonthSummary).toHaveBeenCalledWith("2026-03", "manual"));
 
-    expect(screen.getByText("Auditoria de producao rural")).toBeInTheDocument();
-    expect(screen.getAllByText("APR-001")).toHaveLength(3);
+    expect(screen.getByText("Controle de APR")).toBeInTheDocument();
+    expect(screen.getAllByText("APR-001")).toHaveLength(2);
     expect(screen.getByText("Tabela manual")).toBeInTheDocument();
     expect(screen.getByText("Audit / divergencias")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
@@ -275,6 +275,37 @@ describe("AprPage", () => {
     expect(screen.getByText("Pagina 2 de 2 | Total 6")).toBeInTheDocument();
     expect(within(manualTableBody as HTMLElement).getByText("APR-006")).toBeInTheDocument();
     expect(within(manualTableBody as HTMLElement).queryByText("APR-001")).not.toBeInTheDocument();
+  });
+
+  it("filtra rapidamente a tabela manual por assunto e colaborador", async () => {
+    mockedAprApi.getRows.mockResolvedValue({
+      monthRef: "2026-03",
+      rows: [
+        baseRows.rows[0],
+        {
+          ...baseRows.rows[0],
+          id: 11,
+          externalId: "APR-002",
+          subject: "PODA",
+          collaborator: "Renan"
+        }
+      ]
+    });
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(mockedAprApi.getRows).toHaveBeenCalled());
+
+    const manualTableBody = screen.getByText("Tabela manual").closest("article")?.querySelector("tbody");
+    expect(manualTableBody).not.toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("Busca rapida na tabela manual"), {
+      target: { value: "renan" }
+    });
+
+    expect(within(manualTableBody as HTMLElement).getByText("APR-002")).toBeInTheDocument();
+    expect(within(manualTableBody as HTMLElement).queryByText("APR-001")).not.toBeInTheDocument();
+    expect(screen.getByText("Pagina 1 de 1 | Total 1")).toBeInTheDocument();
   });
 
   it("envia importação com arquivo selecionado", async () => {
@@ -374,8 +405,107 @@ describe("AprPage", () => {
     expect(screen.getByText("Nome do colaborador: RENAN")).toBeInTheDocument();
     expect(screen.getByText("Assunto: MAPEAMENTO")).toBeInTheDocument();
     expect(screen.getByText("Nome do colaborador: FELIPE")).toBeInTheDocument();
+    expect(screen.getByText("2 divergencias entre sistema e manual.")).toBeInTheDocument();
     expect(screen.queryByText(/Sistema:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Manual:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Campos alterados:/)).not.toBeInTheDocument();
+  });
+
+  it("lista somente divergencias reais e pagina 5 por vez", async () => {
+    mockedAprApi.getAudit.mockResolvedValue({
+      monthRef: "2026-03",
+      summary: {
+        totalSistema: 7,
+        totalManual: 7,
+        conferido: 1,
+        soSistema: 3,
+        soManual: 3,
+        totalIds: 7,
+        statusGeral: "Divergente" as const,
+        divergentes: 6
+      },
+      details: [
+        {
+          externalId: "APR-000",
+          status: "Conferido" as const,
+          changed: [],
+          system: baseRows.rows[0],
+          manual: baseRows.rows[0]
+        },
+        ...Array.from({ length: 6 }, (_, index) => ({
+          externalId: `APR-10${index}`,
+          status: (index % 2 === 0 ? "Só no sistema" : "Só no manual") as "Só no sistema" | "Só no manual",
+          changed: [],
+          system:
+            index % 2 === 0
+              ? {
+                  ...baseRows.rows[0],
+                  id: 100 + index,
+                  externalId: `APR-10${index}`,
+                  subject: `ASSUNTO ${index}`,
+                  collaborator: `COLAB ${index}`
+                }
+              : null,
+          manual:
+            index % 2 === 0
+              ? null
+              : {
+                  ...baseRows.rows[0],
+                  id: 200 + index,
+                  externalId: `APR-10${index}`,
+                  subject: `ASSUNTO ${index}`,
+                  collaborator: `COLAB ${index}`
+                }
+        }))
+      ]
+    });
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("6 divergencias entre sistema e manual.")).toBeInTheDocument());
+
+    expect(screen.queryByText("APR-000")).not.toBeInTheDocument();
+    expect(screen.getByText("Pagina 1 de 2 | Total 6")).toBeInTheDocument();
+    expect(screen.getByText("APR-100")).toBeInTheDocument();
+    expect(screen.getByText("APR-104")).toBeInTheDocument();
+    expect(screen.queryByText("APR-105")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Proxima pagina divergencias" }));
+
+    expect(screen.getByText("Pagina 2 de 2 | Total 6")).toBeInTheDocument();
+    expect(screen.getByText("APR-105")).toBeInTheDocument();
+    expect(screen.queryByText("APR-100")).not.toBeInTheDocument();
+  });
+
+  it("filtra rapidamente as divergencias por texto", async () => {
+    mockedAprApi.getAudit.mockResolvedValue({
+      monthRef: "2026-03",
+      summary: {
+        totalSistema: 2,
+        totalManual: 1,
+        conferido: 0,
+        soSistema: 1,
+        soManual: 1,
+        totalIds: 2,
+        statusGeral: "Divergente" as const,
+        divergentes: 2
+      },
+      details: divergentAudit.details
+    });
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("2 divergencias entre sistema e manual.")).toBeInTheDocument());
+
+    const auditArticle = screen.getByText("Audit / divergencias").closest("article");
+    expect(auditArticle).not.toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("Busca rapida nas divergencias"), {
+      target: { value: "235270" }
+    });
+
+    expect(screen.getByText("235270")).toBeInTheDocument();
+    expect(screen.queryByText("235269")).not.toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).getByText("Pagina 1 de 1 | Total 1")).toBeInTheDocument();
   });
 });

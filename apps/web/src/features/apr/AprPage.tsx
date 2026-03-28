@@ -32,6 +32,7 @@ const EMPTY_MANUAL_FORM: AprManualFormState = {
 };
 
 const MANUAL_ROWS_PER_PAGE = 5;
+const AUDIT_ROWS_PER_PAGE = 5;
 
 const DEFAULT_AUDIT: AprAuditResponse = {
   monthRef: "",
@@ -105,6 +106,8 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const normalizeSearchValue = (value: string): string => value.trim().toLowerCase();
+
 export const AprPage = ({ onError, onToast }: AprPageProps) => {
   const [months, setMonths] = useState<AprMonthItem[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthRef);
@@ -117,6 +120,10 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
   const [history, setHistory] = useState<AprHistoryResponse>(DEFAULT_HISTORY);
   const [manualForm, setManualForm] = useState<AprManualFormState>(EMPTY_MANUAL_FORM);
   const [manualPage, setManualPage] = useState(1);
+  const [auditPage, setAuditPage] = useState(1);
+  const [manualSearch, setManualSearch] = useState("");
+  const [auditSearch, setAuditSearch] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
   const [importSource, setImportSource] = useState<AprSourceType>("manual");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<AprImportResult | null>(null);
@@ -289,34 +296,95 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
     [summary]
   );
 
+  const filteredManualRows = useMemo(() => {
+    const searchTerm = normalizeSearchValue(manualSearch);
+    if (!searchTerm) {
+      return manualRows;
+    }
+
+    return manualRows.filter((row) =>
+      [row.externalId, row.openedOn, row.subject, row.collaborator].some((value) =>
+        value.toLowerCase().includes(searchTerm)
+      )
+    );
+  }, [manualRows, manualSearch]);
+
   const manualTotalPages = useMemo(
-    () => Math.max(1, Math.ceil(manualRows.length / MANUAL_ROWS_PER_PAGE)),
-    [manualRows.length]
+    () => Math.max(1, Math.ceil(filteredManualRows.length / MANUAL_ROWS_PER_PAGE)),
+    [filteredManualRows.length]
   );
 
   const paginatedManualRows = useMemo(() => {
     const startIndex = (manualPage - 1) * MANUAL_ROWS_PER_PAGE;
-    return manualRows.slice(startIndex, startIndex + MANUAL_ROWS_PER_PAGE);
-  }, [manualPage, manualRows]);
+    return filteredManualRows.slice(startIndex, startIndex + MANUAL_ROWS_PER_PAGE);
+  }, [filteredManualRows, manualPage]);
 
-  const auditPreviewRows = useMemo(
+  const divergentAuditRows = useMemo(
     () =>
-      audit.details.slice(0, 8).map((item) => ({
-        externalId: item.externalId,
-        status: item.status,
-        subject: item.manual?.subject ?? item.system?.subject ?? "ausente",
-        collaborator: item.manual?.collaborator ?? item.system?.collaborator ?? "ausente"
-      })),
+      audit.details
+        .filter((item) => item.status !== "Conferido")
+        .map((item) => ({
+          externalId: item.externalId,
+          status: item.status,
+          subject: item.manual?.subject ?? item.system?.subject ?? "ausente",
+          collaborator: item.manual?.collaborator ?? item.system?.collaborator ?? "ausente"
+        })),
     [audit.details]
   );
 
+  const filteredAuditRows = useMemo(() => {
+    const searchTerm = normalizeSearchValue(auditSearch);
+    if (!searchTerm) {
+      return divergentAuditRows;
+    }
+
+    return divergentAuditRows.filter((item) =>
+      [item.externalId, item.status, item.subject, item.collaborator].some((value) =>
+        value.toLowerCase().includes(searchTerm)
+      )
+    );
+  }, [auditSearch, divergentAuditRows]);
+
+  const auditTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredAuditRows.length / AUDIT_ROWS_PER_PAGE)),
+    [filteredAuditRows.length]
+  );
+
+  const paginatedAuditRows = useMemo(() => {
+    const startIndex = (auditPage - 1) * AUDIT_ROWS_PER_PAGE;
+    return filteredAuditRows.slice(startIndex, startIndex + AUDIT_ROWS_PER_PAGE);
+  }, [auditPage, filteredAuditRows]);
+
+  const filteredHistoryRows = useMemo(() => {
+    const searchTerm = normalizeSearchValue(historySearch);
+    if (!searchTerm) {
+      return history.details;
+    }
+
+    return history.details.filter((item) =>
+      [
+        item.externalId,
+        item.status,
+        item.current?.subject ?? "",
+        item.current?.collaborator ?? "",
+        item.previous?.subject ?? "",
+        item.previous?.collaborator ?? ""
+      ].some((value) => value.toLowerCase().includes(searchTerm))
+    );
+  }, [history.details, historySearch]);
+
   useEffect(() => {
     setManualPage(1);
+    setAuditPage(1);
   }, [selectedMonth]);
 
   useEffect(() => {
     setManualPage((current) => Math.min(current, manualTotalPages));
   }, [manualTotalPages]);
+
+  useEffect(() => {
+    setAuditPage((current) => Math.min(current, auditTotalPages));
+  }, [auditTotalPages]);
 
   const exportAuditPdf = useCallback(() => {
     const divergentDetails = audit.details.filter((item) => item.status !== "Conferido");
@@ -437,7 +505,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-accent">APR</p>
-            <h2 className="font-display text-2xl text-textMain">Auditoria de producao rural</h2>
+            <h2 className="font-display text-2xl text-textMain">Controle de APR</h2>
             <p className="mt-1 text-sm text-textMuted">
               Modulo isolado para referencia mensal, conferencia manual e historico.
             </p>
@@ -602,6 +670,15 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
               </div>
 
               <div className="overflow-x-auto">
+                <div className="mb-3">
+                  <input
+                    className="w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
+                    type="search"
+                    placeholder="Busca rapida na tabela manual"
+                    value={manualSearch}
+                    onChange={(event) => setManualSearch(event.target.value)}
+                  />
+                </div>
                 <table className="min-w-full text-sm">
                   <thead className="text-left text-textMuted">
                     <tr>
@@ -613,10 +690,10 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {manualRows.length === 0 ? (
+                    {filteredManualRows.length === 0 ? (
                       <tr>
                         <td className="py-4 text-textMuted" colSpan={5}>
-                          Nenhum lancamento manual para este mes.
+                          Nenhum lancamento manual encontrado para este filtro.
                         </td>
                       </tr>
                     ) : (
@@ -651,10 +728,10 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                 </table>
               </div>
 
-              {manualRows.length > 0 && (
+              {filteredManualRows.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4 text-xs text-textMuted">
                   <p>
-                    Pagina {manualPage} de {manualTotalPages} | Total {manualRows.length}
+                    Pagina {manualPage} de {manualTotalPages} | Total {filteredManualRows.length}
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -795,14 +872,14 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                 <div>
                   <h3 className="font-display text-lg text-textMain">Audit / divergencias</h3>
                   <p className="text-sm text-textMuted">
-                    {audit.summary.divergentes} divergencias entre sistema e manual.
+                    {filteredAuditRows.length} divergencias entre sistema e manual.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     className="rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-xs text-textMain disabled:cursor-not-allowed disabled:opacity-60"
                     type="button"
-                    disabled={audit.summary.divergentes === 0}
+                    disabled={divergentAuditRows.length === 0}
                     onClick={exportAuditPdf}
                   >
                     Exportar PDF
@@ -814,10 +891,19 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
               </div>
 
               <div className="space-y-3">
-                {audit.details.length === 0 ? (
-                  <p className="text-sm text-textMuted">Nenhuma linha auditavel neste mes.</p>
+                <div>
+                  <input
+                    className="w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
+                    type="search"
+                    placeholder="Busca rapida nas divergencias"
+                    value={auditSearch}
+                    onChange={(event) => setAuditSearch(event.target.value)}
+                  />
+                </div>
+                {filteredAuditRows.length === 0 ? (
+                  <p className="text-sm text-textMuted">Nenhuma divergencia encontrada para este filtro.</p>
                 ) : (
-                  auditPreviewRows.map((item) => (
+                  paginatedAuditRows.map((item) => (
                     <div
                       key={item.externalId}
                       className="rounded-xl border border-slate-700 bg-panelAlt p-3"
@@ -836,6 +922,32 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
                   ))
                 )}
               </div>
+
+              {filteredAuditRows.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4 text-xs text-textMuted">
+                  <p>
+                    Pagina {auditPage} de {auditTotalPages} | Total {filteredAuditRows.length}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-textMain disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      disabled={auditPage <= 1}
+                      onClick={() => setAuditPage((current) => Math.max(1, current - 1))}
+                    >
+                      Pagina anterior divergencias
+                    </button>
+                    <button
+                      className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-textMain disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      disabled={auditPage >= auditTotalPages}
+                      onClick={() => setAuditPage((current) => Math.min(auditTotalPages, current + 1))}
+                    >
+                      Proxima pagina divergencias
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
 
             <article className="rounded-2xl border border-slate-700 bg-panel p-4">
@@ -874,10 +986,19 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
               </div>
 
               <div className="space-y-3">
-                {history.details.length === 0 ? (
-                  <p className="text-sm text-textMuted">Sem historico para a origem selecionada.</p>
+                <div>
+                  <input
+                    className="w-full rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
+                    type="search"
+                    placeholder="Busca rapida no historico"
+                    value={historySearch}
+                    onChange={(event) => setHistorySearch(event.target.value)}
+                  />
+                </div>
+                {filteredHistoryRows.length === 0 ? (
+                  <p className="text-sm text-textMuted">Sem historico encontrado para este filtro.</p>
                 ) : (
-                  history.details.slice(0, 8).map((item) => (
+                  filteredHistoryRows.slice(0, 8).map((item) => (
                     <div
                       key={item.externalId}
                       className="rounded-xl border border-slate-700 bg-panelAlt p-3"

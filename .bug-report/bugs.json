@@ -70,5 +70,41 @@
     ],
     "prioridade": 2,
     "corrigir_agora": true
+  },
+  {
+    "id": "BUG-003",
+    "tipo": "bug_reproduzivel",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/web/src/features/apr",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "linha": 303,
+    "componente": "AprPage",
+    "sintoma": "O card de divergencias listava itens conferidos e nao permitia paginação de 5 em 5.",
+    "evidencia": [
+      "Lista montada com audit.details.slice(0, 8) sem filtrar status 'Conferido'",
+      "Ausencia de paginação local no bloco Audit / divergencias",
+      "Teste automatizado cobrindo filtro e paginação"
+    ],
+    "causa_raiz": "A UI de divergencias reutilizava diretamente os detalhes completos da auditoria sem projetar apenas o subconjunto divergente nem controlar pagina atual.",
+    "impacto": {
+      "usuario": "medio",
+      "sistema": "baixo",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Abrir o modulo APR com detalhes de auditoria contendo itens conferidos e divergentes",
+      "Observar que o card Audit / divergencias podia mostrar item conferido",
+      "Observar que nao existia navegação em paginas de 5 divergencias"
+    ],
+    "correcao_recomendada": "Filtrar apenas itens com status diferente de 'Conferido' e adicionar paginação local com 5 divergencias por pagina.",
+    "validacao": [
+      "npm run test --workspace @noctification/web -- AprPage.test.tsx",
+      "npm run typecheck --workspace @noctification/web"
+    ],
+    "prioridade": 3,
+    "corrigir_agora": true
   }
 ]

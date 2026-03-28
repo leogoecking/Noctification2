@@ -20,18 +20,20 @@ Foi realizada uma correcao localizada no frontend APR para paginar a "Tabela man
 
 ## Quantidade de achados por tipo
 
-- `bug_reproduzivel`: 2
+- `bug_reproduzivel`: 3
 - `problema_de_qualidade`: 1
 
 ## Bugs confirmados
 
 - `BUG-001`: tabela manual APR sem paginação local.
 - `BUG-002`: divergencias APR com campos excedentes na visualizacao e na exportacao PDF.
+- `BUG-003`: card de divergencias APR sem filtro correto e sem paginação local de 5 itens.
 
 ## Bugs corrigidos
 
 - `BUG-001`: corrigido.
 - `BUG-002`: corrigido.
+- `BUG-003`: corrigido.
 
 ## Bugs pendentes
 

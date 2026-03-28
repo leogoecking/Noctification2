@@ -23,6 +23,18 @@
   },
   {
     "id": "ACH-003",
+    "tipo": "bug_reproduzivel",
+    "status": "confirmado",
+    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
+    "descricao": "Card Audit / divergencias exibia itens conferidos e nao tinha paginação local de 5 itens.",
+    "evidencia": [
+      "audit.details.slice(0, 8) sem filtro de status",
+      "ausencia de estado de pagina para divergencias",
+      "teste automatizado cobrindo 6 divergencias e 1 item conferido"
+    ]
+  },
+  {
+    "id": "ACH-004",
     "tipo": "problema_de_qualidade",
     "status": "confirmado",
     "arquivo": "ambiente",

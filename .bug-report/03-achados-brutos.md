@@ -28,6 +28,19 @@
 
 ## ACH-003
 
+- Tipo: `bug_reproduzivel`
+- Local: `apps/web/src/features/apr/AprPage.tsx`
+- Evidencia:
+  - O card `Audit / divergencias` usava `audit.details.slice(0, 8)` sem filtrar `Conferido`.
+  - Itens conferidos podiam aparecer indevidamente no bloco de divergencias.
+  - O bloco nao tinha paginação local e limitava por recorte fixo de 8.
+- Impacto observado:
+  - A lista de divergencias podia misturar itens nao divergentes.
+  - Quando havia mais de 5 divergencias, o usuario nao conseguia navegar pagina por pagina.
+- Classificacao: bug confirmado por inspecao de codigo e validado por teste automatizado.
+
+## ACH-004
+
 - Tipo: `problema_de_qualidade`
 - Local: ambiente de execucao
 - Evidencia:

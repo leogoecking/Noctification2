@@ -5,7 +5,7 @@
 - Teste especifico do modulo afetado:
   - Comando: `npm run test --workspace @noctification/web -- AprPage.test.tsx`
   - Resultado final: sucesso
-  - Evidencia: `6 tests passed`
+  - Evidencia: `7 tests passed`
 - Typecheck do workspace afetado:
   - Comando: `npm run typecheck --workspace @noctification/web`
   - Resultado final: sucesso
