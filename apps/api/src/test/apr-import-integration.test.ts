@@ -158,6 +158,18 @@ describe("APR import integration", () => {
       "refMonth invalido. Use o formato YYYY-MM"
     );
 
+    const badRangeMonthRequest = createMultipartRequest({
+      fields: { refMonth: "2026-19" },
+      file: {
+        name: "apr.csv",
+        contentType: "text/csv",
+        content: Buffer.from("ID;Data de abertura;Assunto;Colaborador\n1;01/04/2026;PODAS;Renan")
+      }
+    });
+    await expect(parseAprImportRequest(badRangeMonthRequest, "manual")).rejects.toThrow(
+      "refMonth invalido. Use o formato YYYY-MM"
+    );
+
     const badExtRequest = createMultipartRequest({
       fields: { refMonth: "2026-04" },
       file: {
@@ -208,5 +220,71 @@ describe("APR import integration", () => {
         "SELECT COUNT(*) AS count FROM apr_entries e JOIN apr_reference_months m ON m.id=e.reference_month_id WHERE m.month_ref = '2026-03' AND e.source_type = 'system'"
       ).get()
     ).toMatchObject({ count: 0 });
+  });
+
+  it("registra totais mensais sem repetir invalidos e duplicados globais em todos os meses", async () => {
+    const csv = [
+      "ID;Data de abertura;Assunto;Colaborador",
+      "APR-301;15/03/2026;Mapeamento;Felipe",
+      "APR-301;15/04/2026;Podas;Renan",
+      "APR-304;18/03/2026;Vistoria;Joao",
+      "APR-302;16/04/2026;Inspecao;Renan",
+      "APR-303;17/03/2026;;Joao"
+    ].join("\n");
+
+    const request = createMultipartRequest({
+      fields: { refMonth: "2026-04" },
+      file: {
+        name: "apr-multi.csv",
+        contentType: "text/csv",
+        content: Buffer.from(csv, "utf-8")
+      }
+    });
+
+    const parsed = await parseAprImportRequest(request, "manual");
+    importAprRowsService(db, parsed);
+
+    const importRuns = db
+      .prepare(
+        `
+          SELECT
+            m.month_ref AS monthRef,
+            r.total_valid AS totalValid,
+            r.total_invalid AS totalInvalid,
+            r.duplicates AS duplicates,
+            r.total_invalid_global AS totalInvalidGlobal,
+            r.duplicates_global AS duplicatesGlobal
+          FROM apr_import_runs r
+          INNER JOIN apr_reference_months m ON m.id = r.reference_month_id
+          ORDER BY m.month_ref ASC
+        `
+      )
+      .all() as Array<{
+      monthRef: string;
+      totalValid: number;
+      totalInvalid: number;
+      duplicates: number;
+      totalInvalidGlobal: number;
+      duplicatesGlobal: number;
+    }>;
+
+    expect(importRuns).toEqual([
+      {
+        monthRef: "2026-03",
+        totalValid: 1,
+        totalInvalid: 1,
+        duplicates: 1,
+        totalInvalidGlobal: 1,
+        duplicatesGlobal: 1
+      },
+      {
+        monthRef: "2026-04",
+        totalValid: 2,
+        totalInvalid: 0,
+        duplicates: 1,
+        totalInvalidGlobal: 1,
+        duplicatesGlobal: 1
+      }
+    ]);
   });
 });

@@ -294,6 +294,7 @@ describe("APR routes", () => {
   it("valida payloads e params invalidos no contrato HTTP do APR", () => {
     const createManual = getRouteHandler(aprRouter, "/months/:month/manual", "post");
     const getAudit = getRouteHandler(aprRouter, "/months/:month/audit", "get");
+    const getSummary = getRouteHandler(aprRouter, "/months/:month/summary", "get");
     const importRows = getRouteHandler(aprRouter, "/import/:source", "post");
     const createSnapshot = getRouteHandler(aprRouter, "/snapshots", "post");
 
@@ -327,6 +328,19 @@ describe("APR routes", () => {
 
     expect(auditRes.statusCode).toBe(400);
     expect((auditRes.body as { error: string }).error).toBe("mode deve ser all ou missing");
+
+    const summaryRes = createMockResponse();
+    getSummary(
+      {
+        authUser,
+        params: { month: "2026-19" },
+        query: { history_source: "manual" }
+      },
+      summaryRes
+    );
+
+    expect(summaryRes.statusCode).toBe(400);
+    expect((summaryRes.body as { error: string }).error).toBe("month invalido. Use YYYY-MM");
 
     const importRes = createMockResponse();
     void importRows(

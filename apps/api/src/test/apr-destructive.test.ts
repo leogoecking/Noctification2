@@ -95,4 +95,78 @@ describe("APR destructive operations", () => {
       error: "confirm_text deve ser exatamente CLEAR APR MONTH 2026-03"
     });
   });
+
+  it("restaura o snapshot global mais recente sem usar snapshot mensal mais novo", () => {
+    createAprManualEntryService(db, {
+      requestedMonthRef: "2026-03",
+      payload: {
+        externalId: "APR-800",
+        openedOn: "2026-03-10",
+        subject: "mapeamento",
+        collaborator: "Felipe"
+      }
+    });
+    createAprManualEntryService(db, {
+      requestedMonthRef: "2026-04",
+      payload: {
+        externalId: "APR-801",
+        openedOn: "2026-04-12",
+        subject: "podas",
+        collaborator: "Renan"
+      }
+    });
+
+    const globalSnapshot = createAprSnapshotService(db, {
+      payload: { reason: "baseline-global" }
+    });
+
+    createAprManualEntryService(db, {
+      requestedMonthRef: "2026-05",
+      payload: {
+        externalId: "APR-802",
+        openedOn: "2026-05-13",
+        subject: "documentacao",
+        collaborator: "Joao"
+      }
+    });
+
+    const monthlySnapshot = createAprSnapshotService(db, {
+      monthRef: "2026-05",
+      payload: { reason: "baseline-month" }
+    });
+
+    expect(monthlySnapshot.snapshotId).toBeGreaterThan(globalSnapshot.snapshotId);
+
+    db.prepare("DELETE FROM apr_entries").run();
+
+    const restored = restoreLatestAprSnapshotService(db, {
+      payload: {
+        reason: "rollback global",
+        confirmText: "RESTORE ALL APR DATA"
+      }
+    });
+
+    if ("error" in restored) {
+      throw new Error(restored.error);
+    }
+
+    expect(restored).toMatchObject({
+      ok: true,
+      restoredFromSnapshotId: globalSnapshot.snapshotId,
+      scope: "all",
+      monthRef: null,
+      restoredMonths: 2,
+      restoredEntries: 2
+    });
+
+    expect(
+      db.prepare("SELECT COUNT(*) AS count FROM apr_entries WHERE external_id = 'APR-800'").get()
+    ).toMatchObject({ count: 1 });
+    expect(
+      db.prepare("SELECT COUNT(*) AS count FROM apr_entries WHERE external_id = 'APR-801'").get()
+    ).toMatchObject({ count: 1 });
+    expect(
+      db.prepare("SELECT COUNT(*) AS count FROM apr_entries WHERE external_id = 'APR-802'").get()
+    ).toMatchObject({ count: 0 });
+  });
 });

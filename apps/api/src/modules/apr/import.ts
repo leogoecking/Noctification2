@@ -21,6 +21,8 @@ export interface ParsedAprUpload {
   rows: ReturnType<typeof normalizeAndValidateRows>["rows"];
   invalid: string[];
   duplicates: string[];
+  invalidByMonth: Map<string, number>;
+  duplicatesByMonth: Map<string, Set<string>>;
   grouped: Map<string, ReturnType<typeof normalizeAndValidateRows>["rows"]>;
 }
 
@@ -156,6 +158,8 @@ export const parseAprImportRequest = async (
     rows: normalized.rows,
     invalid: normalized.invalid,
     duplicates: normalized.duplicates,
+    invalidByMonth: normalized.invalidByMonth,
+    duplicatesByMonth: normalized.duplicatesByMonth,
     grouped
   };
 };

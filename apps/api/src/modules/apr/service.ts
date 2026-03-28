@@ -317,6 +317,9 @@ export const importAprRowsService = (
       continue;
     }
 
+    const monthInvalidTotal = parsedUpload.invalidByMonth.get(monthRef) ?? 0;
+    const monthDuplicateTotal = parsedUpload.duplicatesByMonth.get(monthRef)?.size ?? 0;
+
     replaceAprEntriesForMonth(db, {
       monthRef,
       sourceType: parsedUpload.sourceType,
@@ -339,8 +342,8 @@ export const importAprRowsService = (
       sourceType: parsedUpload.sourceType,
       fileName: parsedUpload.fileName,
       totalValid: targetRows.length,
-      totalInvalid: parsedUpload.invalid.length,
-      duplicates: parsedUpload.duplicates.length,
+      totalInvalid: monthInvalidTotal,
+      duplicates: monthDuplicateTotal,
       totalInvalidGlobal: parsedUpload.invalid.length,
       duplicatesGlobal: parsedUpload.duplicates.length,
       monthDetectedByDate: monthRef !== parsedUpload.refMonth,

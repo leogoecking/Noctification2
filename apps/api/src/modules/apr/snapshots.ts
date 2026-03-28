@@ -44,7 +44,17 @@ export const buildSnapshotPayload = (
 };
 
 export const findRestorableSnapshot = (db: Database.Database, monthRef?: string) =>
-  listAprSnapshots(db, monthRef).find((item) => !item.snapshotReason.startsWith("pre-restore:"));
+  listAprSnapshots(db, monthRef).find((item) => {
+    if (item.snapshotReason.startsWith("pre-restore:")) {
+      return false;
+    }
+
+    if (!monthRef) {
+      return item.referenceMonthId === null;
+    }
+
+    return true;
+  });
 
 export const checksumPayload = (payloadJson: string): string =>
   createHash("sha256").update(payloadJson).digest("hex");

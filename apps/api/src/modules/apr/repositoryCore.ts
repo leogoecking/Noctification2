@@ -70,6 +70,11 @@ export const assertMonthRef = (monthRef: string): void => {
   if (!/^\d{4}-\d{2}$/.test(monthRef)) {
     throw new Error("APR month_ref invalido. Use o formato YYYY-MM.");
   }
+
+  const month = Number(monthRef.slice(5, 7));
+  if (month < 1 || month > 12) {
+    throw new Error("APR month_ref invalido. Use o formato YYYY-MM.");
+  }
 };
 
 export const normalizeCatalogName = (value: string): string =>
