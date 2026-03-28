@@ -1,46 +1,73 @@
 [
   {
-    "id": "ACH-001",
+    "id": "BUG-001",
     "tipo": "bug_reproduzivel",
     "status": "confirmado",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "descricao": "Tabela manual APR renderizava todos os registros do mes sem paginacao local.",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/web roteamento e testes de feature flag APR",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 26,
+    "componente": "App routing / APR feature flag",
+    "sintoma": "A suite web falha no caso que espera redirecionamento de /apr para o dashboard quando o modulo APR esta desativado.",
     "evidencia": [
-      "manualRows.map(...) sem slice/paginacao",
-      "ausencia de estado de pagina e botoes de navegacao"
-    ]
+      "npm run test --workspace @noctification/web falhou em src/App.test.tsx",
+      "apps/web/.env define VITE_ENABLE_APR_MODULE=true",
+      "App.tsx e appShell.tsx liam a flag em escopo de modulo"
+    ],
+    "causa_raiz": "O valor de VITE_ENABLE_APR_MODULE era capturado em constante de modulo, tornando o comportamento dos testes dependente do .env local e impedindo isolamento previsivel da flag.",
+    "impacto": {
+      "usuario": "baixo",
+      "sistema": "medio",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Manter apps/web/.env com VITE_ENABLE_APR_MODULE=true",
+      "Executar npm run test --workspace @noctification/web",
+      "Observar falha do teste App routing que esperava dashboard em /apr com modulo inativo"
+    ],
+    "correcao_recomendada": "Centralizar a leitura da flag em helper chamado em tempo de execucao e isolar o teste com vi.stubEnv.",
+    "validacao": [
+      "npm run test --workspace @noctification/web",
+      "npm run typecheck --workspace @noctification/web",
+      "npm run test"
+    ],
+    "prioridade": 1,
+    "corrigir_agora": true
   },
   {
-    "id": "ACH-002",
-    "tipo": "bug_reproduzivel",
-    "status": "confirmado",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "descricao": "Listagem e exportacao de APR divergentes exibiam colunas/campos alem de ID, Status, Assunto e Nome do colaborador.",
-    "evidencia": [
-      "Card de divergencias mostrava Sistema/Manual e campos alterados",
-      "PDF exportado continha assunto e colaborador de sistema/manual e colunas adicionais"
-    ]
-  },
-  {
-    "id": "ACH-003",
-    "tipo": "bug_reproduzivel",
-    "status": "confirmado",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "descricao": "Card Audit / divergencias exibia itens conferidos e nao tinha paginação local de 5 itens.",
-    "evidencia": [
-      "audit.details.slice(0, 8) sem filtro de status",
-      "ausencia de estado de pagina para divergencias",
-      "teste automatizado cobrindo 6 divergencias e 1 item conferido"
-    ]
-  },
-  {
-    "id": "ACH-004",
+    "id": "QLT-001",
     "tipo": "problema_de_qualidade",
     "status": "confirmado",
-    "arquivo": "ambiente",
-    "descricao": "Ferramenta rg indisponivel no ambiente.",
+    "severidade": "baixa",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/api modulo APR import",
+    "arquivo": "apps/api/src/modules/apr/import.ts",
+    "linha": 3,
+    "componente": "APR import parser",
+    "sintoma": "A validacao de lint da API falhava com import nao utilizado.",
     "evidencia": [
-      "/bin/bash: linha 1: rg: comando nao encontrado"
-    ]
+      "npm run lint --workspace @noctification/api falhou",
+      "ESLint apontou type File importado e nao usado"
+    ],
+    "causa_raiz": "Import residual de tipo nao referenciado no arquivo.",
+    "impacto": {
+      "usuario": "baixo",
+      "sistema": "baixo",
+      "negocio": "baixo"
+    },
+    "reproducao": [
+      "Executar npm run lint --workspace @noctification/api",
+      "Observar erro em apps/api/src/modules/apr/import.ts linha 3"
+    ],
+    "correcao_recomendada": "Remover o import nao utilizado.",
+    "validacao": [
+      "npm run lint --workspace @noctification/api",
+      "npm run lint"
+    ],
+    "prioridade": 2,
+    "corrigir_agora": true
   }
 ]

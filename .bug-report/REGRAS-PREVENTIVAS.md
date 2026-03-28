@@ -1,13 +1,26 @@
-# Regras Preventivas
+# Regras preventivas
 
-## Sugestoes
+## Sugestoes de lint e disciplina
 
-- Criar convencao de UX para tabelas locais com limite padrao quando a lista puder crescer.
-- Priorizar componentes menores para grids complexos, reduzindo acoplamento de estado.
-- Adicionar testes de interface para listas paginadas e mudancas de pagina.
-- Incluir em revisao tecnica a pergunta: "esta lista deveria renderizar tudo ou ser paginada?"
+- Manter `@typescript-eslint/no-unused-vars` como erro.
+- Tratar qualquer teste dependente de `import.meta.env` como obrigacao de stub/mocking explicito.
 
-## CI recomendado
+## Type rules
 
-- Manter `typecheck` e testes focalizados do workspace web no pipeline.
-- Considerar uma etapa de smoke visual/E2E para fluxos APR principais quando a area crescer.
+- Preferir helpers dedicados para feature flags em vez de constantes espalhadas em componentes.
+- Evitar leitura de flag de ambiente em escopo de modulo quando o comportamento precisar ser testavel/isolavel.
+
+## Testes ausentes prioritarios
+
+- Adicionar caso explicito cobrindo APR ativo e inativo via stub da flag no frontend.
+- Considerar teste unitario do helper de feature flags se o numero de flags crescer.
+
+## Validacoes de CI recomendadas
+
+- Manter `npm run lint`, `npm run typecheck` e `npm run test` como gates minimos.
+- Se o projeto passar a usar mais feature flags, incluir testes parametrizados por ambiente para caminhos criticos.
+
+## Politicas de revisao uteis
+
+- Em PRs que mudam flags/feature toggles, exigir evidencia de comportamento ligado e desligado.
+- Em PRs de manutencao, separar correcoes funcionais de limpeza cosmética quando possivel.

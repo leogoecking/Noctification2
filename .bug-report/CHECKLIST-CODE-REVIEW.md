@@ -1,6 +1,7 @@
-# Checklist de Code Review
+# Checklist de code review derivado dos achados
 
-- Confirmar se listas com potencial de crescimento possuem paginação ou limite explicito de renderizacao.
-- Verificar se estado de pagina e total de paginas sao reajustados quando a fonte de dados muda.
-- Garantir que mudancas de UI tenham teste focalizado para o comportamento novo.
-- Confirmar que correcoes locais nao alteram contratos de API sem necessidade.
+- Verificar se testes frontend que dependem de feature flags isolam explicitamente variaveis de ambiente.
+- Conferir se leituras de `import.meta.env` nao estao congelando comportamento em escopo de modulo sem necessidade.
+- Confirmar que novas suites de teste nao dependem de `.env` local do desenvolvedor.
+- Rodar `lint`, `typecheck` e testes do workspace afetado antes de validar a raiz.
+- Revisar imports residuais e simbolos nao utilizados antes de merge.

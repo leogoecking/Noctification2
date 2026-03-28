@@ -5,13 +5,6 @@ import type { AppConfig } from "../config";
 import { nowIso } from "../db";
 import { authenticate } from "../middleware/auth";
 import {
-  isTaskTerminal,
-  parseLimit,
-  parseOptionalUserId,
-  parsePage,
-  parseTaskPriority,
-  parseTaskStatus,
-  toNullableString,
   validateTaskCommentBody
 } from "../tasks/domain";
 import { dispatchTaskLinkedNotificationIfPresent } from "../tasks/notifications";
@@ -22,10 +15,13 @@ import {
   runTaskUpdateMutation
 } from "../tasks/task-mutations";
 import {
+  buildTaskListParams,
   buildTaskDetailResponse,
   buildTaskListResponse,
   createTaskCommentResponse,
-  parseTaskIdParam
+  getTaskForRoute,
+  validateTaskEditableForRoute,
+  validateTaskTerminalTransitionForRoute
 } from "../tasks/route-helpers";
 import {
   fetchTaskForUser,
@@ -51,96 +47,25 @@ export const createTaskMeRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const limit = parseLimit(req.query.limit, 50, 200);
-    const page = parsePage(req.query.page, 1);
-    const status = toNullableString(req.query.status);
-    const priority = toNullableString(req.query.priority);
-    const dueBefore = toNullableString(req.query.due_before);
-    const dueAfter = toNullableString(req.query.due_after);
-    const assigneeUserId = parseOptionalUserId(req.query.assignee_user_id);
-    const creatorUserId = parseOptionalUserId(req.query.creator_user_id);
-    const includeArchived = String(req.query.include_archived ?? "").toLowerCase() === "true";
+    const params = buildTaskListParams(req.query as Record<string, unknown>, {
+      defaultLimit: 50,
+      maxLimit: 200,
+      scopeUserId: authUser.id
+    });
 
-    if (status && !parseTaskStatus(status)) {
-      res.status(400).json({ error: "status invalido" });
+    if ("error" in params) {
+      res.status(400).json({ error: params.error });
       return;
-    }
-
-    if (priority && !parseTaskPriority(priority)) {
-      res.status(400).json({ error: "priority invalida" });
-      return;
-    }
-
-    if (
-      assigneeUserId !== undefined &&
-      assigneeUserId !== null &&
-      assigneeUserId !== req.authUser.id
-    ) {
-      res.status(400).json({ error: "assignee_user_id invalido para o escopo do usuario" });
-      return;
-    }
-
-    if (
-      creatorUserId !== undefined &&
-      creatorUserId !== null &&
-      creatorUserId !== req.authUser.id
-    ) {
-      res.status(400).json({ error: "creator_user_id invalido para o escopo do usuario" });
-      return;
-    }
-
-    const conditions = ["(t.creator_user_id = ? OR t.assignee_user_id = ?)"];
-    const values: Array<string | number> = [req.authUser.id, req.authUser.id];
-
-    if (!includeArchived) {
-      conditions.push("t.archived_at IS NULL");
-    }
-
-    if (status) {
-      conditions.push("t.status = ?");
-      values.push(status);
-    }
-
-    if (priority) {
-      conditions.push("t.priority = ?");
-      values.push(priority);
-    }
-
-    if (creatorUserId !== undefined) {
-      if (creatorUserId === null) {
-        conditions.push("t.creator_user_id IS NULL");
-      } else {
-        conditions.push("t.creator_user_id = ?");
-        values.push(creatorUserId);
-      }
-    }
-
-    if (assigneeUserId !== undefined) {
-      if (assigneeUserId === null) {
-        conditions.push("t.assignee_user_id IS NULL");
-      } else {
-        conditions.push("t.assignee_user_id = ?");
-        values.push(assigneeUserId);
-      }
-    }
-
-    if (dueAfter) {
-      conditions.push("t.due_at IS NOT NULL AND t.due_at >= ?");
-      values.push(dueAfter);
-    }
-
-    if (dueBefore) {
-      conditions.push("t.due_at IS NOT NULL AND t.due_at <= ?");
-      values.push(dueBefore);
     }
 
     res.json(
       buildTaskListResponse(db, {
-        conditions,
-        values,
-        page,
-        limit
+        conditions: params.conditions,
+        values: params.values,
+        page: params.page,
+        limit: params.limit
       })
     );
   });
@@ -150,20 +75,17 @@ export const createTaskMeRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) =>
+      fetchTaskForUser(db, taskId, authUser.id)
+    );
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const task = fetchTaskForUser(db, taskId, req.authUser.id);
-    if (!task || task.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-
-    res.json(buildTaskDetailResponse(db, task as TaskRow));
+    res.json(buildTaskDetailResponse(db, routeTask.task as TaskRow));
   });
 
   router.post("/tasks/:id/comments", (req, res) => {
@@ -171,16 +93,13 @@ export const createTaskMeRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
-      return;
-    }
-
-    const task = fetchTaskForUser(db, taskId, req.authUser.id);
-    if (!task || task.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) =>
+      fetchTaskForUser(db, taskId, authUser.id)
+    );
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
@@ -192,8 +111,8 @@ export const createTaskMeRouterWithIo = (
 
     res.status(201).json(
       createTaskCommentResponse(db, {
-        taskId: task.id,
-        authorUserId: req.authUser.id,
+        taskId: routeTask.task.id,
+        authorUserId: authUser.id,
         body,
         auditEventType: "task.comment.created"
       })
@@ -205,9 +124,10 @@ export const createTaskMeRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
     const parsedCreate = prepareTaskCreateInput(req.body as Record<string, unknown>, {
-      actorUserId: req.authUser.id,
+      actorUserId: authUser.id,
       validateAssignee: ({ actorUserId, nextAssigneeUserId }) =>
         nextAssigneeUserId !== null && nextAssigneeUserId !== actorUserId
           ? "Usuario comum so pode atribuir tarefa a si mesmo"
@@ -223,8 +143,8 @@ export const createTaskMeRouterWithIo = (
     const { taskId, assignmentNotification } = runTaskCreateMutation({
       db,
       body: req.body as Record<string, unknown>,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       timestamp,
       policy: {
         auditEventType: "task.create",
@@ -238,7 +158,7 @@ export const createTaskMeRouterWithIo = (
 
     dispatchTaskLinkedNotificationIfPresent(db, config, io, assignmentNotification);
 
-    const created = fetchTaskForUser(db, taskId, req.authUser.id);
+    const created = fetchTaskForUser(db, taskId, authUser.id);
     res.status(201).json({ task: normalizeTaskRow(created as TaskRow) });
   });
 
@@ -247,31 +167,30 @@ export const createTaskMeRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) =>
+      fetchTaskForUser(db, taskId, authUser.id)
+    );
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const existing = fetchTaskForUser(db, taskId, req.authUser.id);
-    if (!existing || existing.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-    if (isTaskTerminal(existing.status)) {
-      res.status(409).json({ error: "Tarefa concluida ou cancelada nao pode ser editada" });
+    const editableError = validateTaskEditableForRoute(routeTask.task.status);
+    if (editableError) {
+      res.status(editableError.status).json({ error: editableError.error });
       return;
     }
 
     const timestamp = nowIso();
-    const result = runTaskUpdateMutation({
+    const mutationResult = runTaskUpdateMutation({
       db,
-      taskId,
+      taskId: routeTask.taskId,
       body: req.body as Record<string, unknown>,
-      existing,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      existing: routeTask.task,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       timestamp,
       policy: {
         changedBy: "user.patch",
@@ -284,15 +203,15 @@ export const createTaskMeRouterWithIo = (
       }
     });
 
-    if ("error" in result) {
-      res.status(400).json({ error: result.error });
+    if ("error" in mutationResult) {
+      res.status(400).json({ error: mutationResult.error });
       return;
     }
 
-    dispatchTaskLinkedNotificationIfPresent(db, config, io, result.assignmentNotification);
-    dispatchTaskLinkedNotificationIfPresent(db, config, io, result.statusNotification);
+    dispatchTaskLinkedNotificationIfPresent(db, config, io, mutationResult.assignmentNotification);
+    dispatchTaskLinkedNotificationIfPresent(db, config, io, mutationResult.statusNotification);
 
-    const updated = fetchTaskForUser(db, taskId, req.authUser.id);
+    const updated = fetchTaskForUser(db, routeTask.taskId, authUser.id);
     res.json({ task: normalizeTaskRow(updated as TaskRow) });
   });
 
@@ -301,36 +220,29 @@ export const createTaskMeRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) =>
+      fetchTaskForUser(db, taskId, authUser.id)
+    );
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const existing = fetchTaskForUser(db, taskId, req.authUser.id);
-    if (!existing || existing.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-
-    if (existing.status === "done") {
-      res.status(409).json({ error: "Tarefa ja concluida" });
-      return;
-    }
-
-    if (existing.status === "cancelled") {
-      res.status(409).json({ error: "Tarefa cancelada nao pode ser concluida" });
+    const transitionError = validateTaskTerminalTransitionForRoute(routeTask.task.status, "done");
+    if (transitionError) {
+      res.status(transitionError.status).json({ error: transitionError.error });
       return;
     }
 
     const timestamp = nowIso();
     const completionNotification = runTaskTerminalTransition({
       db,
-      taskId,
-      existing,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      taskId: routeTask.taskId,
+      existing: routeTask.task,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       targetStatus: "done",
       auditEventType: "task.complete",
       notificationTrigger: "task.complete",
@@ -339,7 +251,7 @@ export const createTaskMeRouterWithIo = (
 
     dispatchTaskLinkedNotificationIfPresent(db, config, io, completionNotification);
 
-    const updated = fetchTaskForUser(db, taskId, req.authUser.id);
+    const updated = fetchTaskForUser(db, routeTask.taskId, authUser.id);
     res.json({ task: normalizeTaskRow(updated as TaskRow) });
   });
 
@@ -348,36 +260,29 @@ export const createTaskMeRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) =>
+      fetchTaskForUser(db, taskId, authUser.id)
+    );
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const existing = fetchTaskForUser(db, taskId, req.authUser.id);
-    if (!existing || existing.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-
-    if (existing.status === "cancelled") {
-      res.status(409).json({ error: "Tarefa ja cancelada" });
-      return;
-    }
-
-    if (existing.status === "done") {
-      res.status(409).json({ error: "Tarefa concluida nao pode ser cancelada" });
+    const transitionError = validateTaskTerminalTransitionForRoute(routeTask.task.status, "cancelled");
+    if (transitionError) {
+      res.status(transitionError.status).json({ error: transitionError.error });
       return;
     }
 
     const timestamp = nowIso();
     const cancellationNotification = runTaskTerminalTransition({
       db,
-      taskId,
-      existing,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      taskId: routeTask.taskId,
+      existing: routeTask.task,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       targetStatus: "cancelled",
       auditEventType: "task.cancel",
       notificationTrigger: "task.cancel",
@@ -386,7 +291,7 @@ export const createTaskMeRouterWithIo = (
 
     dispatchTaskLinkedNotificationIfPresent(db, config, io, cancellationNotification);
 
-    const updated = fetchTaskForUser(db, taskId, req.authUser.id);
+    const updated = fetchTaskForUser(db, routeTask.taskId, authUser.id);
     res.json({ task: normalizeTaskRow(updated as TaskRow) });
   });
 

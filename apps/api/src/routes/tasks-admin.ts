@@ -6,12 +6,7 @@ import { nowIso } from "../db";
 import { authenticate, requireRole } from "../middleware/auth";
 import { buildTaskAutomationHealth, listTaskAutomationLogs } from "../tasks/automation";
 import {
-  isTaskTerminal,
   parseLimit,
-  parseOptionalUserId,
-  parsePage,
-  parseTaskPriority,
-  parseTaskStatus,
   toNullableString,
   validateTaskCommentBody
 } from "../tasks/domain";
@@ -23,10 +18,13 @@ import {
   runTaskUpdateMutation
 } from "../tasks/task-mutations";
 import {
+  buildTaskListParams,
   buildTaskDetailResponse,
   buildTaskListResponse,
   createTaskCommentResponse,
-  parseTaskIdParam
+  getTaskForRoute,
+  validateTaskEditableForRoute,
+  validateTaskTerminalTransitionForRoute
 } from "../tasks/route-helpers";
 import {
   activeUserExists,
@@ -87,105 +85,34 @@ export const createTaskAdminRouterWithIo = (
   });
 
   router.get("/tasks", (req, res) => {
-    const limit = parseLimit(req.query.limit, 100, 500);
-    const page = parsePage(req.query.page, 1);
-    const status = toNullableString(req.query.status);
-    const priority = toNullableString(req.query.priority);
-    const dueBefore = toNullableString(req.query.due_before);
-    const dueAfter = toNullableString(req.query.due_after);
-    const assigneeUserId = parseOptionalUserId(req.query.assignee_user_id);
-    const creatorUserId = parseOptionalUserId(req.query.creator_user_id);
-    const includeArchived = String(req.query.include_archived ?? "").toLowerCase() === "true";
+    const params = buildTaskListParams(req.query as Record<string, unknown>, {
+      defaultLimit: 100,
+      maxLimit: 500
+    });
 
-    if (status && !parseTaskStatus(status)) {
-      res.status(400).json({ error: "status invalido" });
+    if ("error" in params) {
+      res.status(400).json({ error: params.error });
       return;
-    }
-
-    if (priority && !parseTaskPriority(priority)) {
-      res.status(400).json({ error: "priority invalida" });
-      return;
-    }
-
-    if (req.query.assignee_user_id !== undefined && assigneeUserId === undefined) {
-      res.status(400).json({ error: "assignee_user_id invalido" });
-      return;
-    }
-
-    if (req.query.creator_user_id !== undefined && creatorUserId === undefined) {
-      res.status(400).json({ error: "creator_user_id invalido" });
-      return;
-    }
-
-    const conditions: string[] = [];
-    const values: Array<string | number> = [];
-
-    if (!includeArchived) {
-      conditions.push("t.archived_at IS NULL");
-    }
-
-    if (status) {
-      conditions.push("t.status = ?");
-      values.push(status);
-    }
-
-    if (priority) {
-      conditions.push("t.priority = ?");
-      values.push(priority);
-    }
-
-    if (creatorUserId !== undefined) {
-      if (creatorUserId === null) {
-        conditions.push("t.creator_user_id IS NULL");
-      } else {
-        conditions.push("t.creator_user_id = ?");
-        values.push(creatorUserId);
-      }
-    }
-
-    if (assigneeUserId !== undefined) {
-      if (assigneeUserId === null) {
-        conditions.push("t.assignee_user_id IS NULL");
-      } else {
-        conditions.push("t.assignee_user_id = ?");
-        values.push(assigneeUserId);
-      }
-    }
-
-    if (dueAfter) {
-      conditions.push("t.due_at IS NOT NULL AND t.due_at >= ?");
-      values.push(dueAfter);
-    }
-
-    if (dueBefore) {
-      conditions.push("t.due_at IS NOT NULL AND t.due_at <= ?");
-      values.push(dueBefore);
     }
 
     res.json(
       buildTaskListResponse(db, {
-        conditions,
-        values,
-        page,
-        limit
+        conditions: params.conditions,
+        values: params.values,
+        page: params.page,
+        limit: params.limit
       })
     );
   });
 
   router.get("/tasks/:id", (req, res) => {
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const task = fetchTaskById(db, taskId);
-    if (!task || task.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-
-    res.json(buildTaskDetailResponse(db, task as TaskRow));
+    res.json(buildTaskDetailResponse(db, routeTask.task as TaskRow));
   });
 
   router.post("/tasks/:id/comments", (req, res) => {
@@ -193,16 +120,11 @@ export const createTaskAdminRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
-      return;
-    }
-
-    const task = fetchTaskById(db, taskId);
-    if (!task || task.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
@@ -214,8 +136,8 @@ export const createTaskAdminRouterWithIo = (
 
     res.status(201).json(
       createTaskCommentResponse(db, {
-        taskId: task.id,
-        authorUserId: req.authUser.id,
+        taskId: routeTask.task.id,
+        authorUserId: authUser.id,
         body,
         auditEventType: "task.comment.created"
       })
@@ -227,9 +149,10 @@ export const createTaskAdminRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
     const parsedCreate = prepareTaskCreateInput(req.body as Record<string, unknown>, {
-      actorUserId: req.authUser.id,
+      actorUserId: authUser.id,
       validateAssignee: ({ nextAssigneeUserId }) =>
         nextAssigneeUserId !== null && !activeUserExists(db, nextAssigneeUserId)
           ? "assignee_user_id deve referenciar um usuario ativo"
@@ -245,8 +168,8 @@ export const createTaskAdminRouterWithIo = (
     const { taskId, assignmentNotification } = runTaskCreateMutation({
       db,
       body: req.body as Record<string, unknown>,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       timestamp,
       policy: {
         auditEventType: "admin.task.create",
@@ -269,31 +192,28 @@ export const createTaskAdminRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const existing = fetchTaskById(db, taskId);
-    if (!existing || existing.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-    if (isTaskTerminal(existing.status)) {
-      res.status(409).json({ error: "Tarefa concluida ou cancelada nao pode ser editada" });
+    const editableError = validateTaskEditableForRoute(routeTask.task.status);
+    if (editableError) {
+      res.status(editableError.status).json({ error: editableError.error });
       return;
     }
 
     const timestamp = nowIso();
-    const result = runTaskUpdateMutation({
+    const mutationResult = runTaskUpdateMutation({
       db,
-      taskId,
+      taskId: routeTask.taskId,
       body: req.body as Record<string, unknown>,
-      existing,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      existing: routeTask.task,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       timestamp,
       policy: {
         changedBy: "admin.patch",
@@ -306,15 +226,15 @@ export const createTaskAdminRouterWithIo = (
       }
     });
 
-    if ("error" in result) {
-      res.status(400).json({ error: result.error });
+    if ("error" in mutationResult) {
+      res.status(400).json({ error: mutationResult.error });
       return;
     }
 
-    dispatchTaskLinkedNotificationIfPresent(db, config, io, result.assignmentNotification);
-    dispatchTaskLinkedNotificationIfPresent(db, config, io, result.statusNotification);
+    dispatchTaskLinkedNotificationIfPresent(db, config, io, mutationResult.assignmentNotification);
+    dispatchTaskLinkedNotificationIfPresent(db, config, io, mutationResult.statusNotification);
 
-    const updated = fetchTaskById(db, taskId);
+    const updated = fetchTaskById(db, routeTask.taskId);
     res.json({ task: normalizeTaskRow(updated as TaskRow) });
   });
 
@@ -323,36 +243,27 @@ export const createTaskAdminRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const existing = fetchTaskById(db, taskId);
-    if (!existing || existing.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-
-    if (existing.status === "done") {
-      res.status(409).json({ error: "Tarefa ja concluida" });
-      return;
-    }
-
-    if (existing.status === "cancelled") {
-      res.status(409).json({ error: "Tarefa cancelada nao pode ser concluida" });
+    const transitionError = validateTaskTerminalTransitionForRoute(routeTask.task.status, "done");
+    if (transitionError) {
+      res.status(transitionError.status).json({ error: transitionError.error });
       return;
     }
 
     const timestamp = nowIso();
     const completionNotification = runTaskTerminalTransition({
       db,
-      taskId,
-      existing,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      taskId: routeTask.taskId,
+      existing: routeTask.task,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       targetStatus: "done",
       auditEventType: "admin.task.complete",
       notificationTrigger: "admin.task.complete",
@@ -361,7 +272,7 @@ export const createTaskAdminRouterWithIo = (
 
     dispatchTaskLinkedNotificationIfPresent(db, config, io, completionNotification);
 
-    const updated = fetchTaskById(db, taskId);
+    const updated = fetchTaskById(db, routeTask.taskId);
     res.json({ task: normalizeTaskRow(updated as TaskRow) });
   });
 
@@ -370,36 +281,27 @@ export const createTaskAdminRouterWithIo = (
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
+    const authUser = req.authUser;
 
-    const taskId = parseTaskIdParam(req.params.id);
-    if (!taskId) {
-      res.status(400).json({ error: "ID invalido" });
+    const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
+    if ("error" in routeTask) {
+      res.status(routeTask.status).json({ error: routeTask.error });
       return;
     }
 
-    const existing = fetchTaskById(db, taskId);
-    if (!existing || existing.archivedAt) {
-      res.status(404).json({ error: "Tarefa nao encontrada" });
-      return;
-    }
-
-    if (existing.status === "cancelled") {
-      res.status(409).json({ error: "Tarefa ja cancelada" });
-      return;
-    }
-
-    if (existing.status === "done") {
-      res.status(409).json({ error: "Tarefa concluida nao pode ser cancelada" });
+    const transitionError = validateTaskTerminalTransitionForRoute(routeTask.task.status, "cancelled");
+    if (transitionError) {
+      res.status(transitionError.status).json({ error: transitionError.error });
       return;
     }
 
     const timestamp = nowIso();
     const cancellationNotification = runTaskTerminalTransition({
       db,
-      taskId,
-      existing,
-      actorUserId: req.authUser.id,
-      actorName: req.authUser.name,
+      taskId: routeTask.taskId,
+      existing: routeTask.task,
+      actorUserId: authUser.id,
+      actorName: authUser.name,
       targetStatus: "cancelled",
       auditEventType: "admin.task.cancel",
       notificationTrigger: "admin.task.cancel",
@@ -408,7 +310,7 @@ export const createTaskAdminRouterWithIo = (
 
     dispatchTaskLinkedNotificationIfPresent(db, config, io, cancellationNotification);
 
-    const updated = fetchTaskById(db, taskId);
+    const updated = fetchTaskById(db, routeTask.taskId);
     res.json({ task: normalizeTaskRow(updated as TaskRow) });
   });
 

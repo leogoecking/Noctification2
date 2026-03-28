@@ -2,45 +2,34 @@
   {
     "id": "BUG-001",
     "tipo": "bug_reproduzivel",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "linha": 618,
-    "status": "corrigido",
     "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "prioridade": 1
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 26,
+    "prioridade": 1,
+    "status": "corrigido"
   },
   {
-    "id": "BUG-002",
-    "tipo": "bug_reproduzivel",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "linha": 321,
-    "status": "corrigido",
-    "severidade": "baixa",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "prioridade": 2
-  },
-  {
-    "id": "BUG-003",
-    "tipo": "bug_reproduzivel",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "linha": 303,
-    "status": "corrigido",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "prioridade": 3
-  },
-  {
-    "id": "ACH-004",
+    "id": "QLT-001",
     "tipo": "problema_de_qualidade",
-    "arquivo": "ambiente",
-    "linha": 0,
-    "status": "nao_aplicado",
     "severidade": "baixa",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "prioridade": 99
+    "arquivo": "apps/api/src/modules/apr/import.ts",
+    "linha": 3,
+    "prioridade": 2,
+    "status": "corrigido"
+  },
+  {
+    "id": "ENV-001",
+    "tipo": "risco_potencial",
+    "severidade": "baixa",
+    "confianca_diagnostica": "baixa",
+    "risco_de_regressao": "baixo",
+    "arquivo": "",
+    "linha": 0,
+    "prioridade": 99,
+    "status": "nao_confirmado"
   }
 ]

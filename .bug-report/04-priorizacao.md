@@ -1,47 +1,31 @@
-# 04 - Priorizacao
+# Fase 4 - Priorizacao
 
-## Item priorizado para correcao imediata
+## Itens relevantes triados
 
-### BUG-001
-
-- Tipo: `bug_reproduzivel`
-- Severidade: media
-- Confianca diagnostica: alta
-- Risco de regressao: baixo
-- Escopo: `apps/web/src/features/apr`
-- Motivo da prioridade:
-  - comportamento divergente do desejado
-  - correcao localizada
-  - validacao objetiva simples via teste do componente
-
-### BUG-002
-
-- Tipo: `bug_reproduzivel`
-- Severidade: baixa
-- Confianca diagnostica: alta
-- Risco de regressao: baixo
-- Escopo: `apps/web/src/features/apr`
-- Motivo da prioridade:
-  - simplificacao direta de campos exibidos no bloco de divergencias e no PDF
-  - sem alteracao de API
-  - validacao objetiva por teste do componente e inspeção do HTML exportado
-
-### BUG-003
+### 1. BUG-001
 
 - Tipo: `bug_reproduzivel`
 - Severidade: media
 - Confianca diagnostica: alta
-- Risco de regressao: baixo
-- Escopo: `apps/web/src/features/apr`
-- Motivo da prioridade:
-  - corrige a selecao dos itens realmente divergentes no card de auditoria
-  - adiciona paginação local objetiva com 5 itens por pagina
-  - validacao simples e automatizada
+- Risco de regressao da correcao: baixo
+- Decisao: corrigir agora
+- Justificativa:
+  - Tinha reproducao objetiva
+  - Quebrava a suite web no ambiente analisado
+  - A correcao poderia ser pequena, localizada e validada rapidamente
 
-## Item nao tratado como correcao de produto
-
-### ACH-004
+### 2. QLT-001
 
 - Tipo: `problema_de_qualidade`
-- Acao: apenas documentado
-- Justificativa: nao afeta o comportamento da aplicacao entregue ao usuario final.
+- Severidade: baixa
+- Confianca diagnostica: alta
+- Risco de regressao da correcao: baixo
+- Decisao: corrigir agora
+- Justificativa:
+  - Nao era bug funcional, mas quebrava `lint`
+  - A alteracao era trivial e sem impacto comportamental
+
+## Itens nao priorizados para correcao adicional imediata
+
+- Nenhum outro bug reproduzivel foi encontrado nas validacoes automatizadas e na leitura dirigida dos modulos tocados.
+- Os avisos de `npm config globalignorefile` nao foram atribuidos ao repositorio por falta de evidencia em arquivo versionado.

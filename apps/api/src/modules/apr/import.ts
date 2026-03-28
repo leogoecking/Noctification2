@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import { TextDecoder } from "node:util";
-import { IncomingForm, type File, type Fields, type Files } from "formidable";
+import { IncomingForm, type Fields, type Files } from "formidable";
 import * as XLSX from "xlsx";
 import {
   csvMaybeBroken,

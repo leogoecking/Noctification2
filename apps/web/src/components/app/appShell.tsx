@@ -4,9 +4,8 @@ import { ReminderUserPanel } from "../ReminderUserPanel";
 import { TaskUserPanel } from "../TaskUserPanel";
 import { UserDashboard } from "../UserDashboard";
 import { AprPage } from "../../features/apr/AprPage";
+import { isAprModuleEnabled } from "../../lib/featureFlags";
 import type { AuthUser } from "../../types";
-
-const APR_MODULE_ENABLED = import.meta.env.VITE_ENABLE_APR_MODULE === "true";
 
 export type AppPath =
   | "/"
@@ -24,6 +23,8 @@ interface Toast {
 }
 
 export const normalizePath = (rawPath: string): AppPath => {
+  const aprModuleEnabled = isAprModuleEnabled();
+
   if (rawPath === "/login") {
     return "/login";
   }
@@ -44,7 +45,7 @@ export const normalizePath = (rawPath: string): AppPath => {
     return "/tasks";
   }
 
-  if (rawPath === "/apr" && APR_MODULE_ENABLED) {
+  if (rawPath === "/apr" && aprModuleEnabled) {
     return "/apr";
   }
 
@@ -96,79 +97,83 @@ export const AppHeader = ({
   pageTitle,
   onLogout,
   onNavigate
-}: AppHeaderProps) => (
-  <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-    <div>
-      <p className="text-xs uppercase tracking-[0.2em] text-accent">Plataforma interna</p>
-      <h1 className="font-display text-2xl text-textMain">{pageTitle}</h1>
-    </div>
+}: AppHeaderProps) => {
+  const aprModuleEnabled = isAprModuleEnabled();
 
-    {!currentUser && (
-      <div className="flex items-center gap-2">
-        <button
-          className={`rounded-xl px-3 py-2 text-sm ${
-            currentPath === "/login"
-              ? "bg-accent text-slate-900"
-              : "border border-slate-600 text-textMuted"
-          }`}
-          onClick={() => onNavigate("/login")}
-        >
-          /login
-        </button>
-        <button
-          className={`rounded-xl px-3 py-2 text-sm ${
-            currentPath === "/admin/login"
-              ? "bg-accent text-slate-900"
-              : "border border-slate-600 text-textMuted"
-          }`}
-          onClick={() => onNavigate("/admin/login")}
-        >
-          /admin/login
-        </button>
+  return (
+    <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-accent">Plataforma interna</p>
+        <h1 className="font-display text-2xl text-textMain">{pageTitle}</h1>
       </div>
-    )}
 
-    {currentUser && (
-      <div className="flex items-center gap-3">
-        {currentUser.role === "admin" && APR_MODULE_ENABLED && (
-          <>
-            <button
-              className={`rounded-xl px-3 py-2 text-sm ${
-                currentPath === "/"
-                  ? "bg-accent text-slate-900"
-                  : "border border-slate-600 text-textMuted"
-              }`}
-              onClick={() => onNavigate("/")}
-              type="button"
-            >
-              Console
-            </button>
-            <button
-              className={`rounded-xl px-3 py-2 text-sm ${
-                currentPath === "/apr"
-                  ? "bg-accent text-slate-900"
-                  : "border border-slate-600 text-textMuted"
-              }`}
-              onClick={() => onNavigate("/apr")}
-              type="button"
-            >
-              APR
-            </button>
-          </>
-        )}
-        <span className="rounded-xl border border-slate-700 bg-panel px-3 py-2 text-sm text-textMuted">
-          {currentUser.name} ({currentUser.role})
-        </span>
-        <button
-          className="rounded-xl bg-danger px-3 py-2 text-sm font-semibold text-white"
-          onClick={onLogout}
-        >
-          Sair
-        </button>
-      </div>
-    )}
-  </header>
-);
+      {!currentUser && (
+        <div className="flex items-center gap-2">
+          <button
+            className={`rounded-xl px-3 py-2 text-sm ${
+              currentPath === "/login"
+                ? "bg-accent text-slate-900"
+                : "border border-slate-600 text-textMuted"
+            }`}
+            onClick={() => onNavigate("/login")}
+          >
+            /login
+          </button>
+          <button
+            className={`rounded-xl px-3 py-2 text-sm ${
+              currentPath === "/admin/login"
+                ? "bg-accent text-slate-900"
+                : "border border-slate-600 text-textMuted"
+            }`}
+            onClick={() => onNavigate("/admin/login")}
+          >
+            /admin/login
+          </button>
+        </div>
+      )}
+
+      {currentUser && (
+        <div className="flex items-center gap-3">
+          {currentUser.role === "admin" && aprModuleEnabled && (
+            <>
+              <button
+                className={`rounded-xl px-3 py-2 text-sm ${
+                  currentPath === "/"
+                    ? "bg-accent text-slate-900"
+                    : "border border-slate-600 text-textMuted"
+                }`}
+                onClick={() => onNavigate("/")}
+                type="button"
+              >
+                Console
+              </button>
+              <button
+                className={`rounded-xl px-3 py-2 text-sm ${
+                  currentPath === "/apr"
+                    ? "bg-accent text-slate-900"
+                    : "border border-slate-600 text-textMuted"
+                }`}
+                onClick={() => onNavigate("/apr")}
+                type="button"
+              >
+                APR
+              </button>
+            </>
+          )}
+          <span className="rounded-xl border border-slate-700 bg-panel px-3 py-2 text-sm text-textMuted">
+            {currentUser.name} ({currentUser.role})
+          </span>
+          <button
+            className="rounded-xl bg-danger px-3 py-2 text-sm font-semibold text-white"
+            onClick={onLogout}
+          >
+            Sair
+          </button>
+        </div>
+      )}
+    </header>
+  );
+};
 
 interface UserWorkspaceProps {
   currentPath: AppPath;
@@ -191,57 +196,61 @@ export const UserWorkspace = ({
   onNavigate,
   onError,
   onToast
-}: UserWorkspaceProps) => (
-  <>
-    <nav className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-slate-700 bg-panel p-2">
-      {[...USER_NAV_ITEMS, ...(APR_MODULE_ENABLED ? [{ label: "APR", path: "/apr" as AppPath }] : [])].map((item) => (
-        <button
-          key={item.path}
-          className={`rounded-xl px-4 py-2 text-sm transition ${
-            currentPath === item.path
-              ? "bg-accent text-slate-900"
-              : "text-textMuted hover:bg-panelAlt hover:text-textMain"
-          }`}
-          onClick={() => onNavigate(item.path)}
-          type="button"
-        >
-          {item.label}
-        </button>
-      ))}
-    </nav>
+}: UserWorkspaceProps) => {
+  const aprModuleEnabled = isAprModuleEnabled();
 
-    <NotificationAlertCenter
-      isVisible
-      onError={onError}
-      onToast={onToast}
-      onOpenNotifications={() => onNavigate("/notifications")}
-    />
+  return (
+    <>
+      <nav className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-slate-700 bg-panel p-2">
+        {[...USER_NAV_ITEMS, ...(aprModuleEnabled ? [{ label: "APR", path: "/apr" as AppPath }] : [])].map((item) => (
+          <button
+            key={item.path}
+            className={`rounded-xl px-4 py-2 text-sm transition ${
+              currentPath === item.path
+                ? "bg-accent text-slate-900"
+                : "text-textMuted hover:bg-panelAlt hover:text-textMain"
+            }`}
+            onClick={() => onNavigate(item.path)}
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
-    <ReminderAlertCenter
-      isVisible
-      onError={onError}
-      onToast={onToast}
-      onOpenReminders={() => onNavigate("/reminders")}
-    />
-
-    {currentPath === "/tasks" ? (
-      <TaskUserPanel user={currentUser} onError={onError} onToast={onToast} />
-    ) : currentPath === "/apr" ? (
-      <AprPage onError={onError} onToast={onToast} />
-    ) : currentPath === "/reminders" ? (
-      <ReminderUserPanel onError={onError} onToast={onToast} />
-    ) : (
-      <UserDashboard
-        user={currentUser}
-        isNotificationsPage={currentPath === "/notifications"}
-        onOpenAllNotifications={() => onNavigate("/notifications")}
-        onBackToDashboard={() => onNavigate("/")}
+      <NotificationAlertCenter
+        isVisible
         onError={onError}
         onToast={onToast}
+        onOpenNotifications={() => onNavigate("/notifications")}
       />
-    )}
-  </>
-);
+
+      <ReminderAlertCenter
+        isVisible
+        onError={onError}
+        onToast={onToast}
+        onOpenReminders={() => onNavigate("/reminders")}
+      />
+
+      {currentPath === "/tasks" ? (
+        <TaskUserPanel user={currentUser} onError={onError} onToast={onToast} />
+      ) : currentPath === "/apr" ? (
+        <AprPage onError={onError} onToast={onToast} />
+      ) : currentPath === "/reminders" ? (
+        <ReminderUserPanel onError={onError} onToast={onToast} />
+      ) : (
+        <UserDashboard
+          user={currentUser}
+          isNotificationsPage={currentPath === "/notifications"}
+          onOpenAllNotifications={() => onNavigate("/notifications")}
+          onBackToDashboard={() => onNavigate("/")}
+          onError={onError}
+          onToast={onToast}
+        />
+      )}
+    </>
+  );
+};
 
 interface AppToastStackProps {
   toasts: Toast[];

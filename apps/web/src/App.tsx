@@ -6,6 +6,7 @@ import { AprPage } from "./features/apr/AprPage";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
+import { isAprModuleEnabled } from "./lib/featureFlags";
 import type { AuthUser } from "./types";
 import {
   AppHeader,
@@ -22,9 +23,8 @@ interface Toast {
   tone: "ok" | "error";
 }
 
-const APR_MODULE_ENABLED = import.meta.env.VITE_ENABLE_APR_MODULE === "true";
-
 export default function App() {
+  const aprModuleEnabled = isAprModuleEnabled();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [submittingAuth, setSubmittingAuth] = useState(false);
@@ -90,7 +90,7 @@ export default function App() {
     }
 
     if (currentUser.role === "admin") {
-      if (currentPath !== "/" && (!APR_MODULE_ENABLED || currentPath !== "/apr")) {
+      if (currentPath !== "/" && (!aprModuleEnabled || currentPath !== "/apr")) {
         navigate("/", true);
       }
       return;
@@ -99,7 +99,7 @@ export default function App() {
     if (currentUser.role === "user" && currentPath === "/admin/login") {
       navigate("/", true);
     }
-  }, [currentPath, currentUser, loadingSession, navigate]);
+  }, [aprModuleEnabled, currentPath, currentUser, loadingSession, navigate]);
 
   const login = useCallback(
     async (loginValue: string, password: string, expectedRole: AuthUser["role"]) => {
@@ -236,7 +236,7 @@ export default function App() {
         )}
 
         {!loadingSession && currentUser?.role === "admin" &&
-          (currentPath === "/apr" && APR_MODULE_ENABLED ? (
+          (currentPath === "/apr" && aprModuleEnabled ? (
             <AprPage onError={handleErrorToast} onToast={handleOkToast} />
           ) : (
             <AdminDashboard onError={handleErrorToast} onToast={handleOkToast} />

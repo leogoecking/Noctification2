@@ -1,78 +1,42 @@
 import { useCallback, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import type {
-  TaskItem,
-  TaskPriority,
-  TaskRepeatType,
-  TaskStatus,
-  UserItem
-} from "../../types";
-import {
-  TASK_BOARD_COLUMNS,
-  TASK_STATUS_LABELS,
-  toApiDueAt,
-  toDateTimeLocalValue
-} from "../tasks/taskUi";
+import type { TaskItem, TaskPriority, UserItem } from "../../types";
+import { TASK_STATUS_LABELS } from "../tasks/taskUi";
 import { TaskBoard } from "../tasks/TaskBoard";
 import { TaskDetailSheet } from "../tasks/TaskDetailSheet";
 import { TaskRecurrenceField } from "../tasks/TaskRecurrenceField";
 import { useTaskPanelActions } from "../tasks/useTaskPanelActions";
 import { useTaskPanelData } from "../tasks/useTaskPanelData";
+import {
+  buildAdminTaskBoardColumns,
+  buildAdminTaskFormState,
+  buildAdminTaskPayload,
+  buildAdminTaskQuery,
+  buildAdminTaskStats,
+  EMPTY_TASK_ADMIN_FORM,
+  type AdminTaskFilterPriority,
+  type AdminTaskFilterStatus,
+  type TaskAdminFormState
+} from "./adminTasksPanelModel";
 
 interface AdminTasksPanelProps {
   onError: (message: string) => void;
   onToast: (message: string) => void;
 }
 
-type AdminTaskFilterStatus = "" | TaskStatus;
-type AdminTaskFilterPriority = "" | TaskPriority;
-
-type TaskAdminFormState = {
-  id: number;
-  title: string;
-  description: string;
-  priority: TaskPriority;
-  dueAt: string;
-  repeatType: TaskRepeatType;
-  weekdays: number[];
-  assigneeUserId: string;
-};
-
-const EMPTY_FORM: TaskAdminFormState = {
-  id: 0,
-  title: "",
-  description: "",
-  priority: "normal",
-  dueAt: "",
-  repeatType: "none",
-  weekdays: [],
-  assigneeUserId: ""
-};
-
 export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   const [users, setUsers] = useState<UserItem[]>([]);
-  const [form, setForm] = useState<TaskAdminFormState>(EMPTY_FORM);
+  const [form, setForm] = useState<TaskAdminFormState>(EMPTY_TASK_ADMIN_FORM);
   const [statusFilter, setStatusFilter] = useState<AdminTaskFilterStatus>("");
   const [priorityFilter, setPriorityFilter] = useState<AdminTaskFilterPriority>("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   const buildQuery = useCallback(() => {
-    const params = new URLSearchParams();
-
-    if (statusFilter) {
-      params.set("status", statusFilter);
-    }
-
-    if (priorityFilter) {
-      params.set("priority", priorityFilter);
-    }
-
-    if (assigneeFilter) {
-      params.set("assignee_user_id", assigneeFilter);
-    }
-
-    const query = params.toString();
-    return query ? `?${query}` : "";
+    return buildAdminTaskQuery({
+      statusFilter,
+      priorityFilter,
+      assigneeFilter
+    });
   }, [assigneeFilter, priorityFilter, statusFilter]);
 
   const {
@@ -114,41 +78,16 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
     }, [])
   });
 
-  const taskStats = useMemo(
-    () => ({
-      total: tasks.length,
-      open: tasks.filter((task) => task.status !== "done" && task.status !== "cancelled").length,
-      done: tasks.filter((task) => task.status === "done").length,
-      unassigned: tasks.filter((task) => task.assigneeUserId === null).length
-    }),
-    [tasks]
-  );
+  const taskStats = useMemo(() => buildAdminTaskStats(tasks), [tasks]);
 
-  const boardColumns = useMemo(
-    () =>
-      TASK_BOARD_COLUMNS.map((status) => ({
-        status,
-        label: TASK_STATUS_LABELS[status],
-        tasks: tasks.filter((task) => task.status === status)
-      })),
-    [tasks]
-  );
+  const boardColumns = useMemo(() => buildAdminTaskBoardColumns(tasks), [tasks]);
 
   const startEditing = useCallback((task: TaskItem) => {
-    setForm({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      priority: task.priority,
-      dueAt: toDateTimeLocalValue(task.dueAt),
-      repeatType: task.repeatType,
-      weekdays: task.repeatWeekdays,
-      assigneeUserId: task.assigneeUserId ? String(task.assigneeUserId) : ""
-    });
+    setForm(buildAdminTaskFormState(task));
   }, []);
 
   const resetForm = useCallback(() => {
-    setForm(EMPTY_FORM);
+    setForm(EMPTY_TASK_ADMIN_FORM);
   }, []);
 
   const {
@@ -187,15 +126,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
       return;
     }
 
-    const payload = {
-      title: form.title,
-      description: form.description,
-      priority: form.priority,
-      due_at: toApiDueAt(form.dueAt),
-      repeat_type: form.repeatType,
-      weekdays: form.repeatType === "weekly" ? form.weekdays : [],
-      assignee_user_id: form.assigneeUserId ? Number(form.assigneeUserId) : null
-    };
+    const payload = buildAdminTaskPayload(form);
 
     try {
       if (form.id > 0) {

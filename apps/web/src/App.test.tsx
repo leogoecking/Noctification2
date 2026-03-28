@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { api, ApiError } from "./lib/api";
 
@@ -60,7 +60,12 @@ const mockedApi = vi.mocked(api);
 describe("App routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("VITE_ENABLE_APR_MODULE", "false");
     mockedApi.me.mockRejectedValue(new Error("Nao autenticado"));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("renderiza tela de admin em /admin/login", async () => {

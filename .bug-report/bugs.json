@@ -2,109 +2,71 @@
   {
     "id": "BUG-001",
     "tipo": "bug_reproduzivel",
-    "status": "confirmado",
+    "status": "corrigido",
     "severidade": "media",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/web/src/features/apr",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "linha": 618,
-    "componente": "AprPage",
-    "sintoma": "A tabela manual exibe todos os registros do mes, sem limitar a 5 itens por pagina.",
+    "escopo": "apps/web roteamento e testes de feature flag APR",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 26,
+    "componente": "App routing / APR feature flag",
+    "sintoma": "Falha reproduzivel da suite web ao depender do .env local para decidir acesso a /apr.",
     "evidencia": [
-      "Renderizacao direta de manualRows.map(...)",
-      "Ausencia de estado de pagina e controles de navegacao",
-      "Teste automatizado adicionado para 6 registros com pagina 1/2"
+      "Falha inicial de npm run test --workspace @noctification/web",
+      "Leitura estatica de VITE_ENABLE_APR_MODULE em App.tsx e appShell.tsx",
+      "apps/web/.env com VITE_ENABLE_APR_MODULE=true"
     ],
-    "causa_raiz": "O componente mantinha a lista completa em memoria, mas nao aplicava recorte paginado na renderizacao nem mantinha estado de pagina local.",
+    "causa_raiz": "Leitura da flag em escopo de modulo, acoplando a suite ao ambiente local.",
     "impacto": {
-      "usuario": "medio",
-      "sistema": "baixo",
+      "usuario": "baixo",
+      "sistema": "medio",
       "negocio": "baixo"
     },
     "reproducao": [
-      "Abrir o modulo APR",
-      "Selecionar um mes com mais de 5 lancamentos manuais",
-      "Observar que todos os registros aparecem na tabela de uma vez"
+      "Definir VITE_ENABLE_APR_MODULE=true em apps/web/.env",
+      "Executar npm run test --workspace @noctification/web"
     ],
-    "correcao_recomendada": "Adicionar paginacao local no frontend com limite fixo de 5 registros por pagina e controles anterior/proxima.",
+    "correcao_recomendada": "Avaliar a flag via helper em tempo de execucao e fixar o valor no teste com vi.stubEnv.",
     "validacao": [
-      "npm run test --workspace @noctification/web -- AprPage.test.tsx",
-      "npm run typecheck --workspace @noctification/web"
+      "npm run typecheck --workspace @noctification/web",
+      "npm run lint --workspace @noctification/web",
+      "npm run test --workspace @noctification/web",
+      "npm run test"
     ],
     "prioridade": 1,
     "corrigir_agora": true
   },
   {
-    "id": "BUG-002",
-    "tipo": "bug_reproduzivel",
-    "status": "confirmado",
+    "id": "QLT-001",
+    "tipo": "problema_de_qualidade",
+    "status": "corrigido",
     "severidade": "baixa",
     "confianca_diagnostica": "alta",
     "risco_de_regressao": "baixo",
-    "escopo": "apps/web/src/features/apr",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "linha": 321,
-    "componente": "AprPage",
-    "sintoma": "A visualizacao e a exportacao de APR divergentes exibiam campos extras alem de ID, Status, Assunto e Nome do colaborador.",
+    "escopo": "apps/api modulo APR import",
+    "arquivo": "apps/api/src/modules/apr/import.ts",
+    "linha": 3,
+    "componente": "APR import parser",
+    "sintoma": "Lint da API falhava por import residual nao utilizado.",
     "evidencia": [
-      "Card de divergencias continha comparacao Sistema/Manual",
-      "PDF exportado continha colunas de sistema/manual e campos alterados",
-      "Testes automatizados passaram a validar o conjunto reduzido de campos"
+      "Falha inicial de npm run lint --workspace @noctification/api",
+      "Erro ESLint em apps/api/src/modules/apr/import.ts:3"
     ],
-    "causa_raiz": "O componente reutilizava uma apresentacao detalhada de auditoria, sem recorte especifico para o fluxo de divergencias desejado.",
+    "causa_raiz": "Import de File mantido sem uso.",
     "impacto": {
       "usuario": "baixo",
       "sistema": "baixo",
       "negocio": "baixo"
     },
     "reproducao": [
-      "Abrir o modulo APR com divergencias",
-      "Visualizar o card Audit / divergencias ou exportar o PDF",
-      "Observar a presenca de campos extras alem dos quatro solicitados"
+      "Executar npm run lint --workspace @noctification/api"
     ],
-    "correcao_recomendada": "Restringir a visualizacao e o PDF a ID, Status, Assunto e Nome do colaborador, escolhendo a linha manual quando existir e, na ausencia dela, a linha do sistema.",
+    "correcao_recomendada": "Remover o import nao utilizado.",
     "validacao": [
-      "npm run test --workspace @noctification/web -- AprPage.test.tsx",
-      "npm run typecheck --workspace @noctification/web"
+      "npm run lint --workspace @noctification/api",
+      "npm run lint"
     ],
     "prioridade": 2,
-    "corrigir_agora": true
-  },
-  {
-    "id": "BUG-003",
-    "tipo": "bug_reproduzivel",
-    "status": "confirmado",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/web/src/features/apr",
-    "arquivo": "apps/web/src/features/apr/AprPage.tsx",
-    "linha": 303,
-    "componente": "AprPage",
-    "sintoma": "O card de divergencias listava itens conferidos e nao permitia paginação de 5 em 5.",
-    "evidencia": [
-      "Lista montada com audit.details.slice(0, 8) sem filtrar status 'Conferido'",
-      "Ausencia de paginação local no bloco Audit / divergencias",
-      "Teste automatizado cobrindo filtro e paginação"
-    ],
-    "causa_raiz": "A UI de divergencias reutilizava diretamente os detalhes completos da auditoria sem projetar apenas o subconjunto divergente nem controlar pagina atual.",
-    "impacto": {
-      "usuario": "medio",
-      "sistema": "baixo",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Abrir o modulo APR com detalhes de auditoria contendo itens conferidos e divergentes",
-      "Observar que o card Audit / divergencias podia mostrar item conferido",
-      "Observar que nao existia navegação em paginas de 5 divergencias"
-    ],
-    "correcao_recomendada": "Filtrar apenas itens com status diferente de 'Conferido' e adicionar paginação local com 5 divergencias por pagina.",
-    "validacao": [
-      "npm run test --workspace @noctification/web -- AprPage.test.tsx",
-      "npm run typecheck --workspace @noctification/web"
-    ],
-    "prioridade": 3,
     "corrigir_agora": true
   }
 ]
