@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Server } from "socket.io";
 import { connectDatabase, nowIso, runMigrations } from "../db";
 import { apiMigrationsDir } from "../paths";
-import { runTaskAutomationCycle } from "../tasks/automation";
+import { runTaskAutomationCycle } from "../modules/tasks/application/automation";
 import type { AppConfig } from "../config";
 
 const createIoStub = () => {

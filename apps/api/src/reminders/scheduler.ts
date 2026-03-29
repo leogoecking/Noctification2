@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
 import type { AppConfig } from "../config";
-import { runTaskAutomationCycle } from "../tasks/automation";
+import { runTaskAutomationCycle } from "../modules/tasks/application/automation";
 import { deliverPendingOccurrences, generateDueOccurrences } from "./operations";
 
 export const MAX_RETRIES = 3;

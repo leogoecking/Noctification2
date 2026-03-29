@@ -106,3 +106,26 @@
 3. Correlacionar qualquer falha com leitura direcionada do modulo afetado.
 4. Inspecionar manualmente modulos criticos mesmo se a automacao passar, buscando inconsistencias logicas demonstraveis.
 5. Corrigir apenas bugs confirmados com baixo risco de regressao e validacao objetiva.
+
+## Analise incremental 2026-03-28
+
+### Visao estrutural confirmada
+
+- Monorepo `npm workspaces` com tres workspaces principais: raiz, [`apps/api`](/home/leo/Noctification2/apps/api/package.json), [`apps/web`](/home/leo/Noctification2/apps/web/package.json) e [`packages/apr-core`](/home/leo/Noctification2/packages/apr-core/package.json).
+- API em Node + Express + Socket.IO + SQLite, frontend React + Vite, pacote compartilhado TypeScript para dominio APR.
+- Infra local e de deploy concentrada em `scripts/`, `ops/` e `.github/workflows`.
+
+### Entrypoints e automacao relevantes
+
+- Entrypoint API: [`apps/api/src/index.ts`](/home/leo/Noctification2/apps/api/src/index.ts)
+- Entrypoint web: [`apps/web/src/main.tsx`](/home/leo/Noctification2/apps/web/src/main.tsx)
+- Shell principal do frontend: [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx)
+- Pipeline CI: [`.github/workflows/main.yml`](/home/leo/Noctification2/.github/workflows/main.yml)
+- Scripts raiz: [`package.json`](/home/leo/Noctification2/package.json)
+
+### Sinais de risco organizacional observados
+
+- O frontend ainda concentra navegacao, sessao e toasts manualmente em [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx), aumentando acoplamento.
+- Pastas criticas mantem muitos arquivos de mesmo nivel, especialmente `apps/api/src/routes`, `apps/api/src/tasks`, `apps/web/src/components` e `apps/web/src/lib`.
+- Ha arquivos extensos acima de 300 linhas em componentes, helpers e testes; os maiores testes passam de 700 linhas, indicando custo alto de manutencao.
+- `apps/web/tsconfig.tsbuildinfo` aparece modificado no `git status`, sinal de artefato gerado sem protecao adequada de `.gitignore`.

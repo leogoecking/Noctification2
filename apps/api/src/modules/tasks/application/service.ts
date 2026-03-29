@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
-import { logAudit, nowIso, sanitizeMetadata } from "../db";
-import type { TaskEventType, TaskPriority, TaskRepeatType, TaskStatus } from "../types";
+import { logAudit, nowIso, sanitizeMetadata } from "../../../db";
+import type { TaskEventType, TaskPriority, TaskRepeatType, TaskStatus } from "../../../types";
 
 export interface TaskRow {
   id: number;

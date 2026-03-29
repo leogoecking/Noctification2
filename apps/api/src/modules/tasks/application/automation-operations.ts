@@ -1,13 +1,13 @@
 import type Database from "better-sqlite3";
-import { logAudit, sanitizeMetadata } from "../db";
+import { logAudit, sanitizeMetadata } from "../../../db";
 import {
   createTaskLinkedNotification,
   type TaskLinkedNotificationDispatch
 } from "./notifications";
 import { logTaskEvent } from "./service";
-import type { NotificationPriority } from "../types";
+import type { NotificationPriority } from "../../../types";
 import { computeNextRecurringDueAt, parseRecurringWeekdaysJson } from "./automation-recurrence";
-import type { TaskAutomationCandidateRow, TaskAutomationType } from "./automation-types";
+import type { TaskAutomationCandidateRow, TaskAutomationType } from "../domain/automation-types";
 
 const resolveAutomationActorUserId = (
   db: Database.Database,

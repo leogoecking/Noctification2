@@ -2,7 +2,11 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminDashboard } from "./AdminDashboard";
 import { api } from "../lib/api";
-import type { NotificationHistoryItem } from "../types";
+import {
+  buildNotificationHistoryItem,
+  buildOnlineUserItem,
+  buildUserItem
+} from "../test/fixtures";
 
 const socketHandlers = new Map<string, (payload?: unknown) => void>();
 
@@ -42,37 +46,13 @@ vi.mock("../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
-const buildAdminNotification = (): NotificationHistoryItem => ({
-  id: 1,
-  title: "Notificacao operacional",
-  message: "Mensagem operacional",
-  priority: "normal",
-  recipient_mode: "users",
-  source_task_id: null,
-  created_at: new Date().toISOString(),
-  sender: {
-    id: 1,
-    name: "Admin",
-    login: "admin"
-  },
-  recipients: [],
-  stats: {
-    total: 0,
-    read: 0,
-    unread: 0,
-    responded: 0,
-    inProgress: 0,
-    resolved: 0,
-    operationalPending: 0,
-    operationalCompleted: 0
-  }
-});
+const renderAdminDashboard = () => render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
 
 describe("AdminDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     socketHandlers.clear();
-    mockedApi.sendNotification.mockResolvedValue({ notification: buildAdminNotification() });
+    mockedApi.sendNotification.mockResolvedValue({ notification: buildNotificationHistoryItem() });
     mockedApi.createUser.mockResolvedValue({
       user: {
         id: 3,
@@ -113,17 +93,10 @@ describe("AdminDashboard", () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         },
-        {
-          id: 2,
-          name: "Operador",
-          login: "operador",
-          department: "Suporte",
-          jobTitle: "Analista",
-          role: "user",
-          isActive: true,
+        buildUserItem({
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
-        }
+        })
       ]
     });
     mockedApi.adminNotifications.mockResolvedValue({
@@ -137,14 +110,7 @@ describe("AdminDashboard", () => {
     });
     mockedApi.adminOnlineUsers.mockResolvedValue({
       users: [
-        {
-          id: 2,
-          name: "Operador",
-          login: "operador",
-          role: "user",
-          department: "Suporte",
-          jobTitle: "Analista"
-        }
+        buildOnlineUserItem()
       ],
       count: 1
     });
@@ -177,7 +143,7 @@ describe("AdminDashboard", () => {
   });
 
   it("renderiza usuarios online e auditoria no dashboard", async () => {
-    render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
+    renderAdminDashboard();
 
     await waitFor(() => expect(mockedApi.adminOnlineUsers).toHaveBeenCalled());
     await waitFor(() => expect(mockedApi.adminAudit).toHaveBeenCalled());
@@ -189,7 +155,7 @@ describe("AdminDashboard", () => {
   });
 
   it("atualiza usuarios online pelo payload do socket sem recarregar auditoria e historico", async () => {
-    render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
+    renderAdminDashboard();
 
     await waitFor(() => expect(mockedApi.adminOnlineUsers).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(socketHandlers.has("online_users:update")).toBe(true));

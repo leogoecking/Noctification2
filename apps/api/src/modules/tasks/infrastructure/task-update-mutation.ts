@@ -9,9 +9,9 @@ import {
   validateTaskDescription,
   validateTaskRecurrence,
   validateTaskTitle
-} from "./domain";
-import { createTaskLinkedNotification } from "./notifications";
-import { logTaskAudit, logTaskEvent, normalizeTaskRow } from "./service";
+} from "../domain/domain";
+import { createTaskLinkedNotification } from "../application/notifications";
+import { logTaskAudit, logTaskEvent, normalizeTaskRow } from "../application/service";
 import {
   buildRecipientIds,
   buildTaskAssignmentMessage,

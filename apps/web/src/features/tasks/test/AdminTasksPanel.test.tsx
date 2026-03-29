@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AdminTasksPanel } from "./AdminTasksPanel";
-import { api } from "../../lib/api";
-import type { TaskCommentItem, TaskItem } from "../../types";
+import { AdminTasksPanel } from "../admin/AdminTasksPanel";
+import { api } from "../../../lib/api";
+import { buildTaskCommentItem, buildTaskItem, buildUserItem } from "../../../test/fixtures";
 
-vi.mock("../../lib/api", () => ({
+vi.mock("../../../lib/api", () => ({
   api: {
     adminTasks: vi.fn(),
     adminTask: vi.fn(),
@@ -26,41 +26,27 @@ vi.mock("../../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
-const buildAdminTask = (id: number): TaskItem => ({
-  id,
-  title: `Tarefa ${id}`,
-  description: "Descricao",
-  status: "new",
-  priority: "normal",
-  creatorUserId: 1,
-  creatorName: "Admin",
-  creatorLogin: "admin",
-  assigneeUserId: 2,
-  assigneeName: "Operador",
-  assigneeLogin: "operador",
-  dueAt: null,
-  repeatType: "none",
-  repeatWeekdays: [],
-  startedAt: null,
-  completedAt: null,
-  cancelledAt: null,
-  recurrenceSourceTaskId: null,
-  sourceNotificationId: null,
-  createdAt: "2026-03-21T12:00:00.000Z",
-  updatedAt: "2026-03-21T12:00:00.000Z",
-  archivedAt: null
-});
+const buildAdminTask = (overrides: Partial<ReturnType<typeof buildTaskItem>> = {}) =>
+  buildTaskItem({
+    creatorUserId: 1,
+    creatorName: "Admin",
+    creatorLogin: "admin",
+    assigneeUserId: 2,
+    assigneeName: "Operador",
+    assigneeLogin: "operador",
+    ...overrides
+  });
 
-const buildAdminTaskComment = (id: number): TaskCommentItem => ({
-  id,
-  taskId: 1,
-  authorUserId: 1,
-  authorName: "Admin",
-  authorLogin: "admin",
-  body: "Comentario",
-  createdAt: "2026-03-21T12:06:00.000Z",
-  updatedAt: "2026-03-21T12:06:00.000Z"
-});
+const buildAdminTaskComment = (overrides: Partial<ReturnType<typeof buildTaskCommentItem>> = {}) =>
+  buildTaskCommentItem({
+    authorUserId: 1,
+    authorName: "Admin",
+    authorLogin: "admin",
+    ...overrides
+  });
+
+const renderAdminTasksPanel = () =>
+  render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
 
 describe("AdminTasksPanel", () => {
   beforeEach(() => {
@@ -98,19 +84,7 @@ describe("AdminTasksPanel", () => {
       pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
     });
     mockedApi.adminUsers.mockResolvedValue({
-      users: [
-        {
-          id: 2,
-          name: "Operador",
-          login: "operador",
-          department: "Suporte",
-          jobTitle: "Analista",
-          role: "user",
-          isActive: true,
-          createdAt: "2026-03-21T12:00:00.000Z",
-          updatedAt: "2026-03-21T12:00:00.000Z"
-        }
-      ]
+      users: [buildUserItem()]
     });
     mockedApi.adminTask.mockResolvedValue({
       task: {
@@ -156,7 +130,7 @@ describe("AdminTasksPanel", () => {
       ]
     });
 
-    render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
+    renderAdminTasksPanel();
 
     await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalledTimes(1));
@@ -205,19 +179,7 @@ describe("AdminTasksPanel", () => {
         pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
       });
     mockedApi.adminUsers.mockResolvedValue({
-      users: [
-        {
-          id: 2,
-          name: "Operador",
-          login: "operador",
-          department: "Suporte",
-          jobTitle: "Analista",
-          role: "user",
-          isActive: true,
-          createdAt: "2026-03-21T12:00:00.000Z",
-          updatedAt: "2026-03-21T12:00:00.000Z"
-        }
-      ]
+      users: [buildUserItem()]
     });
     mockedApi.adminTask.mockResolvedValue({
       task: {
@@ -247,10 +209,10 @@ describe("AdminTasksPanel", () => {
       timeline: []
     });
     mockedApi.createAdminTask.mockResolvedValue({
-      task: buildAdminTask(44)
+      task: buildAdminTask({ id: 44, title: "Nova tarefa admin" })
     });
 
-    render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
+    renderAdminTasksPanel();
 
     await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
 
@@ -280,7 +242,7 @@ describe("AdminTasksPanel", () => {
   it("fecha o detalhe admin quando a tarefa sai do filtro apos concluir", async () => {
     mockedApi.adminTasks
       .mockResolvedValueOnce({
-        tasks: [buildAdminTask(12)],
+        tasks: [buildAdminTask({ id: 12, title: "Tarefa 12" })],
         pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
       })
       .mockResolvedValueOnce({
@@ -303,11 +265,11 @@ describe("AdminTasksPanel", () => {
       ]
     });
     mockedApi.adminTask.mockResolvedValue({
-      task: buildAdminTask(12),
+      task: buildAdminTask({ id: 12, title: "Tarefa 12" }),
       timeline: []
     });
     mockedApi.completeAdminTask.mockResolvedValue({
-      task: { ...buildAdminTask(12), status: "done" }
+      task: { ...buildAdminTask({ id: 12, title: "Tarefa 12" }), status: "done" }
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
@@ -541,7 +503,7 @@ describe("AdminTasksPanel", () => {
       timeline: []
     });
     mockedApi.updateAdminTask.mockResolvedValue({
-      task: buildAdminTask(11)
+      task: buildAdminTask({ id: 11, title: "Tarefa 11" })
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
@@ -814,7 +776,7 @@ describe("AdminTasksPanel", () => {
         ]
       });
     mockedApi.createAdminTaskComment.mockResolvedValue({
-      comment: buildAdminTaskComment(70)
+      comment: buildAdminTaskComment({ id: 70 })
     });
 
     render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);

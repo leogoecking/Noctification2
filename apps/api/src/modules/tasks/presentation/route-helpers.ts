@@ -7,7 +7,7 @@ import {
   parseTaskPriority,
   parseTaskStatus,
   toNullableString
-} from "./domain";
+} from "../domain/domain";
 import {
   createTaskComment,
   listTaskTimeline,
@@ -15,7 +15,7 @@ import {
   normalizeTaskRow,
   taskSelectSql,
   type TaskRow
-} from "./service";
+} from "../application/service";
 
 export const TASK_ORDER_BY = `
   ORDER BY

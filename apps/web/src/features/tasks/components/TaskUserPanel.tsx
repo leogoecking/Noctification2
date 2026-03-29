@@ -1,23 +1,23 @@
 import { useCallback, useMemo, useState } from "react";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError } from "../../../lib/api";
 import type {
   AuthUser,
   TaskItem,
   TaskPriority,
   TaskRepeatType,
   TaskStatus
-} from "../types";
+} from "../../../types";
 import {
   TASK_BOARD_COLUMNS,
   TASK_STATUS_LABELS,
   toApiDueAt,
   toDateTimeLocalValue
-} from "./tasks/taskUi";
-import { TaskBoard } from "./tasks/TaskBoard";
-import { TaskDetailSheet } from "./tasks/TaskDetailSheet";
-import { TaskRecurrenceField } from "./tasks/TaskRecurrenceField";
-import { useTaskPanelActions } from "./tasks/useTaskPanelActions";
-import { useTaskPanelData } from "./tasks/useTaskPanelData";
+} from "../../../components/tasks/taskUi";
+import { TaskBoard } from "../../../components/tasks/TaskBoard";
+import { TaskDetailSheet } from "../../../components/tasks/TaskDetailSheet";
+import { TaskRecurrenceField } from "../../../components/tasks/TaskRecurrenceField";
+import { useTaskPanelActions } from "../../../components/tasks/useTaskPanelActions";
+import { useTaskPanelData } from "../../../components/tasks/useTaskPanelData";
 
 interface TaskUserPanelProps {
   user: AuthUser;

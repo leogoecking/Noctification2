@@ -1,5 +1,5 @@
-import { createTaskLinkedNotification } from "./notifications";
-import { logTaskAudit, logTaskEvent } from "./service";
+import { createTaskLinkedNotification } from "../application/notifications";
+import { logTaskAudit, logTaskEvent } from "../application/service";
 import {
   buildRecipientIds,
   buildTaskStatusMessage,

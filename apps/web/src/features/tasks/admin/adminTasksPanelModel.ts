@@ -3,13 +3,13 @@ import type {
   TaskPriority,
   TaskRepeatType,
   TaskStatus
-} from "../../types";
+} from "../../../types";
 import {
   TASK_BOARD_COLUMNS,
   TASK_STATUS_LABELS,
   toApiDueAt,
   toDateTimeLocalValue
-} from "../tasks/taskUi";
+} from "../../../components/tasks/taskUi";
 
 export type AdminTaskFilterStatus = "" | TaskStatus;
 export type AdminTaskFilterPriority = "" | TaskPriority;

@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
-import type { TaskStatus } from "../types";
-import type { TaskRow } from "./service";
+import type { TaskStatus } from "../../../types";
+import type { TaskRow } from "../application/service";
 
 const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   new: "Nova",

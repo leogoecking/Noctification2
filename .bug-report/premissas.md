@@ -32,3 +32,11 @@
 - Ainda nao confirmado se todos os scripts de teste passam sem depender de variaveis locais adicionais.
 - Ainda nao confirmado se ha falhas funcionais nao cobertas pelos testes automatizados atuais.
 - Ainda nao confirmado se os modulos `APR`, `tasks`, `reminders` e `web push` mantem consistencia entre API e frontend em todos os fluxos.
+
+## Analise incremental 2026-03-28
+
+- Escopo desta rodada: analise estrutural do repositorio com foco em produtividade, organizacao e manutencao, sem alteracoes de codigo de aplicacao.
+- Estado inicial registrado: `git status --short` mostrou alteracao local preexistente em `apps/web/tsconfig.tsbuildinfo`.
+- Os artefatos obrigatorios em `.bug-report/` ja existiam de rodadas anteriores; esta execucao adiciona uma secao incremental aos arquivos de relatorio para preservar historico.
+- Ferramentas efetivamente usadas nesta rodada: `find`, `sed`, `tail`, `wc`, `git`, `npm`, `node`.
+- Validacoes executadas nesta rodada: `npm run lint` e `npm run typecheck`, ambos concluidos com sucesso.

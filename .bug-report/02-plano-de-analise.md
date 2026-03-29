@@ -86,3 +86,34 @@
 - `rg` ausente; busca textual sera menos eficiente.
 - Sem depender de internet ou de servicos externos.
 - Validacoes end-to-end com navegador real nao estao confirmadas neste ambiente.
+## Analise incremental 2026-03-28
+
+### Ordem de execucao
+
+1. Reconhecimento de stack, workspaces, entrypoints e automacao.
+2. Confirmacao de ferramentas disponiveis no ambiente.
+3. Execucao de `npm run lint`.
+4. Execucao de `npm run typecheck`.
+5. Inspecao manual de arquivos centrais, workflow CI, `.gitignore` e distribuicao de responsabilidades.
+6. Consolidacao de melhorias recomendadas com foco em produtividade e organizacao.
+
+### Ferramentas escolhidas
+
+- `find`/`sed`/`tail`/`wc`: mapeamento estrutural e medicao de complexidade por arquivo.
+- `npm run lint`: validar padrao minimo de qualidade e identificar ruido operacional.
+- `npm run typecheck`: confirmar coerencia basica de contratos TypeScript.
+- `git status --short`: registrar estado local antes da analise.
+
+### Modulos prioritarios nesta rodada
+
+- Shell do frontend e fluxos de sessao: [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx)
+- Orquestracao raiz e workspaces: [`package.json`](/home/leo/Noctification2/package.json)
+- Pipeline de CI: [`.github/workflows/main.yml`](/home/leo/Noctification2/.github/workflows/main.yml)
+- Regras de lint/ignore: [`.eslintrc.cjs`](/home/leo/Noctification2/.eslintrc.cjs), [`.gitignore`](/home/leo/Noctification2/.gitignore)
+- Pastas com maior densidade: `apps/api/src/routes`, `apps/api/src/tasks`, `apps/web/src/components`, `apps/web/src/lib`
+
+### Risco previsto e limitacoes
+
+- Baixo risco, pois a rodada e apenas diagnostica.
+- Sem execucao de browser real, sem deploy, sem smoke HTTP e sem testes completos por workspace.
+- As recomendacoes abaixo sao classificadas como `melhoria` ou `problema_de_qualidade`, nao como bug confirmado, salvo quando existe evidencia operacional objetiva.

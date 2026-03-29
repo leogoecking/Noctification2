@@ -5,8 +5,8 @@ import { AdminSendPanel } from "./admin/AdminSendPanel";
 import { AdminSidebar } from "./admin/AdminSidebar";
 import { AdminUsersPanel } from "./admin/AdminUsersPanel";
 import { AdminRemindersPanel } from "./admin/AdminRemindersPanel";
-import { AdminTasksPanel } from "./admin/AdminTasksPanel";
 import { useAdminDashboardData } from "./admin/useAdminDashboardData";
+import { AdminTasksPanel } from "../features/tasks";
 
 interface AdminDashboardProps {
   onError: (message: string) => void;

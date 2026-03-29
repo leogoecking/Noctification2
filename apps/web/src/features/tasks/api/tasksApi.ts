@@ -5,8 +5,8 @@ import type {
   TaskItem,
   TaskTimelineItem,
   PaginationInfo
-} from "../types";
-import { request } from "./apiCore";
+} from "../../../types";
+import { request } from "../../../lib/apiCore";
 
 type TaskListResponse = { tasks: TaskItem[]; pagination: PaginationInfo };
 type TaskDetailResponse = { task: TaskItem; timeline: TaskTimelineItem[] };

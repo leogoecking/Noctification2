@@ -1,0 +1,96 @@
+[
+  {
+    "id": "QLT-ORG-001",
+    "tipo": "problema_de_qualidade",
+    "status": "confirmado",
+    "severidade": "baixa",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": ".gitignore",
+    "linha": 1,
+    "prioridade": 1,
+    "titulo": "Ignorar artefatos tsbuildinfo",
+    "evidencia": [
+      "git status --short mostrou apps/web/tsconfig.tsbuildinfo modificado",
+      ".gitignore nao contem *.tsbuildinfo"
+    ]
+  },
+  {
+    "id": "MEL-CI-001",
+    "tipo": "melhoria",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": ".github/workflows/main.yml",
+    "linha": 74,
+    "prioridade": 2,
+    "titulo": "Reduzir reinstalacoes repetidas no CI",
+    "evidencia": [
+      "workflow executa npm ci em install-and-quality, dependency-audit, test-api e test-web"
+    ]
+  },
+  {
+    "id": "MEL-PROD-001",
+    "tipo": "melhoria",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "arquivo": "package.json",
+    "linha": 18,
+    "prioridade": 3,
+    "titulo": "Adicionar orquestracao e cache por workspace",
+    "evidencia": [
+      "scripts build e test da raiz sao seriais"
+    ]
+  },
+  {
+    "id": "MEL-FE-001",
+    "tipo": "melhoria",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 26,
+    "prioridade": 4,
+    "titulo": "Separar roteamento e sessao do shell principal",
+    "evidencia": [
+      "App.tsx concentra navegacao manual, sessao, toasts e gating por papel"
+    ]
+  },
+  {
+    "id": "MEL-ARC-001",
+    "tipo": "melhoria",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/api/src/routes",
+    "linha": 1,
+    "prioridade": 5,
+    "titulo": "Reorganizar pastas criticas por dominio",
+    "evidencia": [
+      "71 arquivos de primeiro nivel distribuidos entre routes, tasks, components e lib"
+    ]
+  },
+  {
+    "id": "MEL-QUAL-001",
+    "tipo": "melhoria",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/web/src/components/admin/AdminTasksPanel.test.tsx",
+    "linha": 1,
+    "prioridade": 6,
+    "titulo": "Quebrar arquivos e testes monoliticos",
+    "evidencia": [
+      "AdminTasksPanel.test.tsx tem 839 linhas",
+      "AdminDashboard.test.tsx tem 831 linhas",
+      "TaskUserPanel.test.tsx tem 788 linhas",
+      "reminder-routes.test.ts tem 708 linhas"
+    ]
+  }
+]

@@ -1,11 +1,11 @@
 import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
-import type { AppConfig } from "../config";
+import type { AppConfig } from "../../../config";
 import {
   createAutomationNotification,
   createRecurringTaskAutomation
 } from "./automation-operations";
-import type { TaskAutomationType } from "./automation-types";
+import type { TaskAutomationType } from "../domain/automation-types";
 import {
   createTaskLinkedNotification,
   dispatchTaskLinkedNotifications

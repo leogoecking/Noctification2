@@ -6,6 +6,7 @@
 apps/api/data/
 apps/api/dist/
 apps/web/dist/
+*.tsbuildinfo
 coverage/
 .deploy/shared/api.env
 .deploy/shared/backups/*

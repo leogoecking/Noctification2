@@ -1,19 +1,19 @@
 import { Router } from "express";
 import type Database from "better-sqlite3";
 import type { Server } from "socket.io";
-import type { AppConfig } from "../config";
-import { nowIso } from "../db";
-import { authenticate } from "../middleware/auth";
+import type { AppConfig } from "../../../config";
+import { nowIso } from "../../../db";
+import { authenticate } from "../../../middleware/auth";
 import {
   validateTaskCommentBody
-} from "../tasks/domain";
-import { dispatchTaskLinkedNotificationIfPresent } from "../tasks/notifications";
+} from "../domain/domain";
+import { dispatchTaskLinkedNotificationIfPresent } from "../application/notifications";
 import {
   prepareTaskCreateInput,
   runTaskCreateMutation,
   runTaskTerminalTransition,
   runTaskUpdateMutation
-} from "../tasks/task-mutations";
+} from "../infrastructure/task-mutations";
 import {
   buildTaskListParams,
   buildTaskDetailResponse,
@@ -22,12 +22,12 @@ import {
   getTaskForRoute,
   validateTaskEditableForRoute,
   validateTaskTerminalTransitionForRoute
-} from "../tasks/route-helpers";
+} from "./route-helpers";
 import {
   fetchTaskForUser,
   normalizeTaskRow,
   type TaskRow
-} from "../tasks/service";
+} from "../application/service";
 
 export const createTaskMeRouter = (db: Database.Database, config: AppConfig): Router => {
   return createTaskMeRouterWithIo(db, null, config);

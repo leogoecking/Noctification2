@@ -8,9 +8,9 @@ import {
   validateTaskDescription,
   validateTaskRecurrence,
   validateTaskTitle
-} from "./domain";
-import { createTaskLinkedNotification } from "./notifications";
-import { logTaskAudit, logTaskEvent, type TaskRow } from "./service";
+} from "../domain/domain";
+import { createTaskLinkedNotification } from "../application/notifications";
+import { logTaskAudit, logTaskEvent, type TaskRow } from "../application/service";
 import {
   buildTaskAssignmentMessage,
   type AssigneeValidationContext,

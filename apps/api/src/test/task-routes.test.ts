@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Server } from "socket.io";
 import { connectDatabase, nowIso, runMigrations } from "../db";
 import type { AppConfig } from "../config";
-import { createTaskMeRouterWithIo } from "../routes/tasks-me";
-import { createTaskAdminRouterWithIo } from "../routes/tasks-admin";
+import { createTaskMeRouterWithIo } from "../modules/tasks/presentation/me-routes";
+import { createTaskAdminRouterWithIo } from "../modules/tasks/presentation/admin-routes";
 import { createMockResponse, getRouteHandler } from "./route-test-helpers";
 
 const testConfig: AppConfig = {

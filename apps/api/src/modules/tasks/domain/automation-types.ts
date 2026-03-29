@@ -1,4 +1,4 @@
-import type { NotificationPriority, TaskRepeatType, TaskStatus } from "../types";
+import type { NotificationPriority, TaskRepeatType, TaskStatus } from "../../../types";
 
 export type TaskAutomationType = "due_soon" | "overdue" | "stale_task" | "recurring_task";
 

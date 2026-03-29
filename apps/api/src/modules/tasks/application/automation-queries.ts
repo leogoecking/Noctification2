@@ -4,7 +4,7 @@ import {
   type TaskAutomationCandidateRow,
   type TaskAutomationLogRow,
   type TaskAutomationType
-} from "./automation-types";
+} from "../domain/automation-types";
 
 export const fetchDueSoonCandidates = (
   db: Database.Database,

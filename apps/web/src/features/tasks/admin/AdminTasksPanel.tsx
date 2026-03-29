@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { api, ApiError } from "../../lib/api";
-import type { TaskItem, TaskPriority, UserItem } from "../../types";
-import { TASK_STATUS_LABELS } from "../tasks/taskUi";
-import { TaskBoard } from "../tasks/TaskBoard";
-import { TaskDetailSheet } from "../tasks/TaskDetailSheet";
-import { TaskRecurrenceField } from "../tasks/TaskRecurrenceField";
-import { useTaskPanelActions } from "../tasks/useTaskPanelActions";
-import { useTaskPanelData } from "../tasks/useTaskPanelData";
+import { api, ApiError } from "../../../lib/api";
+import type { TaskItem, TaskPriority, UserItem } from "../../../types";
+import { TASK_STATUS_LABELS } from "../../../components/tasks/taskUi";
+import { TaskBoard } from "../../../components/tasks/TaskBoard";
+import { TaskDetailSheet } from "../../../components/tasks/TaskDetailSheet";
+import { TaskRecurrenceField } from "../../../components/tasks/TaskRecurrenceField";
+import { useTaskPanelActions } from "../../../components/tasks/useTaskPanelActions";
+import { useTaskPanelData } from "../../../components/tasks/useTaskPanelData";
 import {
   buildAdminTaskBoardColumns,
   buildAdminTaskFormState,

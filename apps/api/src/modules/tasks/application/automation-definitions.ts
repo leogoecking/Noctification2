@@ -7,8 +7,8 @@ import {
   toOverduePriority,
   toStalePriority
 } from "./automation-operations";
-import type { TaskAutomationCandidateRow, TaskAutomationType } from "./automation-types";
-import type { NotificationPriority } from "../types";
+import type { TaskAutomationCandidateRow, TaskAutomationType } from "../domain/automation-types";
+import type { NotificationPriority } from "../../../types";
 import {
   fetchDueSoonCandidates,
   fetchOverdueCandidates,

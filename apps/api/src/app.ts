@@ -9,9 +9,8 @@ import { createAdminRouter } from "./routes/admin";
 import { createMeRouter } from "./routes/me";
 import { createReminderAdminRouter } from "./routes/reminders-admin";
 import { createReminderMeRouter } from "./routes/reminders-me";
-import { createTaskAdminRouterWithIo } from "./routes/tasks-admin";
-import { createTaskMeRouterWithIo } from "./routes/tasks-me";
 import { createAprRouter } from "./modules/apr/route";
+import { createTaskAdminRouterWithIo, createTaskMeRouterWithIo } from "./modules/tasks";
 
 const isCorsOriginAllowed = (allowedOrigins: Set<string>, origin?: string): boolean => {
   if (!origin) {

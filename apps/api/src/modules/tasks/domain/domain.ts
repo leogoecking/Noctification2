@@ -1,4 +1,4 @@
-import type { TaskPriority, TaskRepeatType, TaskStatus } from "../types";
+import type { TaskPriority, TaskRepeatType, TaskStatus } from "../../../types";
 
 export const TASK_PRIORITIES: TaskPriority[] = ["low", "normal", "high", "critical"];
 export const TASK_STATUSES: TaskStatus[] = ["new", "in_progress", "waiting", "done", "cancelled"];

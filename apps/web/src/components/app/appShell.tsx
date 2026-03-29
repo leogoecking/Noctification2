@@ -1,9 +1,9 @@
 import { NotificationAlertCenter } from "../NotificationAlertCenter";
 import { ReminderAlertCenter } from "../ReminderAlertCenter";
 import { ReminderUserPanel } from "../ReminderUserPanel";
-import { TaskUserPanel } from "../TaskUserPanel";
 import { UserDashboard } from "../UserDashboard";
 import { AprPage } from "../../features/apr/AprPage";
+import { TaskUserPanel } from "../../features/tasks";
 import { isAprModuleEnabled } from "../../lib/featureFlags";
 import type { AuthUser } from "../../types";
 

@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TaskUserPanel } from "./TaskUserPanel";
-import { api } from "../lib/api";
-import type { TaskCommentItem, TaskItem } from "../types";
+import { TaskUserPanel } from "../components/TaskUserPanel";
+import { api } from "../../../lib/api";
+import { buildAuthUser, buildTaskCommentItem, buildTaskItem } from "../../../test/fixtures";
 
-vi.mock("../lib/api", () => ({
+vi.mock("../../../lib/api", () => ({
   api: {
     myTasks: vi.fn(),
     myTask: vi.fn(),
@@ -25,41 +25,10 @@ vi.mock("../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
-const buildTask = (id: number): TaskItem => ({
-  id,
-  title: `Tarefa ${id}`,
-  description: "Descricao",
-  status: "new",
-  priority: "normal",
-  creatorUserId: 2,
-  creatorName: "Usuario",
-  creatorLogin: "user",
-  assigneeUserId: 2,
-  assigneeName: "Usuario",
-  assigneeLogin: "user",
-  dueAt: null,
-  repeatType: "none",
-  repeatWeekdays: [],
-  startedAt: null,
-  completedAt: null,
-  cancelledAt: null,
-  recurrenceSourceTaskId: null,
-  sourceNotificationId: null,
-  createdAt: "2026-03-21T12:00:00.000Z",
-  updatedAt: "2026-03-21T12:00:00.000Z",
-  archivedAt: null
-});
-
-const buildTaskComment = (id: number): TaskCommentItem => ({
-  id,
-  taskId: 1,
-  authorUserId: 2,
-  authorName: "Usuario",
-  authorLogin: "user",
-  body: "Comentario",
-  createdAt: "2026-03-21T12:05:00.000Z",
-  updatedAt: "2026-03-21T12:05:00.000Z"
-});
+const renderTaskUserPanel = () =>
+  render(
+    <TaskUserPanel user={buildAuthUser()} onError={vi.fn()} onToast={vi.fn()} />
+  );
 
 describe("TaskUserPanel", () => {
   beforeEach(() => {
@@ -155,13 +124,7 @@ describe("TaskUserPanel", () => {
       ]
     });
 
-    render(
-      <TaskUserPanel
-        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
-        onError={vi.fn()}
-        onToast={vi.fn()}
-      />
-    );
+    renderTaskUserPanel();
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Investigar falha" }));
@@ -236,16 +199,10 @@ describe("TaskUserPanel", () => {
       timeline: []
     });
     mockedApi.createMyTask.mockResolvedValue({
-      task: buildTask(22)
+      task: buildTaskItem({ id: 22, title: "Tarefa 22" })
     });
 
-    render(
-      <TaskUserPanel
-        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
-        onError={vi.fn()}
-        onToast={vi.fn()}
-      />
-    );
+    renderTaskUserPanel();
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
 
@@ -275,7 +232,7 @@ describe("TaskUserPanel", () => {
   it("fecha o detalhe quando a tarefa sai do filtro apos concluir", async () => {
     mockedApi.myTasks
       .mockResolvedValueOnce({
-        tasks: [buildTask(7)],
+        tasks: [buildTaskItem({ id: 7, title: "Tarefa 7" })],
         pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
       })
       .mockResolvedValueOnce({
@@ -283,20 +240,14 @@ describe("TaskUserPanel", () => {
         pagination: { page: 1, limit: 50, total: 0, totalPages: 1 }
       });
     mockedApi.myTask.mockResolvedValue({
-      task: buildTask(7),
+      task: buildTaskItem({ id: 7, title: "Tarefa 7" }),
       timeline: []
     });
     mockedApi.completeMyTask.mockResolvedValue({
-      task: { ...buildTask(7), status: "done" }
+      task: { ...buildTaskItem({ id: 7, title: "Tarefa 7" }), status: "done" }
     });
 
-    render(
-      <TaskUserPanel
-        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
-        onError={vi.fn()}
-        onToast={vi.fn()}
-      />
-    );
+    renderTaskUserPanel();
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Tarefa 7" }));
@@ -502,16 +453,10 @@ describe("TaskUserPanel", () => {
       timeline: []
     });
     mockedApi.updateMyTask.mockResolvedValue({
-      task: buildTask(3)
+      task: buildTaskItem({ id: 3, title: "Tarefa 3" })
     });
 
-    render(
-      <TaskUserPanel
-        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
-        onError={vi.fn()}
-        onToast={vi.fn()}
-      />
-    );
+    renderTaskUserPanel();
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Aguardando retorno" }));
@@ -757,7 +702,7 @@ describe("TaskUserPanel", () => {
         ]
       });
     mockedApi.createMyTaskComment.mockResolvedValue({
-      comment: buildTaskComment(91)
+      comment: buildTaskCommentItem({ id: 91 })
     });
 
     render(
