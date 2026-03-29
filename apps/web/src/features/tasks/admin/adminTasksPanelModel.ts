@@ -1,10 +1,6 @@
-import type {
-  TaskItem,
-  TaskPriority,
-  TaskRepeatType,
-  TaskStatus
-} from "../../../types";
+import type { TaskItem, TaskPriority, TaskRepeatType, TaskStatus } from "../../../types";
 import {
+  compareTasksByOperationalOrder,
   TASK_BOARD_COLUMNS,
   TASK_STATUS_LABELS,
   toApiDueAt,
@@ -13,6 +9,7 @@ import {
 
 export type AdminTaskFilterStatus = "" | TaskStatus;
 export type AdminTaskFilterPriority = "" | TaskPriority;
+export type AdminTaskMetricsWindow = "7d" | "30d";
 
 export type TaskAdminFormState = {
   id: number;
@@ -66,11 +63,11 @@ export const buildAdminTaskStats = (tasks: TaskItem[]) => ({
   unassigned: tasks.filter((task) => task.assigneeUserId === null).length
 });
 
-export const buildAdminTaskBoardColumns = (tasks: TaskItem[]) =>
+export const buildAdminTaskBoardColumns = (tasks: TaskItem[], now = new Date()) =>
   TASK_BOARD_COLUMNS.map((status) => ({
     status,
     label: TASK_STATUS_LABELS[status],
-    tasks: tasks.filter((task) => task.status === status)
+    tasks: tasks.filter((task) => task.status === status).sort((left, right) => compareTasksByOperationalOrder(left, right, now))
   }));
 
 export const buildAdminTaskFormState = (task: TaskItem): TaskAdminFormState => ({

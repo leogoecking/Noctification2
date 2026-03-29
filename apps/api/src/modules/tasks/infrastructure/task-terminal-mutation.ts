@@ -50,6 +50,16 @@ export const runTaskTerminalTransition = (
       eventType: params.targetStatus === "done" ? "completed" : "cancelled",
       fromStatus: params.existing.status,
       toStatus: params.targetStatus,
+      metadata:
+        params.targetStatus === "done"
+          ? {
+              previousStatus: params.existing.status,
+              completedAt: params.timestamp
+            }
+          : {
+              previousStatus: params.existing.status,
+              cancelledAt: params.timestamp
+            },
       createdAt: params.timestamp
     });
 

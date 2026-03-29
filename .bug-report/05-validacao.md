@@ -194,3 +194,348 @@
   - [`apps/web/src/features/tasks/test/TaskUserPanel.test.tsx`](/home/leo/Noctification2/apps/web/src/features/tasks/test/TaskUserPanel.test.tsx)
   - [`apps/web/src/features/tasks/test/AdminTasksPanel.test.tsx`](/home/leo/Noctification2/apps/web/src/features/tasks/test/AdminTasksPanel.test.tsx)
 - Foi criado [`apps/web/src/features/tasks/index.ts`](/home/leo/Noctification2/apps/web/src/features/tasks/index.ts) para expor a feature.
+
+## Tasks workflow operacional - status expandidos - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/api -- src/test/task-migrations.test.ts src/test/task-automation.test.ts`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/api`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run lint --workspace @noctification/api`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O dominio de `tasks` passou a aceitar os status `assumed`, `blocked` e `waiting_external`, preservando `done` e `cancelled` como terminais.
+- Foi criada a migracao [`apps/api/migrations/020_task_status_workflow.sql`](/home/leo/Noctification2/apps/api/migrations/020_task_status_workflow.sql), que converte `waiting` legado para `waiting_external` e recompõe as tabelas relacionadas sem perder dados.
+- O board e o detalhe de tarefa no web passaram a expor acoes rapidas coerentes com o workflow operacional:
+  - assumir
+  - em andamento
+  - bloqueada
+  - aguardando externo
+- Os filtros de status do usuario e do admin foram alinhados ao novo workflow.
+- Os testes focados de backend e frontend foram atualizados para o novo estado `waiting_external`.
+
+## Tasks workflow operacional - SLA visual e filas rapidas - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O frontend de `tasks` passou a calcular SLA visual a partir de `dueAt`, `updatedAt`, `assigneeUserId` e `status`, sem depender de mudancas novas de backend.
+- O board e o detalhe passaram a exibir sinais operacionais como `Atrasada`, `Vence hoje`, `Vence em breve`, `Bloqueada`, `Parada 24h+` e `Sem prazo`.
+- Foram adicionadas filas rapidas no painel do usuario e no painel administrativo para acelerar leitura e priorizacao:
+  - `Todas`
+  - `Vence hoje`
+  - `Atrasadas`
+  - `Bloqueadas`
+  - `Paradas 24h+`
+  - `Sem responsavel` no admin
+- As tarefas agora sao ordenadas no kanban por urgencia operacional e prioridade, reduzindo o custo de leitura da fila.
+- Foram adicionados testes focados cobrindo:
+  - fila rapida `Atrasadas` no usuario
+  - fila rapida `Sem responsavel` no admin
+
+## Tasks workflow operacional - filtros salvos persistidos - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- Os filtros operacionais do painel do usuario passaram a ser persistidos em `localStorage`:
+  - status
+  - prioridade
+  - fila rapida
+- Os filtros operacionais do painel admin passaram a ser persistidos em `localStorage`:
+  - status
+  - prioridade
+  - responsavel
+  - fila rapida
+- A restauracao inicial foi coberta com testes focados para evitar perda de contexto ao recarregar a tela ou voltar para o modulo.
+
+## Tasks workflow operacional - bulk actions no admin - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/AdminTasksPanel.test.tsx src/features/tasks/test/TaskUserPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O board administrativo passou a suportar selecao multipla diretamente nos cards.
+- Foi adicionada uma barra de `bulk actions` no admin para:
+  - assumir em lote
+  - mover para em andamento em lote
+  - bloquear em lote
+  - mover para aguardando externo em lote
+  - concluir em lote
+  - cancelar em lote
+  - reatribuir responsavel em lote
+- A execucao em lote reutiliza as rotas existentes de tarefa, sem introduzir endpoint novo nesta rodada.
+- Foi adicionada cobertura de teste para mudanca de status em lote no admin.
+
+## Tasks workflow operacional - drag and drop no kanban - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/AdminTasksPanel.test.tsx src/features/tasks/test/TaskUserPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O kanban compartilhado passou a suportar `drag and drop` nativo entre colunas operacionais.
+- Apenas status nao-terminais participam do arraste:
+  - `new`
+  - `assumed`
+  - `in_progress`
+  - `blocked`
+  - `waiting_external`
+- O drop reutiliza a mesma acao de atualizacao de status ja existente, sem rota nova.
+- Foi adicionada cobertura de teste para mover tarefa por `drag and drop` no board administrativo.
+
+## Tasks produtividade operacional - carga por responsavel - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/AdminTasksPanel.test.tsx src/features/tasks/test/TaskUserPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O painel administrativo passou a exibir um bloco de capacidade por responsavel dentro do filtro atual.
+- O resumo operacional por pessoa consolida:
+  - tarefas abertas
+  - tarefas atrasadas
+  - tarefas criticas
+  - tarefas bloqueadas
+  - tarefas concluidas
+- A ordenacao prioriza maior risco operacional, favorecendo responsaveis com mais atraso, criticidade e carga aberta.
+- Foi adicionada cobertura de teste para garantir a exibicao desse resumo sem depender de seletores ambiguos do restante do dashboard.
+
+## Tasks produtividade operacional - metricas por periodo - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/AdminTasksPanel.test.tsx src/features/tasks/test/TaskUserPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O painel administrativo passou a exibir uma janela operacional com alternancia entre `7 dias` e `30 dias`.
+- As metricas sao calculadas a partir da fila filtrada atual, sem depender de endpoint novo.
+- O resumo passou a mostrar:
+  - tarefas criadas no periodo
+  - tarefas concluidas no periodo
+  - concluidas no prazo
+  - concluidas em atraso
+  - ciclo medio
+  - tempo medio ate iniciar
+  - tarefas abertas atrasadas
+- tarefas bloqueadas
+- Foi adicionada cobertura de teste para a troca de janela e para os indicadores principais do resumo.
+
+## Tasks frontend - limpeza visual inicial do board - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- Os cards do kanban deixaram de concentrar acoes inline em massa.
+- As acoes da tarefa selecionada foram centralizadas em uma barra contextual no topo do board.
+- O card voltou a cumprir papel mais claro de leitura, selecao e arraste.
+- A navegacao pelo detalhe foi preservada e o `drag and drop` continuou funcionando.
+- Os testes de interacao do board no painel do usuario e no admin foram ajustados para o novo fluxo.
+
+## Tasks frontend - admin com foco operacional e visao gerencial secundaria - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O topo do admin deixou de exibir imediatamente os blocos de produtividade, capacidade e automacao.
+- Esses blocos passaram para uma secao `Visao gerencial`, recolhida por padrao e posicionada apos a area operacional.
+- A fila, o formulario e as acoes de lote ficaram com prioridade visual na tela.
+- Os testes administrativos foram ajustados para abrir explicitamente a visao gerencial antes de validar indicadores secundarios.
+
+## Tasks frontend - simplificacao do drawer de detalhe - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O `TaskDetailSheet` deixou de exibir um bloco com muitas acoes paralelas de status.
+- O drawer passou a destacar apenas:
+  - editar
+  - acao principal contextual
+  - concluir
+  - cancelar
+- O historico foi movido para uma area expansivel, mantendo acesso ao contexto sem ocupar tanto espaco visual.
+- O fluxo principal de status segue no board, e o drawer ficou mais adequado para contexto e decisao final.
+
+## Tasks frontend - formulario administrativo recolhivel - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O formulario administrativo deixou de ficar aberto permanentemente na tela.
+- A criacao de tarefa passou a exigir abertura explicita do formulario, reduzindo competicao visual com o board.
+- A edicao continua abrindo o formulario automaticamente quando o usuario aciona `Editar`.
+- O fechamento do formulario tambem limpa o estado local da composicao, mantendo o fluxo previsivel.
+
+## Tasks frontend - visao rapida compactada - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- A antiga `Visao rapida` deixou de ocupar um card inteiro tanto no painel do usuario quanto no admin.
+- O resumo passou a existir como uma faixa compacta de chips logo abaixo do header.
+- Foram mantidos apenas sinais essenciais de leitura imediata:
+  - total
+  - abertas
+  - concluidas
+- criticidade ou sem responsavel quando relevante
+- O topo dos paineis ficou mais leve e com menos competicao visual com a fila.
+
+## Tasks frontend - criacao via kanban com modal - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- A criacao de tarefa deixou de depender de um formulario fixo na pagina.
+- O `TaskBoard` passou a expor uma acao primaria `Novo` no contexto do kanban.
+- Ao clicar em `Novo`, a criacao abre em modal tanto no painel do usuario quanto no admin.
+- A edicao continua reaproveitando o mesmo formulario, tambem em modal.
+- O fluxo de criacao ficou mais alinhado ao board e com menos deslocamento visual.
+
+## Tasks frontend - edicao com modal centralizado - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- A edicao de tarefa passou a fechar o drawer de detalhe antes de abrir a composicao.
+- O formulario de edicao agora usa o mesmo modal centralizado ja adotado na criacao por `Novo`.
+- O fluxo ficou consistente entre criar e editar, sem manter duas superficies abertas ao mesmo tempo.
+
+## Tasks frontend - detalhe com modal centralizado - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O detalhe da tarefa deixou de abrir como drawer lateral.
+- O conteiner do detalhe agora usa o mesmo padrao de overlay centralizado do formulario de composicao.
+- O fluxo visual de `ver`, `editar` e `criar` ficou mais uniforme no contexto do kanban.
+
+## Tasks roadmap - historico, alertas, metricas e filtros - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/api -- src/test/task-routes.test.ts src/test/task-automation.test.ts`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/api`: concluido com sucesso.
+- `npm run lint --workspace @noctification/api`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/TaskUserPanel.test.tsx src/features/tasks/test/AdminTasksPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O historico operacional ficou mais forte:
+  - eventos especificos para titulo, descricao e prioridade
+  - detalhes adicionais no timeline para atribuicao, prazo e eventos terminais
+- O scheduler passou a distinguir tarefas bloqueadas ha mais de 24h com automacao propria `blocked_task`.
+- A saude da automacao no admin passou a expor elegiveis e alertas emitidos para bloqueio prolongado.
+- As metricas gerenciais do admin ficaram mais ricas:
+  - taxa no prazo
+  - taxa de conclusao
+  - ciclo medio por responsavel
+  - agrupamento por responsavel ou equipe
+- Os filtros do board ficaram mais compactos:
+  - filtros principais sempre visiveis
+  - prioridade em `Mais filtros`
+  - limpeza rapida de filtros
+
+## Tasks roadmap - metricas movidas para backend - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/api -- src/test/task-routes.test.ts src/test/task-automation.test.ts`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/api`: concluido com sucesso.
+- `npm run lint --workspace @noctification/api`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/AdminTasksPanel.test.tsx src/features/tasks/test/TaskUserPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- O admin deixou de depender de agregacao local para produtividade e capacidade.
+- As metricas passam a vir do endpoint administrativo dedicado `/admin/tasks/metrics`.
+- O frontend continua controlando a experiencia de filtro e fila, mas a consolidacao gerencial agora fica no backend.
+
+## Tasks roadmap - correcoes de varredura - 2026-03-29
+
+### Validacoes executadas
+
+- `npm run test --workspace @noctification/api -- src/test/task-automation.test.ts src/test/task-routes.test.ts`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/api`: concluido com sucesso.
+- `npm run lint --workspace @noctification/api`: concluido com sucesso.
+- `npm run test --workspace @noctification/web -- src/features/tasks/test/AdminTasksPanel.test.tsx src/features/tasks/test/TaskUserPanel.test.tsx src/components/AdminDashboard.test.tsx`: concluido com sucesso.
+- `npm run typecheck --workspace @noctification/web`: concluido com sucesso.
+- `npm run lint --workspace @noctification/web`: concluido com sucesso.
+
+### Resultado observado
+
+- Tarefas `blocked` deixaram de disparar tambem a automacao `stale_task`, evitando alerta duplicado no mesmo ciclo.
+- O painel admin passou a degradar metricas de forma isolada:
+  - a fila operacional continua carregando
+  - a area gerencial mostra `Metricas indisponiveis no momento.`
+- O indicador `completionRate` deixou de representar uma proporcao potencialmente acima de 100% e foi apresentado no frontend como `throughput`, coerente com o calculo atual.

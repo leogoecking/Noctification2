@@ -8,11 +8,21 @@ export type NotificationOperationalStatus =
   | "resolvida";
 export type NotificationResponseStatus = "em_andamento" | "assumida" | "resolvida";
 export type TaskPriority = "low" | "normal" | "high" | "critical";
-export type TaskStatus = "new" | "in_progress" | "waiting" | "done" | "cancelled";
+export type TaskStatus =
+  | "new"
+  | "assumed"
+  | "in_progress"
+  | "blocked"
+  | "waiting_external"
+  | "done"
+  | "cancelled";
 export type TaskRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
 export type TaskEventType =
   | "created"
   | "updated"
+  | "title_changed"
+  | "description_changed"
+  | "priority_changed"
   | "status_changed"
   | "assigned"
   | "due_date_changed"
@@ -22,6 +32,7 @@ export type TaskEventType =
   | "automation_due_soon"
   | "automation_overdue"
   | "automation_stale_task"
+  | "automation_blocked_task"
   | "automation_recurring_task";
 export type ReminderRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
 export type ReminderOccurrenceStatus = "pending" | "completed" | "expired" | "cancelled";
@@ -208,10 +219,12 @@ export interface TaskAutomationHealthItem {
   dueSoonEligible: number;
   overdueEligible: number;
   staleEligible: number;
+  blockedEligible: number;
   recurringEligible: number;
   dueSoonSentToday: number;
   overdueSentToday: number;
   staleSentToday: number;
+  blockedSentToday: number;
   recurringCreatedToday: number;
 }
 
@@ -219,11 +232,54 @@ export interface TaskAutomationLogItem {
   id: number;
   taskId: number;
   taskTitle: string;
-  automationType: "due_soon" | "overdue" | "stale_task" | "recurring_task";
+  automationType: "due_soon" | "overdue" | "stale_task" | "blocked_task" | "recurring_task";
   dedupeKey: string;
   notificationId: number | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+}
+
+export interface TaskMetricsProductivityItem {
+  windowDays: number;
+  createdInWindow: number;
+  completedInWindow: number;
+  completedOnTime: number;
+  completedLate: number;
+  overdueOpen: number;
+  blockedOpen: number;
+  completionRate: number | null;
+  onTimeRate: number | null;
+  avgCycleHours: number | null;
+  avgStartLagHours: number | null;
+}
+
+export interface TaskMetricsCapacityByAssigneeItem {
+  assigneeKey: string;
+  assigneeLabel: string;
+  open: number;
+  critical: number;
+  overdue: number;
+  blocked: number;
+  done: number;
+  completedOnTime: number;
+  completedLate: number;
+  avgCycleHours: number | null;
+}
+
+export interface TaskMetricsCapacityByDepartmentItem {
+  departmentKey: string;
+  departmentLabel: string;
+  open: number;
+  overdue: number;
+  blocked: number;
+  critical: number;
+  members: number;
+}
+
+export interface TaskMetricsSummaryItem {
+  productivity: TaskMetricsProductivityItem;
+  capacityByAssignee: TaskMetricsCapacityByAssigneeItem[];
+  capacityByDepartment: TaskMetricsCapacityByDepartmentItem[];
 }
 
 export interface ReminderItem {

@@ -14,7 +14,7 @@ interface UseTaskPanelActionsOptions {
   createComment: (taskId: number, body: string) => Promise<unknown>;
   updateTaskStatusRequest: (
     taskId: number,
-    status: "new" | "in_progress" | "waiting"
+    status: "new" | "assumed" | "in_progress" | "blocked" | "waiting_external"
   ) => Promise<unknown>;
   completeTaskRequest: (taskId: number) => Promise<unknown>;
   cancelTaskRequest: (taskId: number) => Promise<unknown>;
@@ -62,7 +62,11 @@ export const useTaskPanelActions = ({
   );
 
   const updateTaskStatus = useCallback(
-    async (taskId: number, status: "new" | "in_progress" | "waiting", statusLabel: string) => {
+    async (
+      taskId: number,
+      status: "new" | "assumed" | "in_progress" | "blocked" | "waiting_external",
+      statusLabel: string
+    ) => {
       try {
         await updateTaskStatusRequest(taskId, status);
         await reloadAndSelect(taskId, `Status atualizado para ${statusLabel}`);

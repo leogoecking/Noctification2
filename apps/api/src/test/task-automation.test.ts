@@ -124,7 +124,7 @@ describe("task automation", () => {
           id, title, description, status, priority, creator_user_id, assignee_user_id, due_at, created_at, updated_at
         ) VALUES
           (20, 'Escalar atraso', '', 'in_progress', 'normal', 1, 2, '2026-03-20T10:00:00.000Z', '2026-03-19T08:00:00.000Z', '2026-03-19T08:00:00.000Z'),
-          (21, 'Sem prazo mas parada', '', 'waiting', 'normal', 1, 2, NULL, '2026-03-19T08:00:00.000Z', '2026-03-19T08:00:00.000Z')
+          (21, 'Sem prazo mas parada', '', 'waiting_external', 'normal', 1, 2, NULL, '2026-03-19T08:00:00.000Z', '2026-03-19T08:00:00.000Z')
       `
     ).run();
 
@@ -163,6 +163,99 @@ describe("task automation", () => {
 
     expect(taskEvents.some((item) => item.eventType === "automation_overdue")).toBe(true);
     expect(taskEvents.some((item) => item.eventType === "automation_stale_task")).toBe(true);
+
+    db.close();
+  });
+
+  it("emite blocked_task para tarefa bloqueada ha mais de 24h", () => {
+    const db = connectDatabase(":memory:");
+    runMigrations(db, apiMigrationsDir);
+    seedUsers(db);
+
+    db.prepare(
+      `
+        INSERT INTO tasks (
+          id, title, description, status, priority, creator_user_id, assignee_user_id, due_at, created_at, updated_at
+        ) VALUES
+          (25, 'Bloqueio prolongado', '', 'blocked', 'high', 1, 2, NULL, '2026-03-19T08:00:00.000Z', '2026-03-19T08:00:00.000Z')
+      `
+    ).run();
+
+    const { io, emissions } = createIoStub();
+
+    runTaskAutomationCycle(db, io, config, {
+      now: () => new Date("2026-03-21T12:00:00.000Z")
+    });
+
+    const logs = db
+      .prepare(
+        `
+          SELECT COUNT(*) AS total
+          FROM task_automation_logs
+          WHERE task_id = 25
+            AND automation_type = 'blocked_task'
+        `
+      )
+      .get() as { total: number };
+
+    const taskEvents = db
+      .prepare(
+        `
+          SELECT event_type AS eventType
+          FROM task_events
+          WHERE task_id = 25
+          ORDER BY id ASC
+        `
+      )
+      .all() as Array<{ eventType: string }>;
+
+    expect(logs.total).toBe(1);
+    expect(taskEvents.some((item) => item.eventType === "automation_blocked_task")).toBe(true);
+    expect(
+      emissions.some(
+        (item) =>
+          item.room === "user:2" &&
+          item.event === "notification:new" &&
+          (item.payload as { sourceTaskId?: number }).sourceTaskId === 25
+      )
+    ).toBe(true);
+
+    db.close();
+  });
+
+  it("nao emite stale_task para tarefa bloqueada quando blocked_task ja cobre o caso", () => {
+    const db = connectDatabase(":memory:");
+    runMigrations(db, apiMigrationsDir);
+    seedUsers(db);
+
+    db.prepare(
+      `
+        INSERT INTO tasks (
+          id, title, description, status, priority, creator_user_id, assignee_user_id, due_at, created_at, updated_at
+        ) VALUES
+          (26, 'Bloqueada sem duplicidade', '', 'blocked', 'normal', 1, 2, NULL, '2026-03-19T08:00:00.000Z', '2026-03-19T08:00:00.000Z')
+      `
+    ).run();
+
+    const { io } = createIoStub();
+
+    runTaskAutomationCycle(db, io, config, {
+      now: () => new Date("2026-03-21T12:00:00.000Z")
+    });
+
+    const grouped = db
+      .prepare(
+        `
+          SELECT automation_type AS automationType, COUNT(*) AS total
+          FROM task_automation_logs
+          WHERE task_id = 26
+          GROUP BY automation_type
+          ORDER BY automation_type ASC
+        `
+      )
+      .all() as Array<{ automationType: string; total: number }>;
+
+    expect(grouped).toEqual([{ automationType: "blocked_task", total: 1 }]);
 
     db.close();
   });

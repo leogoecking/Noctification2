@@ -33,6 +33,8 @@ const renderTaskUserPanel = () =>
 describe("TaskUserPanel", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.useRealTimers();
+    window.localStorage.clear();
   });
 
   it("abre o detalhe da tarefa pelo board", async () => {
@@ -130,7 +132,11 @@ describe("TaskUserPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Investigar falha" }));
     await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(1));
 
-    expect(screen.getByRole("heading", { name: "Investigar falha" })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog", { name: "Detalhe da tarefa" })).getByRole("heading", {
+        name: "Investigar falha"
+      })
+    ).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Primeiro comentario")).toBeInTheDocument());
     expect(screen.getByText("Historico da tarefa")).toBeInTheDocument();
     expect(screen.getByText("Criacao")).toBeInTheDocument();
@@ -206,7 +212,7 @@ describe("TaskUserPanel", () => {
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByRole("button", { name: /Abrir formulario/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Novo" }));
     fireEvent.change(screen.getByPlaceholderText("Titulo da tarefa"), {
       target: { value: "Nova tarefa" }
     });
@@ -371,9 +377,9 @@ describe("TaskUserPanel", () => {
         tasks: [
           {
             id: 3,
-            title: "Aguardando retorno",
+            title: "Aguardando externo",
             description: "",
-            status: "waiting",
+            status: "waiting_external",
             priority: "normal",
             creatorUserId: 2,
             creatorName: "Usuario",
@@ -400,7 +406,7 @@ describe("TaskUserPanel", () => {
         tasks: [
           {
             id: 3,
-            title: "Aguardando retorno",
+            title: "Aguardando externo",
             description: "",
             status: "in_progress",
             priority: "normal",
@@ -428,9 +434,9 @@ describe("TaskUserPanel", () => {
     mockedApi.myTask.mockResolvedValue({
       task: {
         id: 3,
-        title: "Aguardando retorno",
+        title: "Aguardando externo",
         description: "",
-        status: "waiting",
+        status: "waiting_external",
         priority: "normal",
         creatorUserId: 2,
         creatorName: "Usuario",
@@ -459,9 +465,9 @@ describe("TaskUserPanel", () => {
     renderTaskUserPanel();
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Aguardando retorno" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Aguardando externo" }));
     await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(3));
-    fireEvent.click(screen.getByRole("button", { name: "Em andamento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mover para em andamento" }));
 
     await waitFor(() => expect(mockedApi.updateMyTask).toHaveBeenCalledWith(3, { status: "in_progress" }));
   });
@@ -729,5 +735,62 @@ describe("TaskUserPanel", () => {
     );
     await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledTimes(2));
     expect(screen.getAllByText("Comentario de acompanhamento").length).toBeGreaterThan(0);
+  });
+
+  it("aplica a fila rapida de atrasadas no board", async () => {
+    const now = Date.now();
+
+    mockedApi.myTasks.mockResolvedValue({
+      tasks: [
+        buildTaskItem({
+          id: 30,
+          title: "Tarefa vencida",
+          dueAt: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+          status: "in_progress",
+          priority: "high"
+        }),
+        buildTaskItem({
+          id: 31,
+          title: "Tarefa futura",
+          dueAt: new Date(now + 27 * 60 * 60 * 1000).toISOString(),
+          status: "new"
+        })
+      ],
+      pagination: { page: 1, limit: 50, total: 2, totalPages: 1 }
+    });
+    mockedApi.myTask.mockResolvedValue({
+      task: buildTaskItem({ id: 30, title: "Tarefa vencida" }),
+      timeline: []
+    });
+
+    renderTaskUserPanel();
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Atrasadas (1)" }));
+
+    expect(screen.getByText("Tarefa vencida")).toBeInTheDocument();
+    expect(screen.queryByText("Tarefa futura")).not.toBeInTheDocument();
+    expect(screen.getByText("Atrasada")).toBeInTheDocument();
+  });
+
+  it("restaura filtros operacionais salvos do usuario", async () => {
+    window.localStorage.setItem(
+      "tasks:user:filters",
+      JSON.stringify({
+        statusFilter: "blocked",
+        priorityFilter: "high",
+        queueFilter: "stale"
+      })
+    );
+
+    mockedApi.myTasks.mockResolvedValue({
+      tasks: [],
+      pagination: { page: 1, limit: 50, total: 0, totalPages: 1 }
+    });
+
+    renderTaskUserPanel();
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledWith("?status=blocked&priority=high"));
+    expect(screen.getByRole("button", { name: "Paradas 24h+ (0)" })).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -17,6 +17,7 @@ import {
 import {
   countActiveTasks,
   countAutomationSentToday,
+  fetchBlockedCandidates,
   fetchDueSoonCandidates,
   fetchOverdueCandidates,
   fetchRecurringCandidates,
@@ -35,10 +36,12 @@ export interface TaskAutomationHealthStats {
   dueSoonEligible: number;
   overdueEligible: number;
   staleEligible: number;
+  blockedEligible: number;
   recurringEligible: number;
   dueSoonSentToday: number;
   overdueSentToday: number;
   staleSentToday: number;
+  blockedSentToday: number;
   recurringCreatedToday: number;
 }
 
@@ -145,10 +148,12 @@ export const buildTaskAutomationHealth = (
     dueSoonEligible: fetchDueSoonCandidates(db, nowTimestamp, dueSoonWindowEnd).length,
     overdueEligible: fetchOverdueCandidates(db, nowTimestamp).length,
     staleEligible: fetchStaleCandidates(db, staleCutoff, dueSoonWindowEnd).length,
+    blockedEligible: fetchBlockedCandidates(db, staleCutoff).length,
     recurringEligible: fetchRecurringCandidates(db).length,
     dueSoonSentToday: countAutomationSentToday(db, "due_soon"),
     overdueSentToday: countAutomationSentToday(db, "overdue"),
     staleSentToday: countAutomationSentToday(db, "stale_task"),
+    blockedSentToday: countAutomationSentToday(db, "blocked_task"),
     recurringCreatedToday: countAutomationSentToday(db, "recurring_task")
   };
 };

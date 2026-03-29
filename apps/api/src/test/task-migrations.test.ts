@@ -30,12 +30,16 @@ describe("task foundation migrations", () => {
     const appliedTaskCommentsMigration = db
       .prepare("SELECT filename FROM schema_migrations WHERE filename = ?")
       .get("016_task_comments.sql") as { filename: string } | undefined;
+    const appliedTaskStatusWorkflowMigration = db
+      .prepare("SELECT filename FROM schema_migrations WHERE filename = ?")
+      .get("020_task_status_workflow.sql") as { filename: string } | undefined;
 
     expect(appliedMigration?.filename).toBe("012_tasks_foundation.sql");
     expect(appliedNotificationLinkMigration?.filename).toBe("013_notification_task_links.sql");
     expect(appliedTaskAutomationMigration?.filename).toBe("014_task_automation_logs.sql");
     expect(appliedTaskRecurrenceMigration?.filename).toBe("015_task_recurrence.sql");
     expect(appliedTaskCommentsMigration?.filename).toBe("016_task_comments.sql");
+    expect(appliedTaskStatusWorkflowMigration?.filename).toBe("020_task_status_workflow.sql");
 
     const tasksTable = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tasks'")

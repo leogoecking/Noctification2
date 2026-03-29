@@ -1,9 +1,23 @@
 import type { TaskPriority, TaskRepeatType, TaskStatus } from "../../../types";
 
 export const TASK_PRIORITIES: TaskPriority[] = ["low", "normal", "high", "critical"];
-export const TASK_STATUSES: TaskStatus[] = ["new", "in_progress", "waiting", "done", "cancelled"];
+export const TASK_STATUSES: TaskStatus[] = [
+  "new",
+  "assumed",
+  "in_progress",
+  "blocked",
+  "waiting_external",
+  "done",
+  "cancelled"
+];
 export const TASK_REPEAT_TYPES: TaskRepeatType[] = ["none", "daily", "weekly", "monthly", "weekdays"];
-export const NON_TERMINAL_TASK_STATUSES: TaskStatus[] = ["new", "in_progress", "waiting"];
+export const NON_TERMINAL_TASK_STATUSES: TaskStatus[] = [
+  "new",
+  "assumed",
+  "in_progress",
+  "blocked",
+  "waiting_external"
+];
 const WEEKDAY_VALUES = new Set([0, 1, 2, 3, 4, 5, 6]);
 
 export const toNullableString = (value: unknown): string | null => {
@@ -33,6 +47,32 @@ export const parsePage = (value: unknown, fallback = 1): number => {
   return parsed;
 };
 
+export const parseTaskQueueFilter = (
+  value: unknown
+): "all" | "attention" | "due_today" | "overdue" | "blocked" | "stale" | "unassigned" | null => {
+  if (
+    value === "all" ||
+    value === "attention" ||
+    value === "due_today" ||
+    value === "overdue" ||
+    value === "blocked" ||
+    value === "stale" ||
+    value === "unassigned"
+  ) {
+    return value;
+  }
+
+  return null;
+};
+
+export const parseTaskMetricsWindow = (value: unknown): "7d" | "30d" | null => {
+  if (value === "7d" || value === "30d") {
+    return value;
+  }
+
+  return null;
+};
+
 export const parseTaskPriority = (value: unknown): TaskPriority | null => {
   if (value === "low" || value === "normal" || value === "high" || value === "critical") {
     return value;
@@ -44,8 +84,10 @@ export const parseTaskPriority = (value: unknown): TaskPriority | null => {
 export const parseTaskStatus = (value: unknown): TaskStatus | null => {
   if (
     value === "new" ||
+    value === "assumed" ||
     value === "in_progress" ||
-    value === "waiting" ||
+    value === "blocked" ||
+    value === "waiting_external" ||
     value === "done" ||
     value === "cancelled"
   ) {
@@ -86,7 +128,13 @@ export const parseTaskWeekdays = (value: unknown): number[] => {
 export const stringifyTaskWeekdays = (weekdays: number[]): string => JSON.stringify(weekdays);
 
 export const parseNonTerminalTaskStatus = (value: unknown): TaskStatus | null => {
-  if (value === "new" || value === "in_progress" || value === "waiting") {
+  if (
+    value === "new" ||
+    value === "assumed" ||
+    value === "in_progress" ||
+    value === "blocked" ||
+    value === "waiting_external"
+  ) {
     return value;
   }
 

@@ -1,6 +1,11 @@
 import type { NotificationPriority, TaskRepeatType, TaskStatus } from "../../../types";
 
-export type TaskAutomationType = "due_soon" | "overdue" | "stale_task" | "recurring_task";
+export type TaskAutomationType =
+  | "due_soon"
+  | "overdue"
+  | "stale_task"
+  | "blocked_task"
+  | "recurring_task";
 
 export interface TaskAutomationCandidateRow {
   id: number;
@@ -28,4 +33,5 @@ export interface TaskAutomationLogRow {
   createdAt: string;
 }
 
-export const NON_TERMINAL_TASK_STATUS_FILTER = "('new', 'in_progress', 'waiting')";
+export const NON_TERMINAL_TASK_STATUS_FILTER =
+  "('new', 'assumed', 'in_progress', 'blocked', 'waiting_external')";

@@ -61,6 +61,18 @@ export const toStalePriority = (priority: NotificationPriority): NotificationPri
   return "normal";
 };
 
+export const toBlockedPriority = (priority: NotificationPriority): NotificationPriority => {
+  if (priority === "critical") {
+    return "critical";
+  }
+
+  if (priority === "high") {
+    return "high";
+  }
+
+  return "normal";
+};
+
 export const buildDueSoonMessage = (task: TaskAutomationCandidateRow): string =>
   `A tarefa "${task.title}" esta perto do prazo. Vencimento atual: ${task.dueAt}.`;
 
@@ -69,6 +81,9 @@ export const buildOverdueMessage = (task: TaskAutomationCandidateRow): string =>
 
 export const buildStaleTaskMessage = (task: TaskAutomationCandidateRow): string =>
   `A tarefa "${task.title}" esta sem atualizacao recente desde ${task.staleSince ?? task.updatedAt}.`;
+
+export const buildBlockedTaskMessage = (task: TaskAutomationCandidateRow): string =>
+  `A tarefa "${task.title}" segue bloqueada desde ${task.staleSince ?? task.updatedAt}.`;
 
 const buildRecurringTaskMessage = (taskTitle: string, dueAt: string | null): string => {
   const dueSuffix = dueAt ? ` Novo prazo: ${dueAt}.` : "";
@@ -154,7 +169,8 @@ export const createAutomationNotification = (
       automationType: params.automationType,
       recipientIds,
       dueAt: task.dueAt,
-      updatedAt: task.updatedAt
+      updatedAt: task.updatedAt,
+      status: task.status
     },
     createdAt: params.createdAt
   });
@@ -167,7 +183,9 @@ export const createAutomationNotification = (
         ? "automation_due_soon"
         : params.automationType === "overdue"
           ? "automation_overdue"
-          : "automation_stale_task",
+          : params.automationType === "blocked_task"
+            ? "automation_blocked_task"
+            : "automation_stale_task",
     metadata: {
       notificationId,
       dedupeKey: params.dedupeKey

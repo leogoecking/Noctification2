@@ -139,7 +139,9 @@ export const runTaskUpdateMutation = (
   if (params.body.status !== undefined) {
     nextStatus = parseNonTerminalTaskStatus(params.body.status);
     if (!nextStatus) {
-      return { error: "status invalido para PATCH. Use: new, in_progress, waiting" };
+      return {
+        error: "status invalido para PATCH. Use: new, assumed, in_progress, blocked, waiting_external"
+      };
     }
 
     updates.push("status = ?");
@@ -166,6 +168,51 @@ export const runTaskUpdateMutation = (
   params.db.transaction(() => {
     params.db.prepare(`UPDATE tasks SET ${updates.join(", ")} WHERE id = ?`).run(...values);
 
+    if (titleRaw !== undefined && params.existing.title !== metadata.title) {
+      logTaskEvent(params.db, {
+        taskId: params.taskId,
+        actorUserId: params.actorUserId,
+        eventType: "title_changed",
+        metadata: {
+          previousTitle: params.existing.title,
+          nextTitle: metadata.title
+        },
+        createdAt: params.timestamp
+      });
+    }
+
+    if (
+      params.body.description !== undefined &&
+      params.existing.description !== metadata.description
+    ) {
+      logTaskEvent(params.db, {
+        taskId: params.taskId,
+        actorUserId: params.actorUserId,
+        eventType: "description_changed",
+        metadata: {
+          previousDescription: params.existing.description,
+          nextDescription: metadata.description
+        },
+        createdAt: params.timestamp
+      });
+    }
+
+    if (
+      params.body.priority !== undefined &&
+      params.existing.priority !== metadata.priority
+    ) {
+      logTaskEvent(params.db, {
+        taskId: params.taskId,
+        actorUserId: params.actorUserId,
+        eventType: "priority_changed",
+        metadata: {
+          previousPriority: params.existing.priority,
+          nextPriority: metadata.priority
+        },
+        createdAt: params.timestamp
+      });
+    }
+
     if (nextStatus && nextStatus !== params.existing.status) {
       logTaskEvent(params.db, {
         taskId: params.taskId,
@@ -188,7 +235,8 @@ export const runTaskUpdateMutation = (
         eventType: "assigned",
         metadata: {
           previousAssigneeUserId: params.existing.assigneeUserId,
-          nextAssigneeUserId
+          nextAssigneeUserId,
+          changedBy: params.policy.changedBy
         },
         createdAt: params.timestamp
       });
@@ -271,7 +319,10 @@ export const runTaskUpdateMutation = (
     if (
       nextStatus &&
       nextStatus !== params.existing.status &&
-      (nextStatus === "in_progress" || nextStatus === "waiting")
+      (nextStatus === "assumed" ||
+        nextStatus === "in_progress" ||
+        nextStatus === "blocked" ||
+        nextStatus === "waiting_external")
     ) {
       const effectiveAssigneeUserId =
         nextAssigneeUserId === undefined ? params.existing.assigneeUserId : nextAssigneeUserId;

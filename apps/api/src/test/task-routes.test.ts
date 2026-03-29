@@ -252,6 +252,7 @@ describe("task routes", () => {
     const commentHandler = getRouteHandler(adminRouter, "/tasks/:id/comments", "post");
     const cancelHandler = getRouteHandler(adminRouter, "/tasks/:id/cancel", "post");
     const healthHandler = getRouteHandler(adminRouter, "/tasks/health", "get");
+    const metricsHandler = getRouteHandler(adminRouter, "/tasks/metrics", "get");
     const logsHandler = getRouteHandler(adminRouter, "/tasks/automation-logs", "get");
 
     const createRes = createMockResponse();
@@ -291,6 +292,29 @@ describe("task routes", () => {
 
     expect(listRes.statusCode).toBe(200);
     expect((listRes.body as { tasks: Array<{ id: number }> }).tasks).toHaveLength(1);
+
+    const metricsRes = createMockResponse();
+    metricsHandler(
+      {
+        authUser: adminUser,
+        query: {
+          priority: "critical",
+          assignee_user_id: String(secondUser.id),
+          queue: "all",
+          window: "7d"
+        }
+      },
+      metricsRes
+    );
+
+    expect(metricsRes.statusCode).toBe(200);
+    expect(
+      (metricsRes.body as { metrics: { productivity: { createdInWindow: number } } }).metrics.productivity.createdInWindow
+    ).toBe(1);
+    expect(
+      (metricsRes.body as { metrics: { capacityByAssignee: Array<{ assigneeLabel: string }> } }).metrics
+        .capacityByAssignee[0]?.assigneeLabel
+    ).toBe(secondUser.name);
 
     const commentRes = createMockResponse();
     commentHandler(

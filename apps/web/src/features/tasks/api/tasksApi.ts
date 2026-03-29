@@ -3,6 +3,7 @@ import type {
   TaskAutomationLogItem,
   TaskCommentItem,
   TaskItem,
+  TaskMetricsSummaryItem,
   TaskTimelineItem,
   PaginationInfo
 } from "../../../types";
@@ -13,6 +14,7 @@ type TaskDetailResponse = { task: TaskItem; timeline: TaskTimelineItem[] };
 type TaskCommentResponse = { comment: TaskCommentItem };
 type TaskHealthResponse = { health: TaskAutomationHealthItem };
 type TaskAutomationLogsResponse = { logs: TaskAutomationLogItem[] };
+type TaskMetricsResponse = { metrics: TaskMetricsSummaryItem };
 
 export const taskApi = {
   adminTasks: (query = "") => request<TaskListResponse>(`/admin/tasks${query}`),
@@ -26,6 +28,8 @@ export const taskApi = {
     }),
 
   adminTaskHealth: () => request<TaskHealthResponse>("/admin/tasks/health"),
+
+  adminTaskMetrics: (query = "") => request<TaskMetricsResponse>(`/admin/tasks/metrics${query}`),
 
   adminTaskAutomationLogs: (query = "") =>
     request<TaskAutomationLogsResponse>(`/admin/tasks/automation-logs${query}`),

@@ -4,8 +4,10 @@ import type { TaskRow } from "../application/service";
 
 const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   new: "Nova",
+  assumed: "Assumida",
   in_progress: "Em andamento",
-  waiting: "Aguardando",
+  blocked: "Bloqueada",
+  waiting_external: "Aguardando externo",
   done: "Concluida",
   cancelled: "Cancelada"
 };

@@ -5,8 +5,11 @@ import type { AppConfig } from "../../../config";
 import { nowIso } from "../../../db";
 import { authenticate, requireRole } from "../../../middleware/auth";
 import { buildTaskAutomationHealth, listTaskAutomationLogs } from "../application/automation";
+import { buildTaskMetricsSummary } from "../application/metrics";
 import {
   parseLimit,
+  parseTaskMetricsWindow,
+  parseTaskQueueFilter,
   toNullableString,
   validateTaskCommentBody
 } from "../domain/domain";
@@ -52,12 +55,48 @@ export const createTaskAdminRouterWithIo = (
     });
   });
 
+  router.get("/tasks/metrics", (req, res) => {
+    const params = buildTaskListParams(req.query as Record<string, unknown>, {
+      defaultLimit: 100,
+      maxLimit: 500
+    });
+
+    if ("error" in params) {
+      res.status(400).json({ error: params.error });
+      return;
+    }
+
+    const queueFilterRaw = req.query.queue ?? "all";
+    const queueFilter = parseTaskQueueFilter(queueFilterRaw);
+    if (!queueFilter) {
+      res.status(400).json({ error: "queue invalida" });
+      return;
+    }
+
+    const metricsWindowRaw = req.query.window ?? "7d";
+    const metricsWindow = parseTaskMetricsWindow(metricsWindowRaw);
+    if (!metricsWindow) {
+      res.status(400).json({ error: "window invalida" });
+      return;
+    }
+
+    res.json({
+      metrics: buildTaskMetricsSummary(db, {
+        conditions: params.conditions,
+        values: params.values,
+        queueFilter,
+        metricsWindow
+      })
+    });
+  });
+
   router.get("/tasks/automation-logs", (req, res) => {
     const automationTypeRaw = toNullableString(req.query.automation_type);
     const automationType =
       automationTypeRaw === "due_soon" ||
       automationTypeRaw === "overdue" ||
       automationTypeRaw === "stale_task" ||
+      automationTypeRaw === "blocked_task" ||
       automationTypeRaw === "recurring_task"
         ? automationTypeRaw
         : automationTypeRaw === null

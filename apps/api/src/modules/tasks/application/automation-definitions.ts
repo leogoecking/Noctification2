@@ -1,8 +1,10 @@
 import type Database from "better-sqlite3";
 import {
+  buildBlockedTaskMessage,
   buildDueSoonMessage,
   buildOverdueMessage,
   buildStaleTaskMessage,
+  toBlockedPriority,
   toDueSoonPriority,
   toOverduePriority,
   toStalePriority
@@ -10,6 +12,7 @@ import {
 import type { TaskAutomationCandidateRow, TaskAutomationType } from "../domain/automation-types";
 import type { NotificationPriority } from "../../../types";
 import {
+  fetchBlockedCandidates,
   fetchDueSoonCandidates,
   fetchOverdueCandidates,
   fetchStaleCandidates
@@ -56,5 +59,13 @@ export const createTaskAutomationNotificationDefinitions = (): TaskAutomationNot
     buildMessage: buildStaleTaskMessage,
     mapPriority: toStalePriority,
     buildDedupeKey: (task) => `stale_task:${task.updatedAt}`
+  },
+  {
+    automationType: "blocked_task",
+    fetchCandidates: (db, context) => fetchBlockedCandidates(db, context.staleCutoff),
+    buildTitle: (task) => `Tarefa bloqueada: ${task.title}`,
+    buildMessage: buildBlockedTaskMessage,
+    mapPriority: toBlockedPriority,
+    buildDedupeKey: (task) => `blocked_task:${task.updatedAt}`
   }
 ];

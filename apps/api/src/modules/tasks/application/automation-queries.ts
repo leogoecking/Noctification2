@@ -106,6 +106,7 @@ export const fetchStaleCandidates = (
         FROM tasks t
         WHERE t.archived_at IS NULL
           AND t.status IN ${NON_TERMINAL_TASK_STATUS_FILTER}
+          AND t.status <> 'blocked'
           AND t.updated_at <= ?
           AND (t.due_at IS NULL OR t.due_at > ?)
           AND NOT EXISTS (
@@ -119,6 +120,42 @@ export const fetchStaleCandidates = (
       `
     )
     .all(staleCutoff, dueSoonWindowEnd) as TaskAutomationCandidateRow[];
+
+export const fetchBlockedCandidates = (
+  db: Database.Database,
+  staleCutoff: string
+): TaskAutomationCandidateRow[] =>
+  db
+    .prepare(
+      `
+        SELECT
+          t.id,
+          t.title,
+          t.status,
+          t.priority,
+          t.creator_user_id AS creatorUserId,
+          t.assignee_user_id AS assigneeUserId,
+          t.due_at AS dueAt,
+          t.repeat_type AS repeatType,
+          t.repeat_weekdays_json AS repeatWeekdaysJson,
+          t.updated_at AS updatedAt,
+          t.updated_at AS staleSince,
+          t.completed_at AS completedAt
+        FROM tasks t
+        WHERE t.archived_at IS NULL
+          AND t.status = 'blocked'
+          AND t.updated_at <= ?
+          AND NOT EXISTS (
+            SELECT 1
+            FROM task_automation_logs tal
+            WHERE tal.task_id = t.id
+              AND tal.automation_type = 'blocked_task'
+              AND tal.dedupe_key = ('blocked_task:' || t.updated_at)
+          )
+        ORDER BY t.updated_at ASC, t.id ASC
+      `
+    )
+    .all(staleCutoff) as TaskAutomationCandidateRow[];
 
 export const fetchRecurringCandidates = (db: Database.Database): TaskAutomationCandidateRow[] =>
   db

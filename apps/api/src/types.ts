@@ -9,11 +9,21 @@ export type NotificationOperationalStatus =
   | "resolvida";
 export type NotificationResponseStatus = "em_andamento" | "assumida" | "resolvida";
 export type TaskPriority = "low" | "normal" | "high" | "critical";
-export type TaskStatus = "new" | "in_progress" | "waiting" | "done" | "cancelled";
+export type TaskStatus =
+  | "new"
+  | "assumed"
+  | "in_progress"
+  | "blocked"
+  | "waiting_external"
+  | "done"
+  | "cancelled";
 export type TaskRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
 export type TaskEventType =
   | "created"
   | "updated"
+  | "title_changed"
+  | "description_changed"
+  | "priority_changed"
   | "status_changed"
   | "assigned"
   | "due_date_changed"
@@ -23,6 +33,7 @@ export type TaskEventType =
   | "automation_due_soon"
   | "automation_overdue"
   | "automation_stale_task"
+  | "automation_blocked_task"
   | "automation_recurring_task";
 
 export interface TaskRecord {
