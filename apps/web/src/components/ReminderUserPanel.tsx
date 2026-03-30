@@ -277,13 +277,13 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
   );
 
   return (
-    <section className="space-y-4">
-      <header className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <h3 className="font-display text-lg text-textMain">Lembretes</h3>
-        <p className="text-sm text-textMuted">Acompanhamento da sua rotina e dos lembretes ativos</p>
+    <section className="space-y-6">
+      <header className="rounded-[1.25rem] bg-panelAlt/80 p-6 shadow-glow">
+        <h3 className="font-display text-3xl font-extrabold tracking-tight text-textMain">Lembretes</h3>
+        <p className="mt-2 text-sm text-textMuted">Acompanhamento da sua rotina e dos lembretes ativos</p>
       </header>
 
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+      <article className="rounded-[1.25rem] bg-panel p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Visao rapida</p>
@@ -298,7 +298,7 @@ export const ReminderUserPanel = ({ onError, onToast }: ReminderUserPanelProps) 
         </div>
       </article>
 
-      <div className="grid gap-4 xl:grid-cols-[1.05fr,0.95fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
         <div className="space-y-4">
           <ReminderPendingList
             pendingCount={occurrenceStats.pending}

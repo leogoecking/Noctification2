@@ -105,10 +105,13 @@ export const TaskBoard = ({
   };
 
   return (
-    <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <article className="rounded-[1.5rem] bg-panel p-5 shadow-glow">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h4 className="font-display text-base text-textMain">{headerTitle}</h4>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Task Kanban</p>
+          <h4 className="mt-1 font-display text-xl font-extrabold tracking-tight text-textMain">
+            {headerTitle}
+          </h4>
           <p className="text-sm text-textMuted">{headerDescription}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -117,13 +120,15 @@ export const TaskBoard = ({
               {primaryAction.label}
             </button>
           )}
-          <span className="rounded-full bg-accent/10 px-3 py-1.5 text-xs text-accent">Board</span>
+          <span className="rounded-full bg-panelAlt px-3 py-1.5 text-xs font-semibold text-textMain">
+            Last updated now
+          </span>
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-[1rem] bg-panelAlt/80 p-3">
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+          className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
           onClick={() => onRefresh()}
           type="button"
         >
@@ -133,11 +138,11 @@ export const TaskBoard = ({
       </div>
 
       {selectedTask && (
-        <div className="mb-4 rounded-2xl border border-slate-700 bg-panelAlt/60 p-3">
+        <div className="mb-5 rounded-[1.25rem] bg-panelAlt p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Tarefa selecionada</p>
-              <h5 className="mt-1 text-sm font-medium text-textMain">{selectedTask.title}</h5>
+              <h5 className="mt-1 text-base font-semibold text-textMain">{selectedTask.title}</h5>
               <p className="text-xs text-textMuted">
                 Use o arraste entre colunas ou as acoes abaixo para operar sem poluir os cards.
               </p>
@@ -153,7 +158,7 @@ export const TaskBoard = ({
               <>
                 {selectedTask.status !== "new" && (
                   <button
-                    className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                    className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
                     onClick={() => onUpdateStatus(selectedTask.id, "new")}
                     type="button"
                   >
@@ -189,7 +194,7 @@ export const TaskBoard = ({
                 )}
                 {selectedTask.status !== "waiting_external" && (
                   <button
-                    className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                    className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
                     onClick={() => onUpdateStatus(selectedTask.id, "waiting_external")}
                     type="button"
                   >
@@ -197,7 +202,7 @@ export const TaskBoard = ({
                   </button>
                 )}
                 <button
-                  className="rounded-lg bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+                  className="btn-success"
                   onClick={() => onCompleteTask(selectedTask.id)}
                   type="button"
                 >
@@ -221,15 +226,15 @@ export const TaskBoard = ({
         <p className="text-sm text-textMuted">{emptyMessage}</p>
       )}
 
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex gap-6 overflow-x-auto pb-2">
         {boardColumns.map((column) => (
           <section
             key={column.status}
             aria-label={`Coluna ${column.label}`}
-            className={`min-h-40 min-w-[240px] flex-1 rounded-2xl border p-3 ${
+            className={`min-h-40 min-w-[320px] flex-1 rounded-[1.25rem] p-4 ${
               isBoardMutableStatus(column.status) && dragTaskId !== null
-                ? "border-accent/50 bg-accent/5"
-                : "border-slate-700 bg-panelAlt/50"
+                ? "bg-accent/5 ring-1 ring-accent/30"
+                : "bg-panelAlt/80"
             }`}
             onDragOver={(event) => {
               if (isBoardMutableStatus(column.status)) {
@@ -239,16 +244,18 @@ export const TaskBoard = ({
             }}
             onDrop={(event) => handleColumnDrop(event, column.status)}
           >
-            <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="mb-4 flex items-center justify-between gap-2">
               <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[column.status]}`}>
                 {column.label}
               </span>
-              <span className="text-xs text-textMuted">{column.tasks.length}</span>
+              <span className="rounded-full bg-panel px-2.5 py-1 text-xs text-textMuted">
+                {column.tasks.length}
+              </span>
             </div>
 
             <div className="space-y-2">
               {column.tasks.length === 0 && (
-                <p className="rounded-xl border border-dashed border-slate-600 px-3 py-4 text-xs text-textMuted">
+                <p className="rounded-xl border border-dashed border-outlineSoft px-3 py-6 text-xs text-textMuted">
                   Nenhuma tarefa nesta coluna.
                 </p>
               )}
@@ -260,7 +267,7 @@ export const TaskBoard = ({
                   className={`w-full cursor-pointer rounded-xl border p-3 text-left transition ${
                     selectedTaskId === task.id
                       ? "border-accent bg-accent/10"
-                      : "border-slate-700 bg-panel hover:border-slate-500"
+                      : "border-transparent bg-panel hover:bg-surfaceHigh"
                   }`}
                   draggable={isBoardMutableStatus(task.status)}
                   onClick={() => onOpenTask(task)}
@@ -276,7 +283,7 @@ export const TaskBoard = ({
                         <input
                           aria-label={`Selecionar tarefa ${task.title}`}
                           checked={bulkSelection.selectedTaskIds.includes(task.id)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-panel"
+                          className="mt-0.5 h-4 w-4 rounded border-outlineSoft bg-panel"
                           onChange={(event) => {
                             event.stopPropagation();
                             bulkSelection.onToggleTask(task.id);

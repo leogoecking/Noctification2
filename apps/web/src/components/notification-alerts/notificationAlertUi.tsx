@@ -49,7 +49,7 @@ export const NotificationBrowserBanner = ({
 }: NotificationBrowserBannerProps) => {
   if (permission === "default") {
     return (
-      <article className="rounded-2xl border border-accent/40 bg-panel p-4 shadow-lg shadow-black/30">
+      <article className="rounded-[1.5rem] border border-accent/30 bg-panel p-4 shadow-[0_18px_40px_rgba(10,16,30,0.12)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-display text-sm text-textMain">Notificacoes do navegador</p>
@@ -71,7 +71,7 @@ export const NotificationBrowserBanner = ({
 
   if (permission === "denied") {
     return (
-      <article className="rounded-2xl border border-warning/40 bg-panel p-4 shadow-lg shadow-black/30">
+      <article className="rounded-[1.5rem] border border-warning/35 bg-panel p-4 shadow-[0_18px_40px_rgba(10,16,30,0.12)]">
         <p className="font-display text-sm text-textMain">Permissao do navegador bloqueada</p>
         <p className="mt-1 text-xs text-warning">
           Os pop-ups nativos estao bloqueados. O alerta visual continua ativo.
@@ -82,7 +82,7 @@ export const NotificationBrowserBanner = ({
 
   if (permission === "unsupported") {
     return (
-      <article className="rounded-2xl border border-warning/40 bg-panel p-4 shadow-lg shadow-black/30">
+      <article className="rounded-[1.5rem] border border-warning/35 bg-panel p-4 shadow-[0_18px_40px_rgba(10,16,30,0.12)]">
         <p className="font-display text-sm text-textMain">Notificacoes nativas indisponiveis</p>
         <p className="mt-1 text-xs text-warning">
           Este acesso nao expoe a API `Notification` do navegador. Use `localhost` em desenvolvimento ou publique com HTTPS para receber pop-ups nativos.
@@ -101,7 +101,7 @@ interface NotificationAudioBannerProps {
 export const NotificationAudioBanner = ({
   onRetry
 }: NotificationAudioBannerProps) => (
-  <article className="rounded-2xl border border-warning/40 bg-panel p-4 shadow-lg shadow-black/30">
+  <article className="rounded-[1.5rem] border border-warning/35 bg-panel p-4 shadow-[0_18px_40px_rgba(10,16,30,0.12)]">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p className="font-display text-sm text-textMain">Som bloqueado</p>
@@ -133,7 +133,7 @@ export const NotificationAlertCard = ({
   onMarkAsVisualized,
   onDismiss
 }: NotificationAlertCardProps) => (
-  <article className="rounded-2xl border border-accent/50 bg-panel p-4 shadow-lg shadow-black/30">
+  <article className="rounded-[1.5rem] border border-accent/35 bg-panel p-4 shadow-[0_18px_40px_rgba(10,16,30,0.12)]">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p className="font-display text-base text-textMain">
@@ -174,7 +174,7 @@ export const NotificationAlertCard = ({
       </button>
       {!alert.notification.isVisualized && (
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain transition hover:border-slate-500"
+          className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain transition hover:bg-panel"
           onClick={onMarkAsVisualized}
           type="button"
         >
@@ -182,7 +182,7 @@ export const NotificationAlertCard = ({
         </button>
       )}
       <button
-        className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMuted transition hover:border-slate-500 hover:text-textMain"
+        className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMuted transition hover:bg-panel hover:text-textMain"
         onClick={onDismiss}
         type="button"
       >

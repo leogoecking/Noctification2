@@ -61,14 +61,15 @@ const loadStoredUserTaskFilters = (): {
   statusFilter: UserTaskFilterStatus;
   priorityFilter: UserTaskFilterPriority;
   queueFilter: TaskQueueFilter;
+  searchFilter: string;
 } => {
   if (typeof window === "undefined") {
-    return { statusFilter: "", priorityFilter: "", queueFilter: "all" };
+    return { statusFilter: "", priorityFilter: "", queueFilter: "all", searchFilter: "" };
   }
 
   const rawValue = window.localStorage.getItem(USER_TASK_FILTERS_STORAGE_KEY);
   if (!rawValue) {
-    return { statusFilter: "", priorityFilter: "", queueFilter: "all" };
+    return { statusFilter: "", priorityFilter: "", queueFilter: "all", searchFilter: "" };
   }
 
   try {
@@ -76,15 +77,17 @@ const loadStoredUserTaskFilters = (): {
       statusFilter?: UserTaskFilterStatus;
       priorityFilter?: UserTaskFilterPriority;
       queueFilter?: TaskQueueFilter;
+      searchFilter?: string;
     };
 
     return {
       statusFilter: parsed.statusFilter ?? "",
       priorityFilter: parsed.priorityFilter ?? "",
-      queueFilter: parsed.queueFilter ?? "all"
+      queueFilter: parsed.queueFilter ?? "all",
+      searchFilter: parsed.searchFilter ?? ""
     };
   } catch {
-    return { statusFilter: "", priorityFilter: "", queueFilter: "all" };
+    return { statusFilter: "", priorityFilter: "", queueFilter: "all", searchFilter: "" };
   }
 };
 
@@ -96,6 +99,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
   const [statusFilter, setStatusFilter] = useState<UserTaskFilterStatus>(initialFilters.statusFilter);
   const [priorityFilter, setPriorityFilter] = useState<UserTaskFilterPriority>(initialFilters.priorityFilter);
   const [queueFilter, setQueueFilter] = useState<TaskQueueFilter>(initialFilters.queueFilter);
+  const [searchFilter, setSearchFilter] = useState(initialFilters.searchFilter);
 
   const openCreateTask = useCallback(() => {
     setForm(EMPTY_FORM);
@@ -113,9 +117,14 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
       params.set("priority", priorityFilter);
     }
 
+    const normalizedSearch = searchFilter.trim();
+    if (normalizedSearch) {
+      params.set("search", normalizedSearch);
+    }
+
     const query = params.toString();
     return query ? `?${query}` : "";
-  }, [priorityFilter, statusFilter]);
+  }, [priorityFilter, searchFilter, statusFilter]);
 
   const {
     commentBody,
@@ -278,26 +287,110 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
       JSON.stringify({
         statusFilter,
         priorityFilter,
-        queueFilter
+        queueFilter,
+        searchFilter
       })
     );
-  }, [priorityFilter, queueFilter, statusFilter]);
+  }, [priorityFilter, queueFilter, searchFilter, statusFilter]);
 
   return (
-    <section className="space-y-4">
-      <header className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <h3 className="font-display text-lg text-textMain">Tarefas</h3>
-        <p className="text-sm text-textMuted">Acompanhamento da sua fila operacional</p>
+    <section className="space-y-6">
+      <header className="rounded-[1.5rem] bg-panel p-4 shadow-glow">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <p className="font-display text-2xl font-extrabold tracking-tight text-textMain">Noctification</p>
+            <div className="hidden h-4 w-px bg-outlineSoft md:block" />
+            <div className="hidden min-w-72 items-center gap-2 rounded-xl bg-panelAlt px-3 py-2 text-sm text-textMuted md:flex">
+              <span className="text-xs uppercase tracking-[0.18em]">Search</span>
+              <span className="truncate">Search tasks...</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-panelAlt px-3 py-1.5 text-xs font-semibold text-textMain">
+              Support
+            </span>
+            <button
+              className="btn-primary"
+              onClick={openCreateTask}
+              type="button"
+            >
+              Nova tarefa
+            </button>
+          </div>
+        </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 px-1 text-xs">
-        <span className="rounded-full bg-panelAlt px-3 py-1.5 text-textMain">{taskStats.total} tarefas</span>
-        <span className="rounded-full bg-accent/10 px-3 py-1.5 text-accent">{taskStats.open} abertas</span>
-        <span className="rounded-full bg-success/20 px-3 py-1.5 text-success">{taskStats.done} concluidas</span>
-        {taskStats.critical > 0 && (
-          <span className="rounded-full bg-danger/20 px-3 py-1.5 text-danger">{taskStats.critical} criticas</span>
-        )}
+      <header className="rounded-[1.5rem] bg-panelAlt/80 p-6 shadow-glow">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+          Task workspace
+        </p>
+        <h3 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-textMain">
+          Tarefas
+        </h3>
+        <p className="mt-2 text-sm text-textMuted">Acompanhamento da sua fila operacional</p>
+      </header>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Total</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-textMain">{taskStats.total}</p>
+        </article>
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Abertas</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-accent">{taskStats.open}</p>
+        </article>
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Concluidas</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-success">{taskStats.done}</p>
+        </article>
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Criticas</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-danger">{taskStats.critical}</p>
+        </article>
       </div>
+
+      <section className="rounded-[1.25rem] bg-panelAlt/80 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Status:</span>
+            <select
+              className="bg-transparent text-xs font-semibold text-textMain outline-none"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as UserTaskFilterStatus)}
+            >
+              <option value="">Todos</option>
+              <option value="new">Nova</option>
+              <option value="assumed">Assumida</option>
+              <option value="in_progress">Em andamento</option>
+              <option value="blocked">Bloqueada</option>
+              <option value="waiting_external">Aguardando externo</option>
+              <option value="done">Concluida</option>
+              <option value="cancelled">Cancelada</option>
+            </select>
+          </div>
+          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Busca:</span>
+            <input
+              className="min-w-40 bg-transparent text-xs font-semibold text-textMain outline-none"
+              placeholder="titulo ou descricao"
+              value={searchFilter}
+              onChange={(event) => setSearchFilter(event.target.value)}
+            />
+          </div>
+          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Fila:</span>
+            <span className="text-xs font-semibold text-textMain">{TASK_QUEUE_LABELS[queueFilter]}</span>
+          </div>
+          <button
+            className="rounded-lg px-3 py-1.5 text-xs font-bold text-textMain transition hover:bg-panel"
+            onClick={() => setMoreFiltersOpen((current) => !current)}
+            type="button"
+          >
+            Mais filtros
+          </button>
+          <div className="ml-auto text-xs text-textMuted">Kanban operacional com SLA</div>
+        </div>
+      </section>
 
       <div className="space-y-4">
           <TaskBoard
@@ -321,7 +414,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
                     <option value="cancelled">Cancelada</option>
                   </select>
                   <button
-                    className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                    className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
                     onClick={() => setMoreFiltersOpen((current) => !current)}
                     type="button"
                   >
@@ -342,10 +435,11 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
                       <option value="critical">Critica</option>
                     </select>
                     <button
-                      className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                      className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
                       onClick={() => {
                         setStatusFilter("");
                         setPriorityFilter("");
+                        setSearchFilter("");
                         setQueueFilter("all");
                       }}
                       type="button"
@@ -362,7 +456,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
                       className={`rounded-full px-3 py-1.5 text-xs ${
                         queueFilter === queue.value
                           ? "bg-accent/10 text-accent"
-                          : "border border-slate-600 text-textMain"
+                          : "border border-outlineSoft bg-panel text-textMain"
                       }`}
                       onClick={() => setQueueFilter(queue.value)}
                       type="button"
@@ -400,16 +494,22 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
           />
       </div>
 
+      <div className="fixed bottom-8 right-8 z-20 hidden lg:block">
+        <button className="btn-primary shadow-glow" onClick={openCreateTask} type="button">
+          Quick Task
+        </button>
+      </div>
+
       {(composerOpen || form.id > 0) && (
         <div
           aria-label="Overlay do formulario da tarefa"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-textMain/70 p-3 sm:p-6"
           onClick={resetForm}
         >
           <div
             aria-label="Formulario da tarefa"
             aria-modal="true"
-            className="w-full max-w-2xl rounded-2xl border border-slate-700 bg-panel p-4 shadow-2xl"
+            className="w-full max-w-2xl rounded-[1.25rem] bg-panel p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
@@ -424,7 +524,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
                 </div>
                 <button
                   aria-label="Fechar formulario da tarefa"
-                  className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain"
+                  className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain"
                   onClick={resetForm}
                   type="button"
                 >
@@ -488,7 +588,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
 
               <div className="flex flex-wrap justify-end gap-2">
                 <button
-                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                  className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
                   onClick={resetForm}
                   type="button"
                 >

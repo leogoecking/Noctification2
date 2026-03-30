@@ -2,7 +2,9 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminDashboard } from "./AdminDashboard";
 import { api } from "../lib/api";
+import { isAprModuleEnabled } from "../lib/featureFlags";
 import {
+  buildTaskItem,
   buildNotificationHistoryItem,
   buildOnlineUserItem,
   buildUserItem
@@ -30,6 +32,14 @@ vi.mock("../lib/api", () => ({
     adminOnlineUsers: vi.fn(),
     adminAudit: vi.fn(),
     adminNotifications: vi.fn(),
+    adminTasks: vi.fn(),
+    adminReminderHealth: vi.fn(),
+    adminTaskHealth: vi.fn(),
+    myOperationsBoard: vi.fn(),
+    myOperationsBoardMessage: vi.fn(),
+    createMyOperationsBoardMessage: vi.fn(),
+    updateMyOperationsBoardMessage: vi.fn(),
+    createMyOperationsBoardComment: vi.fn(),
     sendNotification: vi.fn(),
     createUser: vi.fn(),
     updateUser: vi.fn(),
@@ -44,13 +54,23 @@ vi.mock("../lib/api", () => ({
   }
 }));
 
+vi.mock("../features/apr/AprPage", () => ({
+  AprPage: () => <div>AprPageMock</div>
+}));
+
+vi.mock("../lib/featureFlags", () => ({
+  isAprModuleEnabled: vi.fn(() => true)
+}));
+
 const mockedApi = vi.mocked(api);
+const mockedIsAprModuleEnabled = vi.mocked(isAprModuleEnabled);
 
 const renderAdminDashboard = () => render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
 
 describe("AdminDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedIsAprModuleEnabled.mockReturnValue(true);
     socketHandlers.clear();
     mockedApi.sendNotification.mockResolvedValue({ notification: buildNotificationHistoryItem() });
     mockedApi.createUser.mockResolvedValue({
@@ -108,6 +128,45 @@ describe("AdminDashboard", () => {
         totalPages: 1
       }
     });
+    mockedApi.adminTasks.mockResolvedValue({
+      tasks: [],
+      pagination: {
+        page: 1,
+        limit: 8,
+        total: 0,
+        totalPages: 1
+      }
+    });
+    mockedApi.adminReminderHealth.mockResolvedValue({
+      health: {
+        schedulerEnabled: true,
+        totalReminders: 4,
+        activeReminders: 3,
+        pendingOccurrences: 2,
+        completedToday: 1,
+        expiredToday: 0,
+        deliveriesToday: 5,
+        retriesToday: 0
+      }
+    });
+    mockedApi.adminTaskHealth.mockResolvedValue({
+      health: {
+        schedulerEnabled: true,
+        dueSoonWindowMinutes: 120,
+        staleWindowHours: 24,
+        activeTasks: 10,
+        dueSoonEligible: 2,
+        overdueEligible: 1,
+        staleEligible: 1,
+        blockedEligible: 1,
+        recurringEligible: 0,
+        dueSoonSentToday: 2,
+        overdueSentToday: 1,
+        staleSentToday: 0,
+        blockedSentToday: 1,
+        recurringCreatedToday: 0
+      }
+    });
     mockedApi.adminOnlineUsers.mockResolvedValue({
       users: [
         buildOnlineUserItem()
@@ -140,6 +199,47 @@ describe("AdminDashboard", () => {
         totalPages: 1
       }
     });
+    mockedApi.myOperationsBoard.mockResolvedValue({
+      messages: [
+        {
+          id: 1,
+          title: "Troca de turno",
+          body: "Equipe da madrugada assumiu o monitoramento.",
+          status: "active",
+          authorUserId: 1,
+          authorName: "Admin",
+          authorLogin: "admin",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          resolvedAt: null
+        }
+      ]
+    });
+    mockedApi.myOperationsBoardMessage.mockResolvedValue({
+      message: {
+        id: 1,
+        title: "Troca de turno",
+        body: "Equipe da madrugada assumiu o monitoramento.",
+        status: "active",
+        authorUserId: 1,
+        authorName: "Admin",
+        authorLogin: "admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        resolvedAt: null
+      },
+      timeline: []
+    });
+  });
+
+  it("oculta o item APR da sidebar administrativa quando o modulo esta desabilitado", async () => {
+    mockedIsAprModuleEnabled.mockReturnValue(false);
+
+    renderAdminDashboard();
+
+    await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalled());
+
+    expect(screen.queryByRole("button", { name: "APR" })).not.toBeInTheDocument();
   });
 
   it("renderiza usuarios online e auditoria no dashboard", async () => {
@@ -152,6 +252,55 @@ describe("AdminDashboard", () => {
     expect(screen.getByText("Operador")).toBeInTheDocument();
     expect(screen.getByText("Auditoria recente")).toBeInTheDocument();
     expect(screen.getByText("Notificacao enviada")).toBeInTheDocument();
+    expect(screen.getByText("Mural da operacao")).toBeInTheDocument();
+    expect(screen.getAllByText("System health").length).toBeGreaterThan(0);
+    expect(screen.getByText("Troca de turno")).toBeInTheDocument();
+  });
+
+  it("executa busca global no admin com resultados locais e de tarefas", async () => {
+    mockedApi.adminNotifications.mockResolvedValue({
+      notifications: [
+        buildNotificationHistoryItem({
+          id: 44,
+          title: "Falha de enlace",
+          message: "Investigar falha na fila operacional"
+        })
+      ],
+      pagination: {
+        page: 1,
+        limit: 100,
+        total: 1,
+        totalPages: 1
+      }
+    });
+    mockedApi.adminTasks.mockResolvedValue({
+      tasks: [
+        buildTaskItem({
+          id: 88,
+          title: "Falha no concentrador",
+          description: "Validar resposta do usuario"
+        })
+      ],
+      pagination: {
+        page: 1,
+        limit: 8,
+        total: 1,
+        totalPages: 1
+      }
+    });
+
+    renderAdminDashboard();
+
+    const input = await screen.findByLabelText("Busca global do admin");
+    fireEvent.change(input, { target: { value: "falha" } });
+
+    await waitFor(() =>
+      expect(mockedApi.adminTasks).toHaveBeenCalledWith("?search=falha&limit=8")
+    );
+
+    expect(await screen.findByText('Resultados para "falha"')).toBeInTheDocument();
+    expect(screen.getByText("Falha no concentrador")).toBeInTheDocument();
+    expect(screen.getByText("Falha de enlace")).toBeInTheDocument();
   });
 
   it("atualiza usuarios online pelo payload do socket sem recarregar auditoria e historico", async () => {
@@ -391,6 +540,32 @@ describe("AdminDashboard", () => {
     expect(screen.getByText("Alvo")).toBeInTheDocument();
     expect(screen.getByText("Detalhes")).toBeInTheDocument();
     expect(screen.getByText("Destinatarios: 1 | Prioridade: high")).toBeInTheDocument();
+  });
+
+  it("reativa o dashboard ao voltar pela sidebar", async () => {
+    const handleNavigate = vi.fn();
+
+    render(
+      <AdminDashboard
+        currentPath="/"
+        onError={vi.fn()}
+        onNavigate={handleNavigate}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalled());
+    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=6"));
+    expect(screen.getByText("Usuarios online agora")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Usuarios" }));
+    expect(screen.getByText("Cadastrar usuario")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+
+    expect(handleNavigate).toHaveBeenCalledWith("/");
+    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("Usuarios online agora")).toBeInTheDocument();
   });
 
   it("aplica filtros de auditoria ao consultar a API", async () => {
@@ -793,5 +968,28 @@ describe("AdminDashboard", () => {
     expect(lastCall).toContain("user_id=2");
     expect(lastCall).toContain("from=");
     expect(lastCall).toContain("to=");
+  });
+
+  it("sai do APR ao selecionar outra aba da sidebar administrativa", async () => {
+    const onNavigate = vi.fn();
+
+    render(
+      <AdminDashboard
+        currentPath="/apr"
+        onError={vi.fn()}
+        onNavigate={onNavigate}
+        onToast={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("AprPageMock")).toBeInTheDocument();
+
+    await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalled());
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Tarefas" }));
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith("/");
   });
 });

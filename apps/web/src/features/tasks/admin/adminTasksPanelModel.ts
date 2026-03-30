@@ -37,6 +37,7 @@ export const buildAdminTaskQuery = (filters: {
   statusFilter: AdminTaskFilterStatus;
   priorityFilter: AdminTaskFilterPriority;
   assigneeFilter: string;
+  searchFilter: string;
 }): string => {
   const params = new URLSearchParams();
 
@@ -50,6 +51,11 @@ export const buildAdminTaskQuery = (filters: {
 
   if (filters.assigneeFilter) {
     params.set("assignee_user_id", filters.assigneeFilter);
+  }
+
+  const normalizedSearch = filters.searchFilter.trim();
+  if (normalizedSearch) {
+    params.set("search", normalizedSearch);
   }
 
   const query = params.toString();

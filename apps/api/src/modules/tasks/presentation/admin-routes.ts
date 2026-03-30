@@ -58,7 +58,8 @@ export const createTaskAdminRouterWithIo = (
   router.get("/tasks/metrics", (req, res) => {
     const params = buildTaskListParams(req.query as Record<string, unknown>, {
       defaultLimit: 100,
-      maxLimit: 500
+      maxLimit: 500,
+      includeAssigneeSearch: true
     });
 
     if ("error" in params) {
@@ -126,7 +127,8 @@ export const createTaskAdminRouterWithIo = (
   router.get("/tasks", (req, res) => {
     const params = buildTaskListParams(req.query as Record<string, unknown>, {
       defaultLimit: 100,
-      maxLimit: 500
+      maxLimit: 500,
+      includeAssigneeSearch: true
     });
 
     if ("error" in params) {

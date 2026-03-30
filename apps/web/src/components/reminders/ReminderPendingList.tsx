@@ -29,7 +29,7 @@ export const ReminderPendingList = ({
       )}
       <div className="space-y-2">
         {pendingOccurrences.map((item) => (
-          <div key={item.id} className="rounded-xl border border-slate-700 bg-panel p-3">
+          <div key={item.id} className="rounded-xl bg-panel p-3 ring-1 ring-outlineSoft/50">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold text-textMain">{item.title}</p>
               <span className="rounded-full bg-warning/20 px-2.5 py-1 text-xs text-warning">
@@ -43,7 +43,7 @@ export const ReminderPendingList = ({
               <p className="mt-2 line-clamp-2 text-sm text-textMuted">{item.description}</p>
             )}
             <button
-              className="mt-3 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
+              className="btn-success mt-3 text-xs"
               onClick={() => onCompleteOccurrence(item.id)}
             >
               Concluir

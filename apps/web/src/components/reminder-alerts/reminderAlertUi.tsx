@@ -120,7 +120,7 @@ export const ReminderAlertCard = ({
   onOpenReminders,
   onDismiss
 }: ReminderAlertCardProps) => (
-  <article className="rounded-2xl border border-warning/60 bg-warning/10 p-4 shadow-lg">
+  <article className="rounded-[1.5rem] border border-warning/40 bg-warning/10 p-4 shadow-[0_18px_40px_rgba(10,16,30,0.12)]">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p className="font-display text-base text-textMain">Lembrete pendente agora</p>
@@ -145,21 +145,21 @@ export const ReminderAlertCard = ({
 
       <div className="flex flex-wrap gap-2">
         <button
-          className="rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900"
+          className="btn-success text-xs"
           onClick={onComplete}
           type="button"
         >
           Concluir
         </button>
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain"
+          className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-xs text-textMain transition hover:bg-panelAlt"
           onClick={onOpenReminders}
           type="button"
         >
           Abrir lembretes
         </button>
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMuted"
+          className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-xs text-textMuted transition hover:bg-panelAlt hover:text-textMain"
           onClick={onDismiss}
           type="button"
         >

@@ -33,7 +33,7 @@ export const UserNotificationBell = ({
   return (
     <div className="relative">
       <button
-        className="relative rounded-xl border border-slate-600 bg-panelAlt p-2 text-textMain"
+        className="relative rounded-xl border border-outlineSoft bg-panel p-2 text-textMain"
         onClick={() => onOpenChange(!bellOpen)}
         aria-label="Abrir notificacoes"
         data-testid="notif-bell-btn"
@@ -49,7 +49,7 @@ export const UserNotificationBell = ({
       {bellOpen && (
         <div
           data-testid="notif-dropdown"
-          className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-slate-700 bg-panel p-3 shadow-glow"
+          className="absolute right-0 z-30 mt-2 w-80 rounded-[1.5rem] bg-panel p-3 shadow-glow ring-1 ring-outlineSoft/50"
         >
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-textMain">Ultimas 10 notificacoes</p>
@@ -66,11 +66,20 @@ export const UserNotificationBell = ({
             {dropdownItems.map((item) => (
               <button
                 key={item.id}
-                className="w-full rounded-lg border border-slate-700 bg-panelAlt p-2.5 text-left"
+                className="w-full rounded-xl bg-panelAlt p-3 text-left transition hover:bg-panel"
                 onClick={() => onSelectNotification(item)}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-textMain">{item.title}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-textMain">{item.title}</p>
+                    <p className="mt-1 line-clamp-1 text-xs text-textMuted">
+                      {item.message || "Sem mensagem adicional"}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-textMuted">
+                      <span>{formatNotificationDate(item.createdAt)}</span>
+                      <span>{OPERATIONAL_STATUS_LABELS[item.operationalStatus]}</span>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-1">
                     {renderTaskLinkChip(item.sourceTaskId)}
                     {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
@@ -87,20 +96,13 @@ export const UserNotificationBell = ({
                     </span>
                   </div>
                 </div>
-                <p className="mt-1 line-clamp-1 text-xs text-textMuted">
-                  {item.message || "Sem mensagem adicional"}
-                </p>
-                <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-textMuted">
-                  <span>{formatNotificationDate(item.createdAt)}</span>
-                  <span>{OPERATIONAL_STATUS_LABELS[item.operationalStatus]}</span>
-                </div>
               </button>
             ))}
           </div>
 
           <button
             data-testid="view-all-notifications-btn"
-            className="mt-2 w-full rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain"
+            className="mt-2 w-full rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-xs text-textMain"
             onClick={onOpenAllNotifications}
           >
             Ver todas as notificacoes
@@ -110,4 +112,3 @@ export const UserNotificationBell = ({
     </div>
   );
 };
-

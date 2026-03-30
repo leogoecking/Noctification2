@@ -36,6 +36,13 @@ export type TaskEventType =
   | "automation_recurring_task";
 export type ReminderRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
 export type ReminderOccurrenceStatus = "pending" | "completed" | "expired" | "cancelled";
+export type OperationsBoardStatus = "active" | "resolved";
+export type OperationsBoardEventType =
+  | "created"
+  | "updated"
+  | "commented"
+  | "resolved"
+  | "reopened";
 
 export interface PaginationInfo {
   page: number;
@@ -341,4 +348,29 @@ export interface ReminderHealthItem {
   expiredToday: number;
   deliveriesToday: number;
   retriesToday: number;
+}
+
+export interface OperationsBoardMessageItem {
+  id: number;
+  title: string;
+  body: string;
+  status: OperationsBoardStatus;
+  authorUserId: number;
+  authorName: string;
+  authorLogin: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface OperationsBoardEventItem {
+  id: number;
+  messageId: number;
+  actorUserId: number;
+  actorName: string;
+  actorLogin: string;
+  eventType: OperationsBoardEventType;
+  body: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }

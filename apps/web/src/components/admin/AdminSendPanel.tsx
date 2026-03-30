@@ -17,7 +17,7 @@ export const AdminSendPanel = ({
   onSend
 }: AdminSendPanelProps) => {
   return (
-    <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
+    <article className="space-y-3 rounded-[1.25rem] bg-panel p-5">
       <h3 className="font-display text-lg text-textMain">Enviar notificacao</h3>
 
       <input
@@ -68,7 +68,7 @@ export const AdminSendPanel = ({
       </div>
 
       {notificationForm.recipient_mode === "users" && (
-        <div className="max-h-40 space-y-2 overflow-auto rounded-lg border border-slate-700 p-3">
+        <div className="max-h-40 space-y-2 overflow-auto rounded-lg bg-panelAlt p-3 ring-1 ring-outlineSoft/50">
           {loadingUsers && <p className="text-xs text-textMuted">Carregando usuarios...</p>}
           {!loadingUsers && activeUsers.length === 0 && (
             <p className="text-xs text-textMuted">Nenhum usuario ativo.</p>

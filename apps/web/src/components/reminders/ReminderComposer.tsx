@@ -30,7 +30,7 @@ export const ReminderComposer = ({
   onReset
 }: ReminderComposerProps) => {
   return (
-    <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+    <article className="rounded-[1.25rem] bg-panel p-5">
       <button
         aria-expanded={composerOpen || form.id > 0}
         className="flex w-full items-start justify-between gap-3 text-left"
@@ -43,7 +43,7 @@ export const ReminderComposer = ({
           </h4>
           <p className="text-sm text-textMuted">Horario, repeticao e dias da semana</p>
         </div>
-        <span className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain">
+        <span className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain">
           {composerOpen || form.id > 0 ? "Ocultar" : "Abrir formulario"}
         </span>
       </button>
@@ -99,7 +99,7 @@ export const ReminderComposer = ({
                 <button
                   key={item.value}
                   className={`rounded-full px-3 py-2 text-xs ${
-                    form.weekdays.includes(item.value) ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"
+                    form.weekdays.includes(item.value) ? "bg-accent text-white" : "bg-panelAlt text-textMuted"
                   }`}
                   onClick={() =>
                     onFormChange((current) => ({
@@ -121,7 +121,7 @@ export const ReminderComposer = ({
               {form.id ? "Salvar" : "Criar lembrete"}
             </button>
             {form.id > 0 && (
-              <button className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain" onClick={onReset}>
+              <button className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain" onClick={onReset}>
                 Cancelar
               </button>
             )}

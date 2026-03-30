@@ -36,6 +36,7 @@ export const buildTaskListParams = (
     defaultLimit: number;
     maxLimit: number;
     scopeUserId?: number;
+    includeAssigneeSearch?: boolean;
   }
 ):
   | {
@@ -53,6 +54,7 @@ export const buildTaskListParams = (
   const priority = toNullableString(query.priority);
   const dueBefore = toNullableString(query.due_before);
   const dueAfter = toNullableString(query.due_after);
+  const search = toNullableString(query.search);
   const assigneeUserId = parseOptionalUserId(query.assignee_user_id);
   const creatorUserId = parseOptionalUserId(query.creator_user_id);
   const includeArchived = String(query.include_archived ?? "").toLowerCase() === "true";
@@ -139,6 +141,23 @@ export const buildTaskListParams = (
     values.push(dueBefore);
   }
 
+  if (search) {
+    const normalizedSearch = `%${search.trim().toLowerCase()}%`;
+    const searchConditions = [
+      "LOWER(t.title) LIKE ?",
+      "LOWER(COALESCE(t.description, '')) LIKE ?"
+    ];
+    values.push(normalizedSearch, normalizedSearch);
+
+    if (options.includeAssigneeSearch) {
+      searchConditions.push("LOWER(COALESCE(assignee.name, '')) LIKE ?");
+      searchConditions.push("LOWER(COALESCE(assignee.login, '')) LIKE ?");
+      values.push(normalizedSearch, normalizedSearch);
+    }
+
+    conditions.push(`(${searchConditions.join(" OR ")})`);
+  }
+
   return {
     conditions,
     values,
@@ -212,7 +231,15 @@ export const buildTaskListResponse = (
 ) => {
   const whereClause = params.conditions.length > 0 ? `WHERE ${params.conditions.join(" AND ")}` : "";
   const total = (
-    db.prepare(`SELECT COUNT(*) AS total FROM tasks t ${whereClause}`).get(...params.values) as {
+    db.prepare(
+      `
+        SELECT COUNT(*) AS total
+        FROM (
+          ${taskSelectSql}
+          ${whereClause}
+        ) task_list
+      `
+    ).get(...params.values) as {
       total: number;
     }
   ).total;

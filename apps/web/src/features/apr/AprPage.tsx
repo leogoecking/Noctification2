@@ -1,10 +1,10 @@
 import {
   AprAuditSection,
+  AprCollaboratorComparisonSection,
   AprHistorySection,
   AprManualFormSection,
   AprManualTableSection,
-  AprSidebar,
-  AprSummarySection
+  AprSidebar
 } from "./AprPageSections";
 import { useAprPageController } from "./useAprPageController";
 
@@ -20,7 +20,6 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
     setSelectedMonth,
     historySource,
     setHistorySource,
-    summary,
     audit,
     history,
     manualForm,
@@ -43,7 +42,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
     loadingMonthData,
     savingManual,
     uploading,
-    monthStats,
+    collaboratorRiskBars,
     filteredManualRows,
     manualTotalPages,
     paginatedManualRows,
@@ -63,29 +62,25 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
   } = useAprPageController({ onError, onToast });
 
   return (
-    <section className="space-y-4">
-      <header className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="space-y-6">
+      <header className="rounded-[1.5rem] bg-panelAlt/80 p-6 shadow-glow">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-accent">APR</p>
-            <h2 className="font-display text-2xl text-textMain">Controle de APR</h2>
-            <p className="mt-1 text-sm text-textMuted">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">APR module</p>
+            <h2 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-textMain">Controle de APR</h2>
+            <p className="mt-2 max-w-3xl text-sm text-textMuted">
               Modulo isolado para referencia mensal, conferencia manual e historico.
             </p>
           </div>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              (summary?.statusGeral ?? "Conferido") === "Conferido"
-                ? "bg-success/20 text-green-100"
-                : "bg-amber-500/15 text-amber-100"
-            }`}
-          >
-            {(summary?.statusGeral ?? "Conferido") === "Conferido" ? "Base conferida" : "Com divergencias"}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-xl border border-outlineSoft bg-panel px-4 py-2 text-sm text-textMuted">
+              Referencia mensal isolada
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="grid gap-4 xl:grid-cols-[18rem,1fr]">
+      <div className="grid gap-6 xl:grid-cols-[18rem,1fr]">
         <AprSidebar
           orderedMonths={orderedMonths}
           selectedMonth={selectedMonth}
@@ -99,20 +94,12 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
           submitImport={submitImport}
         />
 
-        <div className="space-y-4">
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {monthStats.map((item) => (
-              <article
-                key={item.label}
-                className="rounded-2xl border border-slate-700 bg-panel p-4"
-              >
-                <p className="text-xs uppercase tracking-[0.16em] text-textMuted">{item.label}</p>
-                <p className="mt-2 font-display text-2xl text-textMain">{item.value}</p>
-              </article>
-            ))}
+        <div className="space-y-6">
+          <section className="grid gap-6 xl:grid-cols-[0.92fr,1.08fr]">
+            <AprCollaboratorComparisonSection collaboratorRiskBars={collaboratorRiskBars} />
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr),minmax(0,0.85fr)]">
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr),minmax(0,0.85fr)]">
             <AprManualTableSection
               selectedMonth={selectedMonth}
               loadingMonthData={loadingMonthData}
@@ -138,7 +125,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
             />
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-2">
+          <section className="grid gap-6 xl:grid-cols-2">
             <AprAuditSection
               auditStatus={audit.summary.statusGeral}
               auditSearch={auditSearch}
@@ -161,13 +148,6 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
               filteredHistoryRows={filteredHistoryRows}
             />
           </section>
-
-          <AprSummarySection
-            selectedMonth={selectedMonth}
-            orderedMonths={orderedMonths}
-            summary={summary}
-            historySource={historySource}
-          />
         </div>
       </div>
     </section>

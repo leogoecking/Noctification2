@@ -245,6 +245,54 @@ describe("task routes", () => {
     expect((createRes.body as { error: string }).error).toContain("atribuir");
   });
 
+  it("permite buscar tarefas do usuario por titulo e descricao", () => {
+    const createHandler = getRouteHandler(meRouter, "/tasks", "post");
+    const listHandler = getRouteHandler(meRouter, "/tasks", "get");
+
+    const firstCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Investigar falha no enlace",
+          description: "Evento de rede no setor sul",
+          assignee_user_id: regularUser.id
+        }
+      },
+      firstCreateRes
+    );
+    expect(firstCreateRes.statusCode).toBe(201);
+
+    const secondCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Revisar checklist",
+          description: "Procedimento rotineiro",
+          assignee_user_id: regularUser.id
+        }
+      },
+      secondCreateRes
+    );
+    expect(secondCreateRes.statusCode).toBe(201);
+
+    const listRes = createMockResponse();
+    listHandler(
+      {
+        authUser: regularUser,
+        query: {
+          search: "falha"
+        }
+      },
+      listRes
+    );
+
+    expect(listRes.statusCode).toBe(200);
+    expect((listRes.body as { tasks: Array<{ title: string }> }).tasks).toHaveLength(1);
+    expect((listRes.body as { tasks: Array<{ title: string }> }).tasks[0]?.title).toContain("falha");
+  });
+
   it("permite ao admin criar para outro usuario, filtrar e cancelar", () => {
     const createHandler = getRouteHandler(adminRouter, "/tasks", "post");
     const listHandler = getRouteHandler(adminRouter, "/tasks", "get");
@@ -415,5 +463,53 @@ describe("task routes", () => {
         .get() as { count: number }
     ).count;
     expect(auditCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("permite ao admin buscar tarefas por responsavel", () => {
+    const createHandler = getRouteHandler(adminRouter, "/tasks", "post");
+    const listHandler = getRouteHandler(adminRouter, "/tasks", "get");
+
+    const firstCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Validar roteiro",
+          description: "Checklist de campo",
+          assignee_user_id: secondUser.id
+        }
+      },
+      firstCreateRes
+    );
+    expect(firstCreateRes.statusCode).toBe(201);
+
+    const secondCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Verificar estoque",
+          description: "Fluxo interno",
+          assignee_user_id: regularUser.id
+        }
+      },
+      secondCreateRes
+    );
+    expect(secondCreateRes.statusCode).toBe(201);
+
+    const listRes = createMockResponse();
+    listHandler(
+      {
+        authUser: adminUser,
+        query: {
+          search: "user2"
+        }
+      },
+      listRes
+    );
+
+    expect(listRes.statusCode).toBe(200);
+    expect((listRes.body as { tasks: Array<{ assigneeLogin: string | null }> }).tasks).toHaveLength(1);
+    expect((listRes.body as { tasks: Array<{ assigneeLogin: string | null }> }).tasks[0]?.assigneeLogin).toBe("user2");
   });
 });

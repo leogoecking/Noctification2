@@ -9,6 +9,7 @@ import { createAdminRouter } from "./routes/admin";
 import { createMeRouter } from "./routes/me";
 import { createReminderAdminRouter } from "./routes/reminders-admin";
 import { createReminderMeRouter } from "./routes/reminders-me";
+import { createOperationsBoardMeRouter } from "./routes/operations-board-me";
 import { createAprRouter } from "./modules/apr/route";
 import { createTaskAdminRouterWithIo, createTaskMeRouterWithIo } from "./modules/tasks";
 
@@ -61,6 +62,7 @@ export const createApp = (db: Database.Database, io: Server, config: AppConfig) 
   app.use("/api/v1/admin", createTaskAdminRouterWithIo(db, io, config));
   app.use("/api/v1/me", createMeRouter(db, io, config));
   app.use("/api/v1/me", createReminderMeRouter(db, io, config));
+  app.use("/api/v1/me", createOperationsBoardMeRouter(db, config));
   app.use("/api/v1/me", createTaskMeRouterWithIo(db, io, config));
 
   if (config.enableAprModule) {

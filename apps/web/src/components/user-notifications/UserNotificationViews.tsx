@@ -21,19 +21,19 @@ export const UserNotificationFilterBar = ({
 }: UserNotificationFilterBarProps) => (
   <div className="flex flex-wrap gap-2">
     <button
-      className={`rounded-lg px-3 py-2 text-sm ${filter === "all" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
+      className={`rounded-lg px-3 py-2 text-sm ${filter === "all" ? "bg-accent text-white" : "bg-panelAlt text-textMuted"}`}
       onClick={() => onChange("all")}
     >
       {FILTER_LABELS.all}
     </button>
     <button
-      className={`rounded-lg px-3 py-2 text-sm ${filter === "unread" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
+      className={`rounded-lg px-3 py-2 text-sm ${filter === "unread" ? "bg-accent text-white" : "bg-panelAlt text-textMuted"}`}
       onClick={() => onChange("unread")}
     >
       {FILTER_LABELS.unread}
     </button>
     <button
-      className={`rounded-lg px-3 py-2 text-sm ${filter === "read" ? "bg-accent text-slate-900" : "bg-panelAlt text-textMuted"}`}
+      className={`rounded-lg px-3 py-2 text-sm ${filter === "read" ? "bg-accent text-white" : "bg-panelAlt text-textMuted"}`}
       onClick={() => onChange("read")}
     >
       {FILTER_LABELS.read}
@@ -92,24 +92,32 @@ export const UserNotificationCenter = ({
   onMarkAsRead,
   onRespond
 }: UserNotificationCenterProps) => (
-  <div className="grid gap-3 md:grid-cols-[2fr,1fr]">
-    <div className="space-y-2 rounded-2xl border border-slate-700 bg-panel p-3">
+  <div className="grid gap-4 md:grid-cols-[1.6fr,1fr]">
+    <div className="space-y-3 rounded-[1.5rem] bg-panel p-4">
       {loading && <p className="text-sm text-textMuted">Carregando...</p>}
       {!loading && items.length === 0 && <p className="text-sm text-textMuted">Nenhuma notificacao.</p>}
       {items.map((item) => (
         <button
           key={item.id}
-          className={`w-full rounded-xl border p-3 text-left transition ${
+          className={`w-full rounded-[1.25rem] border p-4 text-left transition ${
             item.isVisualized
-              ? "border-slate-700 bg-panelAlt/60"
+              ? "border-outlineSoft bg-panelAlt/60 hover:bg-panelAlt"
               : item.priority === "critical"
-                ? "border-danger bg-danger/10"
-                : "border-accent/50 bg-accent/10"
+                ? "border-danger/50 bg-danger/10 hover:bg-danger/15"
+                : "border-accent/50 bg-accent/10 hover:bg-accent/15"
           }`}
           onClick={() => onSelect(item)}
         >
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-medium text-textMain">{item.title}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-textMain">{item.title}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-textMuted">{item.message}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
+                <span>{formatNotificationDate(item.createdAt)}</span>
+                <span>{OPERATIONAL_STATUS_LABELS[item.operationalStatus]}</span>
+                {item.responseMessage && <span>Com retorno</span>}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               {renderTaskLinkChip(item.sourceTaskId)}
               {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
@@ -126,17 +134,11 @@ export const UserNotificationCenter = ({
               </span>
             </div>
           </div>
-          <p className="mt-1 line-clamp-2 text-sm text-textMuted">{item.message}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
-            <span>{formatNotificationDate(item.createdAt)}</span>
-            <span>{OPERATIONAL_STATUS_LABELS[item.operationalStatus]}</span>
-            {item.responseMessage && <span>Com retorno</span>}
-          </div>
         </button>
       ))}
     </div>
 
-    <aside className="rounded-2xl border border-slate-700 bg-panel p-4">
+    <aside className="rounded-[1.5rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
       {!selected && <p className="text-sm text-textMuted">Selecione uma notificacao.</p>}
       {selected && (
         <div className="space-y-3">
@@ -173,7 +175,7 @@ export const UserNotificationCenter = ({
             <div className="rounded-2xl border border-success/30 bg-success/10 p-3">
               <p className="text-xs uppercase tracking-[0.18em] text-success">Proxima acao</p>
               <button
-                className="mt-2 w-full rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+                className="btn-success mt-2 w-full"
                 onClick={() => onMarkAsRead(selected.id)}
               >
                 Marcar como visualizada
@@ -213,7 +215,7 @@ export const UserNotificationSummary = ({
   loading,
   onOpenAllNotifications
 }: UserNotificationSummaryProps) => (
-  <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+  <article className="rounded-[1.5rem] bg-panel p-4">
     <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h3 className="font-display text-lg text-textMain">Pendencias recentes</h3>
@@ -234,25 +236,29 @@ export const UserNotificationSummary = ({
       {dashboardItems.map((item) => (
         <div
           key={item.id}
-          className={`rounded-xl border p-3 ${
+          className={`rounded-[1.25rem] border p-4 ${
             item.priority === "critical"
               ? "border-danger/60 bg-danger/10"
               : item.operationalStatus === "em_andamento"
                 ? "border-accent/50 bg-accent/10"
-                : "border-slate-700 bg-panelAlt/70"
+                : "border-outlineSoft bg-panelAlt/70"
           }`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-medium text-textMain">{item.title}</p>
-            <span className="rounded-full bg-panel px-2.5 py-1 text-[11px] text-textMuted">
-              {OPERATIONAL_STATUS_LABELS[item.operationalStatus]}
-            </span>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-textMain">{item.title}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-textMuted">{item.message}</p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <span className="rounded-full bg-panel px-2.5 py-1 text-[11px] text-textMuted">
+                {OPERATIONAL_STATUS_LABELS[item.operationalStatus]}
+              </span>
+              {renderTaskLinkChip(item.sourceTaskId)}
+            </div>
           </div>
-          <p className="mt-1 line-clamp-2 text-sm text-textMuted">{item.message}</p>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-textMuted">
             <span>{formatNotificationDate(item.createdAt)}</span>
             <span>Prioridade: {PRIORITY_LABELS[item.priority]}</span>
-            {item.sourceTaskId ? <span>Tarefa #{item.sourceTaskId}</span> : null}
             {!item.isVisualized && <span>Nao visualizada</span>}
           </div>
         </div>
@@ -278,7 +284,7 @@ export const UserCriticalNotificationModal = ({
   onClose,
   onRespond
 }: UserCriticalNotificationModalProps) => (
-  <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 px-4">
+  <div className="fixed inset-0 z-40 flex items-center justify-center bg-textMain/70 px-4">
     <div className="w-full max-w-lg rounded-2xl border border-danger bg-panel p-5 shadow-glow">
       <p className="text-xs uppercase tracking-[0.2em] text-danger">Notificacao critica</p>
       <h3 className="mt-2 font-display text-xl text-textMain">{criticalModal.title}</h3>
@@ -307,13 +313,13 @@ export const UserCriticalNotificationModal = ({
 
       <div className="mt-4 flex gap-2">
         <button
-          className="flex-1 rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+          className="btn-success flex-1"
           onClick={() => onMarkAsRead(criticalModal.id)}
         >
           Marcar como visualizada
         </button>
         <button
-          className="flex-1 rounded-xl border border-slate-600 bg-panelAlt px-3 py-2 text-sm text-textMain"
+          className="flex-1 rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
           onClick={onClose}
         >
           Fechar

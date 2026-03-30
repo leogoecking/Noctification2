@@ -1122,6 +1122,29 @@ describe("AdminTasksPanel", () => {
     expect(screen.getByRole("button", { name: "Precisa de atencao (0)" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("envia busca textual de tarefas do admin", async () => {
+    mockedApi.adminTasks.mockResolvedValue({
+      tasks: [],
+      pagination: { page: 1, limit: 100, total: 0, totalPages: 1 }
+    });
+    mockedApi.adminUsers.mockResolvedValue({
+      users: [buildUserItem()]
+    });
+    mockedApi.adminTask.mockResolvedValue({
+      task: buildAdminTask(),
+      timeline: []
+    });
+
+    renderAdminTasksPanel();
+
+    await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText("titulo, descricao ou responsavel"), {
+      target: { value: "usuario" }
+    });
+
+    await waitFor(() => expect(mockedApi.adminTasks).toHaveBeenLastCalledWith("?search=usuario"));
+  });
+
   it("aplica mudanca de status em lote no admin", async () => {
     mockedApi.adminTasks.mockResolvedValue({
       tasks: [

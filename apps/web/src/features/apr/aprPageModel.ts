@@ -4,7 +4,6 @@ import type {
   AprHistoryResponse,
   AprManualPayload,
   AprMonthItem,
-  AprMonthSummary,
   AprRow,
   AprSubjectSuggestion
 } from "./types";
@@ -13,16 +12,27 @@ export type AprManualFormState = AprManualPayload & {
   id: number | null;
 };
 
-export interface AprMonthStat {
-  label: string;
-  value: string;
-}
-
 export interface AprDivergentAuditRow {
   externalId: string;
   status: "Só no sistema" | "Só no manual";
   subject: string;
   collaborator: string;
+}
+
+export interface AprCollaboratorRiskBar {
+  collaborator: string;
+  systemCount: number;
+  manualCount: number;
+  uniqueIds: number;
+  divergentIds: number;
+  statusLabel: "Consistente" | "Divergente";
+  details: {
+    externalId: string;
+    subject: string;
+    systemPresent: boolean;
+    manualPresent: boolean;
+    statusLabel: "Consistente" | "Divergente";
+  }[];
 }
 
 export const EMPTY_MANUAL_FORM: AprManualFormState = {
@@ -118,12 +128,125 @@ export const paginateRows = <T>(rows: T[], page: number, perPage: number): T[] =
   return rows.slice(startIndex, startIndex + perPage);
 };
 
-export const getMonthStats = (summary: AprMonthSummary | null): AprMonthStat[] => [
-  { label: "Manual", value: String(summary?.manualCount ?? 0) },
-  { label: "Sistema", value: String(summary?.systemCount ?? 0) },
-  { label: "Divergencias", value: String(summary?.audit.divergentes ?? 0) },
-  { label: "Colaboradores", value: String(summary?.uniqueCollaborators ?? 0) }
-];
+export const buildAprCollaboratorRiskBars = (
+  manualRows: AprRow[],
+  audit: AprAuditResponse,
+  _history: AprHistoryResponse
+): AprCollaboratorRiskBar[] => {
+  const manualByExternalId = new Map(manualRows.map((row) => [row.externalId, row] as const));
+  const collaboratorMap = new Map<
+    string,
+    {
+      displayName: string;
+      systemIds: Set<string>;
+      manualIds: Set<string>;
+      details: Map<
+        string,
+        {
+          externalId: string;
+          subject: string;
+          systemPresent: boolean;
+          manualPresent: boolean;
+          statusLabel: "Consistente" | "Divergente";
+        }
+      >;
+    }
+  >();
+
+  const normalizeCollaboratorKey = (collaborator: string) =>
+    collaborator
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .toLocaleUpperCase("pt-BR");
+
+  const ensureCollaborator = (collaborator: string | null | undefined) => {
+    const trimmed = collaborator?.trim();
+    if (!trimmed) return null;
+
+    const normalized = normalizeCollaboratorKey(trimmed);
+
+    const existing = collaboratorMap.get(normalized);
+    if (existing) {
+      return existing;
+    }
+
+    const created = {
+      displayName: trimmed,
+      systemIds: new Set<string>(),
+      manualIds: new Set<string>(),
+      details: new Map<
+        string,
+        {
+          externalId: string;
+          subject: string;
+          systemPresent: boolean;
+          manualPresent: boolean;
+          statusLabel: "Consistente" | "Divergente";
+        }
+      >()
+    };
+    collaboratorMap.set(normalized, created);
+    return created;
+  };
+
+  audit.details.forEach((item) => {
+    const fallbackManual = manualByExternalId.get(item.externalId);
+    const collaborator =
+      item.manual?.collaborator ?? item.system?.collaborator ?? fallbackManual?.collaborator;
+    const bucket = ensureCollaborator(collaborator);
+    if (!bucket) {
+      return;
+    }
+
+    const subject = item.manual?.subject ?? item.system?.subject ?? fallbackManual?.subject ?? "Sem assunto";
+    const isConsistent = item.status === "Conferido";
+    const systemPresent = isConsistent ? true : Boolean(item.system);
+    const manualPresent = isConsistent ? true : Boolean(item.manual ?? fallbackManual);
+
+    if (systemPresent) {
+      bucket.systemIds.add(item.externalId);
+    }
+    if (manualPresent) {
+      bucket.manualIds.add(item.externalId);
+    }
+
+    bucket.details.set(item.externalId, {
+      externalId: item.externalId,
+      subject,
+      systemPresent,
+      manualPresent,
+      statusLabel: isConsistent ? "Consistente" : "Divergente"
+    });
+  });
+
+  return [...collaboratorMap.entries()]
+    .map(([, data]): AprCollaboratorRiskBar => {
+      const details = [...data.details.values()].sort((left, right) =>
+        left.externalId.localeCompare(right.externalId)
+      );
+      const divergentIds = details.filter((item) => item.statusLabel === "Divergente").length;
+      const statusLabel: AprCollaboratorRiskBar["statusLabel"] =
+        divergentIds > 0 ? "Divergente" : "Consistente";
+
+      return {
+        collaborator: data.displayName,
+        systemCount: data.systemIds.size,
+        manualCount: data.manualIds.size,
+        uniqueIds: data.details.size,
+        divergentIds,
+        statusLabel,
+        details
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.divergentIds - left.divergentIds ||
+        right.uniqueIds - left.uniqueIds ||
+        left.collaborator.localeCompare(right.collaborator)
+    );
+};
 
 export const filterManualRows = (rows: AprRow[], search: string): AprRow[] => {
   const searchTerm = normalizeSearchValue(search);

@@ -793,4 +793,20 @@ describe("TaskUserPanel", () => {
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledWith("?status=blocked&priority=high"));
     expect(screen.getByRole("button", { name: "Paradas 24h+ (0)" })).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("envia busca textual de tarefas do usuario", async () => {
+    mockedApi.myTasks.mockResolvedValue({
+      tasks: [],
+      pagination: { page: 1, limit: 50, total: 0, totalPages: 1 }
+    });
+
+    renderTaskUserPanel();
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText("titulo ou descricao"), {
+      target: { value: "falha" }
+    });
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenLastCalledWith("?search=falha"));
+  });
 });

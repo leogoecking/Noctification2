@@ -38,7 +38,7 @@ export const ReminderCollections = ({
 }: ReminderCollectionsProps) => {
   return (
     <>
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+      <article className="rounded-[1.25rem] bg-panel p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h4 className="font-display text-base text-textMain">Meus lembretes</h4>
           <div className="flex flex-wrap gap-2">
@@ -51,8 +51,8 @@ export const ReminderCollections = ({
                 key={option.value}
                 className={`rounded-lg px-3 py-2 text-xs ${
                   reminderFilter === option.value
-                    ? "bg-accent text-slate-900"
-                    : "border border-slate-600 text-textMain"
+                    ? "bg-accent text-white"
+                    : "border border-outlineSoft bg-panel text-textMain"
                 }`}
                 onClick={() => onReminderFilterChange(option.value as ReminderFilterMode)}
                 type="button"
@@ -70,7 +70,7 @@ export const ReminderCollections = ({
         )}
         <div className="space-y-2">
           {reminders.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+            <div key={item.id} className="rounded-xl bg-panelAlt p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-semibold text-textMain">{item.title}</p>
@@ -85,10 +85,10 @@ export const ReminderCollections = ({
               </div>
               {item.description && <p className="mt-2 line-clamp-2 text-sm text-textMuted">{item.description}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
-                <button className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain" onClick={() => onEditReminder(item)}>
+                <button className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-xs text-textMain" onClick={() => onEditReminder(item)}>
                   Editar
                 </button>
-                <button className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-textMain" onClick={() => onToggleReminder(item)}>
+                <button className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-xs text-textMain" onClick={() => onToggleReminder(item)}>
                   {item.isActive ? "Desativar" : "Ativar"}
                 </button>
                 <button className="rounded-lg border border-danger/60 px-3 py-2 text-xs text-danger" onClick={() => onDeleteReminder(item.id)}>
@@ -100,7 +100,7 @@ export const ReminderCollections = ({
         </div>
       </article>
 
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+      <article className="rounded-[1.25rem] bg-panel p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h4 className="font-display text-base text-textMain">Historico de ocorrencias</h4>
           <div className="flex flex-wrap gap-2">
@@ -115,8 +115,8 @@ export const ReminderCollections = ({
                 key={option.value}
                 className={`rounded-lg px-3 py-2 text-xs ${
                   occurrenceFilter === option.value
-                    ? "bg-accent text-slate-900"
-                    : "border border-slate-600 text-textMain"
+                    ? "bg-accent text-white"
+                    : "border border-outlineSoft bg-panel text-textMain"
                 }`}
                 onClick={() => onOccurrenceFilterChange(option.value as OccurrenceFilterMode)}
                 type="button"
@@ -133,7 +133,7 @@ export const ReminderCollections = ({
         )}
         <div className="space-y-2">
           {occurrences.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+            <div key={item.id} className="rounded-xl bg-panelAlt p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold text-textMain">{item.title}</p>
                 <span className="rounded-md bg-panel px-2 py-1 text-xs text-textMuted">
@@ -151,7 +151,7 @@ export const ReminderCollections = ({
                 )}
               </div>
               {item.status === "pending" && (
-                <button className="mt-2 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-slate-900" onClick={() => onCompleteOccurrence(item.id)}>
+                <button className="btn-success mt-2 text-xs" onClick={() => onCompleteOccurrence(item.id)}>
                   Concluir
                 </button>
               )}

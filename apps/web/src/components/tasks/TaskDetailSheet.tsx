@@ -69,13 +69,13 @@ export const TaskDetailSheet = ({
   return (
     <div
       aria-label="Overlay de detalhe da tarefa"
-      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-textMain/70 p-3 sm:p-6"
       onClick={onClose}
     >
       <div
         aria-label="Detalhe da tarefa"
         aria-modal="true"
-        className="max-h-[min(88vh,960px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-700 bg-panel p-4 shadow-2xl"
+        className="max-h-[min(88vh,960px)] w-full max-w-3xl overflow-y-auto rounded-[1.25rem] bg-panel p-5 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
@@ -94,7 +94,7 @@ export const TaskDetailSheet = ({
               </span>
               <button
                 aria-label="Fechar detalhe da tarefa"
-                className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain"
+                className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain"
                 onClick={onClose}
                 type="button"
               >
@@ -132,7 +132,7 @@ export const TaskDetailSheet = ({
           </div>
 
           {selectedTask.status !== "done" && selectedTask.status !== "cancelled" && (
-            <div className="space-y-3 rounded-2xl border border-slate-700 bg-panelAlt/60 p-3">
+            <div className="space-y-3 rounded-[1.25rem] bg-panelAlt p-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Acao principal</p>
                 <p className="mt-1 text-sm text-textMuted">
@@ -157,7 +157,7 @@ export const TaskDetailSheet = ({
                   </button>
                 )}
                 <button
-                  className="rounded-xl bg-success px-3 py-2 text-sm font-semibold text-slate-900"
+                  className="btn-success"
                   onClick={() => onCompleteTask(selectedTask.id)}
                   type="button"
                 >
@@ -175,7 +175,7 @@ export const TaskDetailSheet = ({
           )}
 
           <div className="space-y-2">
-            <div className="rounded-2xl border border-slate-700 bg-panelAlt/60 p-3">
+            <div className="rounded-[1.25rem] bg-panelAlt p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Comentarios</p>
                 {commentSaving && <span className="text-[11px] text-textMuted">Enviando...</span>}
@@ -195,7 +195,7 @@ export const TaskDetailSheet = ({
             </div>
           </div>
 
-          <details className="rounded-2xl border border-slate-700 bg-panelAlt/60 p-3" open>
+          <details className="rounded-[1.25rem] bg-panelAlt p-4" open>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
               <span className="text-xs uppercase tracking-[0.18em] text-textMuted">Historico da tarefa</span>
               {detailLoading && <span className="text-[11px] text-textMuted">Atualizando...</span>}
@@ -205,7 +205,7 @@ export const TaskDetailSheet = ({
                 <p className="text-sm text-textMuted">Nenhum historico registrado ainda.</p>
               )}
               {taskTimeline.map((item) => (
-                <div key={item.id} className="rounded-xl border border-slate-700 bg-panel p-3">
+                <div key={item.id} className="rounded-xl bg-panel p-3 ring-1 ring-outlineSoft/50">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-textMain">{buildTaskTimelineSummary(item)}</p>

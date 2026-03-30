@@ -78,7 +78,7 @@ export const AdminAuditPanel = ({
   }, [auditFilters.eventType]);
 
   return (
-    <article className="space-y-4 rounded-2xl border border-slate-700 bg-panel p-5">
+    <article className="space-y-4 rounded-[1.25rem] bg-panel p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h3 className="font-display text-lg text-textMain">Auditoria</h3>
@@ -87,14 +87,14 @@ export const AdminAuditPanel = ({
           </p>
         </div>
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMuted transition hover:border-slate-500 hover:text-textMain"
+          className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMuted transition hover:text-textMain"
           onClick={onRefresh}
         >
           Atualizar
         </button>
       </div>
 
-      <section className="rounded-2xl border border-slate-800/80 bg-panelAlt/40 p-4">
+      <section className="rounded-[1.25rem] bg-panelAlt/70 p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="space-y-1.5">
             <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">
@@ -167,7 +167,7 @@ export const AdminAuditPanel = ({
                 className={`rounded-full px-3 py-1.5 text-[11px] transition ${
                   auditFilters.eventType === eventType
                     ? "bg-accent/20 text-accent"
-                    : "border border-slate-700 text-textMuted hover:border-slate-600 hover:text-textMain"
+                    : "border border-outlineSoft bg-panel text-textMuted hover:text-textMain"
                 }`}
                 onClick={() => setAuditFilters((prev) => ({ ...prev, eventType }))}
                 title={eventType}
@@ -183,7 +183,7 @@ export const AdminAuditPanel = ({
               Aplicar filtros
             </button>
             <button
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMuted transition hover:border-slate-500 hover:text-textMain"
+              className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMuted transition hover:text-textMain"
               onClick={onResetFilters}
             >
               Limpar filtros
@@ -192,7 +192,7 @@ export const AdminAuditPanel = ({
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-800/80 bg-panelAlt/20 px-3 py-2">
+      <section className="rounded-xl bg-panelAlt px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-textMuted">
           <span>Ultima atualizacao: {formatDate(lastAuditRefreshAt)}</span>
           <span>
@@ -208,7 +208,7 @@ export const AdminAuditPanel = ({
               className={`rounded-full px-3 py-1.5 text-[11px] transition ${
                 categoryFilter === "all"
                   ? "border border-accent/40 bg-accent/15 text-accent"
-                  : "border border-slate-700/80 text-textMuted hover:border-slate-600 hover:text-textMain"
+                  : "border border-outlineSoft bg-panel text-textMuted hover:text-textMain"
               }`}
               onClick={() => setCategoryFilter("all")}
               type="button"
@@ -221,7 +221,7 @@ export const AdminAuditPanel = ({
                 className={`rounded-full px-3 py-1.5 text-[11px] transition ${
                   categoryFilter === category.label
                     ? "border border-accent/40 bg-accent/15 text-accent"
-                    : "border border-slate-700/80 text-textMuted hover:border-slate-600 hover:text-textMain"
+                    : "border border-outlineSoft bg-panel text-textMuted hover:text-textMain"
                 }`}
                 onClick={() => setCategoryFilter(category.label)}
                 type="button"
@@ -233,14 +233,14 @@ export const AdminAuditPanel = ({
 
           <div className="flex flex-wrap gap-2">
             <button
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
               onClick={() => setAuditPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
               disabled={auditPagination.page <= 1}
             >
               Pagina anterior
             </button>
             <button
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
               onClick={() =>
                 setAuditPagination((prev) => ({
                   ...prev,
@@ -262,12 +262,12 @@ export const AdminAuditPanel = ({
 
       <div className="space-y-3">
         {filteredAuditEvents.map((event) => (
-          <div key={event.id} className="rounded-xl border border-slate-700/80 bg-panelAlt/70 p-3.5">
+          <div key={event.id} className="rounded-xl bg-panelAlt/70 p-3.5 ring-1 ring-outlineSoft/50">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
                 <p className="font-semibold text-textMain">{formatAuditEventType(event.event_type)}</p>
-                <p className="text-[10px] text-slate-500">{event.event_type}</p>
-                <p className="text-[11px] text-slate-500">{formatDate(event.created_at)}</p>
+                <p className="text-[10px] text-textMuted">{event.event_type}</p>
+                <p className="text-[11px] text-textMuted">{formatDate(event.created_at)}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -277,7 +277,7 @@ export const AdminAuditPanel = ({
                 >
                   {getAuditCategory(event.event_type).label}
                 </span>
-                <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-500">
+                <span className="rounded-full border border-outlineSoft bg-panel px-2 py-1 text-[10px] text-textMuted">
                   {formatAuditTargetType(event.target_type)} #{event.target_id ?? "-"}
                 </span>
               </div>
@@ -285,17 +285,17 @@ export const AdminAuditPanel = ({
 
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               <div className="rounded-lg bg-panel/80 p-2.5">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
                   {AUDIT_LABELS.category}
                 </p>
                 <p className="mt-1 text-sm text-textMain">{getAuditCategory(event.event_type).label}</p>
               </div>
               <div className="rounded-lg bg-panel/80 p-2.5">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{AUDIT_LABELS.actor}</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">{AUDIT_LABELS.actor}</p>
                 <p className="mt-1 text-sm text-textMain">{formatAuditActor(event.actor)}</p>
               </div>
               <div className="rounded-lg bg-panel/80 p-2.5">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{AUDIT_LABELS.target}</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">{AUDIT_LABELS.target}</p>
                 <p className="mt-1 text-sm text-textMain">
                   {formatAuditTargetType(event.target_type)} #{event.target_id ?? "-"}
                 </p>
@@ -303,7 +303,7 @@ export const AdminAuditPanel = ({
             </div>
 
             <div className="mt-2 rounded-lg bg-panel/80 p-2.5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{AUDIT_LABELS.details}</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">{AUDIT_LABELS.details}</p>
               <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
             </div>
           </div>

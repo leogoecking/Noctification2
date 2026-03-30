@@ -44,13 +44,15 @@ const loadStoredAdminTaskFilters = (): {
   priorityFilter: AdminTaskFilterPriority;
   assigneeFilter: string;
   queueFilter: TaskQueueFilter;
+  searchFilter: string;
 } => {
   if (typeof window === "undefined") {
     return {
       statusFilter: "",
       priorityFilter: "",
       assigneeFilter: "",
-      queueFilter: "all"
+      queueFilter: "all",
+      searchFilter: ""
     };
   }
 
@@ -60,7 +62,8 @@ const loadStoredAdminTaskFilters = (): {
       statusFilter: "",
       priorityFilter: "",
       assigneeFilter: "",
-      queueFilter: "all"
+      queueFilter: "all",
+      searchFilter: ""
     };
   }
 
@@ -70,20 +73,23 @@ const loadStoredAdminTaskFilters = (): {
       priorityFilter?: AdminTaskFilterPriority;
       assigneeFilter?: string;
       queueFilter?: TaskQueueFilter;
+      searchFilter?: string;
     };
 
     return {
       statusFilter: parsed.statusFilter ?? "",
       priorityFilter: parsed.priorityFilter ?? "",
       assigneeFilter: parsed.assigneeFilter ?? "",
-      queueFilter: parsed.queueFilter ?? "all"
+      queueFilter: parsed.queueFilter ?? "all",
+      searchFilter: parsed.searchFilter ?? ""
     };
   } catch {
     return {
       statusFilter: "",
       priorityFilter: "",
       assigneeFilter: "",
-      queueFilter: "all"
+      queueFilter: "all",
+      searchFilter: ""
     };
   }
 };
@@ -107,6 +113,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   const [priorityFilter, setPriorityFilter] = useState<AdminTaskFilterPriority>(initialFilters.priorityFilter);
   const [assigneeFilter, setAssigneeFilter] = useState(initialFilters.assigneeFilter);
   const [queueFilter, setQueueFilter] = useState<TaskQueueFilter>(initialFilters.queueFilter);
+  const [searchFilter, setSearchFilter] = useState(initialFilters.searchFilter);
 
   const openCreateTask = useCallback(() => {
     setForm(EMPTY_TASK_ADMIN_FORM);
@@ -117,9 +124,10 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
     return buildAdminTaskQuery({
       statusFilter,
       priorityFilter,
-      assigneeFilter
+      assigneeFilter,
+      searchFilter
     });
-  }, [assigneeFilter, priorityFilter, statusFilter]);
+  }, [assigneeFilter, priorityFilter, searchFilter, statusFilter]);
 
   const buildMetricsQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -290,10 +298,11 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
         statusFilter,
         priorityFilter,
         assigneeFilter,
-        queueFilter
+        queueFilter,
+        searchFilter
       })
     );
-  }, [assigneeFilter, priorityFilter, queueFilter, statusFilter]);
+  }, [assigneeFilter, priorityFilter, queueFilter, searchFilter, statusFilter]);
 
   useEffect(() => {
     setSelectedTaskIds((current) => current.filter((taskId) => displayedTasks.some((task) => task.id === taskId)));
@@ -365,24 +374,60 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   }, [bulkAssigneeUserId, runBulkAction]);
 
   return (
-    <section className="space-y-4">
-      <header className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <h3 className="font-display text-lg text-textMain">Tarefas</h3>
-        <p className="text-sm text-textMuted">Operacao, atribuicao e acompanhamento de tarefas</p>
+    <section className="space-y-6">
+      <header className="rounded-[1.5rem] bg-panel p-4 shadow-glow">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="hidden min-w-[18rem] items-center gap-2 rounded-xl bg-panelAlt px-3 py-2 text-sm text-textMuted md:flex">
+              <span className="text-xs uppercase tracking-[0.18em]">Search</span>
+              <span className="truncate">Search operational logs...</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="font-display text-xl font-extrabold tracking-tight text-textMain">Noctification</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-textMuted">Task Admin</p>
+            </div>
+            <span className="rounded-full bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
+              Admin
+            </span>
+            <button className="btn-primary" onClick={openCreateTask} type="button">
+              Nova tarefa
+            </button>
+          </div>
+        </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 px-1 text-xs">
-        <span className="rounded-full bg-panelAlt px-3 py-1.5 text-textMain">{taskStats.total} tarefas</span>
-        <span className="rounded-full bg-accent/10 px-3 py-1.5 text-accent">{taskStats.open} abertas</span>
-        <span className="rounded-full bg-success/20 px-3 py-1.5 text-success">{taskStats.done} concluidas</span>
-        {taskStats.unassigned > 0 && (
-          <span className="rounded-full bg-warning/20 px-3 py-1.5 text-warning">
-            {taskStats.unassigned} sem responsavel
-          </span>
-        )}
+      <header className="rounded-[1.5rem] bg-panelAlt/80 p-6 shadow-glow">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+          Operations board
+        </p>
+        <h3 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-textMain">
+          Tarefas
+        </h3>
+        <p className="mt-2 text-sm text-textMuted">Operacao, atribuicao e acompanhamento de tarefas</p>
+      </header>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Total</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-textMain">{taskStats.total}</p>
+        </article>
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Abertas</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-accent">{taskStats.open}</p>
+        </article>
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Concluidas</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-success">{taskStats.done}</p>
+        </article>
+        <article className="rounded-[1.25rem] bg-panel p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Sem responsavel</p>
+          <p className="mt-3 text-4xl font-black tracking-tight text-warning">{taskStats.unassigned}</p>
+        </article>
       </div>
 
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+      <article className="rounded-[1.25rem] bg-panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Bulk actions</p>
@@ -392,7 +437,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
               onClick={toggleSelectAllDisplayed}
               type="button"
             >
@@ -401,7 +446,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                 : "Selecionar exibidas"}
             </button>
             <button
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
               onClick={clearBulkSelection}
               type="button"
             >
@@ -435,7 +480,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             Bloquear em lote
           </button>
           <button
-            className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+            className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
             disabled={!hasSelectedTasks || bulkSaving}
             onClick={() => void runBulkStatusUpdate("waiting_external")}
             type="button"
@@ -443,7 +488,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             Aguardar externo em lote
           </button>
           <button
-            className="rounded-lg bg-success px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+            className="rounded-lg bg-success px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
             disabled={!hasSelectedTasks || bulkSaving}
             onClick={() => void runBulkAction((taskId) => api.completeAdminTask(taskId), "Tarefas concluidas em lote")}
             type="button"
@@ -473,7 +518,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             ))}
           </select>
           <button
-            className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+            className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
             disabled={!hasSelectedTasks || bulkSaving}
             onClick={() => void runBulkAssigneeUpdate()}
             type="button"
@@ -482,6 +527,44 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           </button>
         </div>
       </article>
+
+      <section className="rounded-[1.25rem] bg-panelAlt/80 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Status:</span>
+            <span className="text-xs font-semibold text-textMain">
+              {statusFilter ? TASK_STATUS_LABELS[statusFilter] : "Todos"}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Busca:</span>
+            <input
+              className="min-w-40 bg-transparent text-xs font-semibold text-textMain outline-none"
+              placeholder="titulo, descricao ou responsavel"
+              value={searchFilter}
+              onChange={(event) => setSearchFilter(event.target.value)}
+            />
+          </div>
+          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Fila:</span>
+            <span className="text-xs font-semibold text-textMain">{TASK_QUEUE_LABELS[queueFilter]}</span>
+          </div>
+          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Responsavel:</span>
+            <span className="text-xs font-semibold text-textMain">
+              {assigneeFilter ? users.find((user) => String(user.id) === assigneeFilter)?.name ?? "Selecionado" : "Todos"}
+            </span>
+          </div>
+          <button
+            className="rounded-lg px-3 py-1.5 text-xs font-bold text-textMain transition hover:bg-panel"
+            onClick={() => setMoreFiltersOpen((current) => !current)}
+            type="button"
+          >
+            Mais filtros
+          </button>
+          <div className="ml-auto text-xs text-textMuted">Kanban administrativo com SLA e bulk actions</div>
+        </div>
+      </section>
 
       <div className="space-y-4">
           <TaskBoard
@@ -517,7 +600,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                     ))}
                   </select>
                   <button
-                    className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                    className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
                     onClick={() => setMoreFiltersOpen((current) => !current)}
                     type="button"
                   >
@@ -538,11 +621,12 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                       <option value="critical">Critica</option>
                     </select>
                     <button
-                      className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                      className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
                       onClick={() => {
                         setStatusFilter("");
                         setPriorityFilter("");
                         setAssigneeFilter("");
+                        setSearchFilter("");
                         setQueueFilter("all");
                       }}
                       type="button"
@@ -559,7 +643,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                       className={`rounded-full px-3 py-1.5 text-xs ${
                         queueFilter === queue.value
                           ? "bg-accent/10 text-accent"
-                          : "border border-slate-600 text-textMain"
+                          : "border border-outlineSoft bg-panel text-textMain"
                       }`}
                       onClick={() => setQueueFilter(queue.value)}
                       type="button"
@@ -601,16 +685,22 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           />
       </div>
 
+      <div className="fixed bottom-8 right-8 z-20 hidden lg:block">
+        <button className="btn-primary shadow-glow" onClick={openCreateTask} type="button">
+          Quick Task
+        </button>
+      </div>
+
       {(composerOpen || form.id > 0) && (
         <div
           aria-label="Overlay do formulario administrativo da tarefa"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-textMain/70 p-3 sm:p-6"
           onClick={resetForm}
         >
           <div
             aria-label="Formulario administrativo da tarefa"
             aria-modal="true"
-            className="w-full max-w-3xl rounded-2xl border border-slate-700 bg-panel p-4 shadow-2xl"
+            className="w-full max-w-3xl rounded-[1.25rem] bg-panel p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
@@ -625,7 +715,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                 </div>
                 <button
                   aria-label="Fechar formulario administrativo da tarefa"
-                  className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain"
+                  className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain"
                   onClick={resetForm}
                   type="button"
                 >
@@ -693,7 +783,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
 
               <div className="flex flex-wrap justify-end gap-2">
                 <button
-                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                  className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
                   onClick={resetForm}
                   type="button"
                 >
@@ -708,7 +798,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
         </div>
       )}
 
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+      <article className="rounded-[1.25rem] bg-panel p-5">
         <button
           aria-expanded={analyticsOpen}
           className="flex w-full items-start justify-between gap-3 text-left"
@@ -720,14 +810,14 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             <h4 className="mt-1 font-display text-base text-textMain">Produtividade, capacidade e automacao</h4>
             <p className="text-sm text-textMuted">Secao secundaria para analise da equipe e da fila.</p>
           </div>
-          <span className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain">
-            {analyticsOpen ? "Ocultar indicadores" : "Abrir indicadores"}
-          </span>
+              <span className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain">
+                {analyticsOpen ? "Ocultar indicadores" : "Abrir indicadores"}
+              </span>
         </button>
 
         {analyticsOpen && (
           <div className="mt-4 space-y-4">
-            <article className="rounded-2xl border border-slate-700 bg-panelAlt/40 p-4">
+            <article className="rounded-[1.25rem] bg-panelAlt/80 p-4">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Produtividade</p>
@@ -738,7 +828,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                   <button
                     aria-pressed={metricsWindow === "7d"}
                     className={`rounded-full px-3 py-1.5 text-xs ${
-                      metricsWindow === "7d" ? "bg-accent text-slate-950" : "bg-panel text-textMain"
+                      metricsWindow === "7d" ? "bg-accent text-white" : "bg-panelAlt text-textMain"
                     }`}
                     onClick={() => setMetricsWindow("7d")}
                     type="button"
@@ -748,7 +838,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                   <button
                     aria-pressed={metricsWindow === "30d"}
                     className={`rounded-full px-3 py-1.5 text-xs ${
-                      metricsWindow === "30d" ? "bg-accent text-slate-950" : "bg-panel text-textMain"
+                      metricsWindow === "30d" ? "bg-accent text-white" : "bg-panelAlt text-textMain"
                     }`}
                     onClick={() => setMetricsWindow("30d")}
                     type="button"
@@ -763,7 +853,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                 </p>
               ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <div className="rounded-2xl border border-slate-700 bg-panel p-4">
+                <div className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
                   <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Entrega</p>
                   <p className="mt-2 text-2xl font-semibold text-textMain">{productivityMetrics.completedInWindow}</p>
                   <p className="mt-1 text-sm text-textMuted">
@@ -784,7 +874,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                     </span>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-700 bg-panel p-4">
+                <div className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
                   <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Fluxo</p>
                   <p className="mt-2 text-2xl font-semibold text-textMain">{productivityMetrics.createdInWindow}</p>
                   <p className="mt-1 text-sm text-textMuted">
@@ -811,7 +901,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                     </span>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-700 bg-panel p-4">
+                <div className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
                   <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Risco atual</p>
                   <p className="mt-2 text-2xl font-semibold text-textMain">{productivityMetrics.overdueOpen}</p>
                   <p className="mt-1 text-sm text-textMuted">tarefas abertas atrasadas no filtro atual</p>
@@ -828,7 +918,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
               )}
             </article>
 
-            <article className="rounded-2xl border border-slate-700 bg-panelAlt/40 p-4">
+            <article className="rounded-[1.5rem] bg-panelAlt/80 p-4 ring-1 ring-outlineSoft/50">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Capacidade</p>
@@ -839,7 +929,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                   <button
                     aria-pressed={capacityView === "assignee"}
                     className={`rounded-full px-3 py-1.5 text-xs ${
-                      capacityView === "assignee" ? "bg-accent text-slate-950" : "bg-panel text-textMain"
+                      capacityView === "assignee" ? "bg-accent text-white" : "bg-panel text-textMain"
                     }`}
                     onClick={() => setCapacityView("assignee")}
                     type="button"
@@ -849,7 +939,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                   <button
                     aria-pressed={capacityView === "department"}
                     className={`rounded-full px-3 py-1.5 text-xs ${
-                      capacityView === "department" ? "bg-accent text-slate-950" : "bg-panel text-textMain"
+                      capacityView === "department" ? "bg-accent text-white" : "bg-panel text-textMain"
                     }`}
                     onClick={() => setCapacityView("department")}
                     type="button"
@@ -866,7 +956,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                 <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
                   {capacityView === "assignee" &&
                     capacityItems.map((item) => (
-                    <div key={item.assigneeKey} className="rounded-2xl border border-slate-700 bg-panel p-4">
+                    <div key={item.assigneeKey} className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-medium text-textMain">{item.assigneeLabel}</p>
@@ -900,7 +990,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                   ))}
                   {capacityView === "department" &&
                     departmentCapacityItems.map((item) => (
-                      <div key={item.departmentKey} className="rounded-2xl border border-slate-700 bg-panel p-4">
+                      <div key={item.departmentKey} className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-sm font-medium text-textMain">{item.departmentLabel}</p>
@@ -928,7 +1018,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             </article>
 
             {automationHealth && (
-              <article className="rounded-2xl border border-slate-700 bg-panelAlt/40 p-4">
+              <article className="rounded-[1.5rem] bg-panelAlt/80 p-4 ring-1 ring-outlineSoft/50">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Automacao</p>

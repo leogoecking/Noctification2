@@ -1,4 +1,10 @@
-import type { AuditEventItem, NotificationHistoryItem, OnlineUserItem } from "../../types";
+import type {
+  AuditEventItem,
+  NotificationHistoryItem,
+  OnlineUserItem,
+  ReminderHealthItem,
+  TaskAutomationHealthItem
+} from "../../types";
 import type { AdminMetrics, OnlineSummary, QueueFilters, StateSetter } from "./types";
 import {
   AUDIT_LABELS,
@@ -12,32 +18,123 @@ import {
 } from "./utils";
 
 export const AdminOverviewMetrics = ({ metrics }: { metrics: AdminMetrics }) => (
-  <div className="grid gap-3 md:grid-cols-5">
-    <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-      <p className="text-xs uppercase tracking-wide text-textMuted">Nao visualizadas</p>
-      <p className="mt-1 font-display text-2xl text-textMain">{metrics.pendingNotifications}</p>
+  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <article className="rounded-[1.25rem] bg-panel p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+        Nao visualizadas
+      </p>
+      <p className="mt-3 font-display text-3xl font-black tracking-tight text-textMain">
+        {metrics.pendingNotifications}
+      </p>
+      <p className="mt-1 text-xs text-textMuted">Pendencias novas aguardando leitura</p>
     </article>
 
-    <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-      <p className="text-xs uppercase tracking-wide text-textMuted">Pendencias operacionais</p>
-      <p className="mt-1 font-display text-2xl text-warning">{metrics.pendingRecipients}</p>
+    <article className="rounded-[1.25rem] bg-panel p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+        Pendencias operacionais
+      </p>
+      <p className="mt-3 font-display text-3xl font-black tracking-tight text-warning">
+        {metrics.pendingRecipients}
+      </p>
+      <p className="mt-1 text-xs text-textMuted">Itens ainda em fluxo operacional</p>
     </article>
 
-    <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-      <p className="text-xs uppercase tracking-wide text-textMuted">Criticas abertas</p>
-      <p className="mt-1 font-display text-2xl text-danger">{metrics.criticalOpen}</p>
+    <article className="rounded-[1.25rem] bg-panel p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+        Criticas abertas
+      </p>
+      <p className="mt-3 font-display text-3xl font-black tracking-tight text-danger">
+        {metrics.criticalOpen}
+      </p>
+      <p className="mt-1 text-xs text-textMuted">Prioridade maxima na fila atual</p>
     </article>
 
-    <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-      <p className="text-xs uppercase tracking-wide text-textMuted">Em andamento</p>
-      <p className="mt-1 font-display text-2xl text-accent">{metrics.inProgressNotifications}</p>
-    </article>
-
-    <article className="rounded-2xl border border-slate-700 bg-panel p-4">
-      <p className="text-xs uppercase tracking-wide text-textMuted">Online agora</p>
-      <p className="mt-1 font-display text-2xl text-accent">{metrics.onlineUsers}</p>
+    <article className="rounded-[1.25rem] border-l-4 border-accent bg-panelAlt p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+        System health
+      </p>
+      <div className="mt-4 space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Online agora</span>
+          <span className="font-semibold text-accent">{metrics.onlineUsers}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Em andamento</span>
+          <span className="font-semibold text-textMain">{metrics.inProgressNotifications}</span>
+        </div>
+      </div>
     </article>
   </div>
+);
+
+interface AdminOverviewSystemHealthProps {
+  reminderHealth: ReminderHealthItem | null;
+  taskHealth: TaskAutomationHealthItem | null;
+  loading: boolean;
+  onRefresh: () => void;
+}
+
+export const AdminOverviewSystemHealth = ({
+  reminderHealth,
+  taskHealth,
+  loading,
+  onRefresh
+}: AdminOverviewSystemHealthProps) => (
+  <article className="rounded-[1.25rem] border-l-4 border-accent bg-panelAlt p-5">
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <h4 className="font-display text-lg text-textMain">System health</h4>
+        <p className="text-sm text-textMuted">Saude real dos schedulers e da fila automatizada</p>
+      </div>
+      <button
+        className="rounded-lg border border-outlineSoft bg-panel px-3 py-1.5 text-xs text-textMuted"
+        onClick={onRefresh}
+        type="button"
+      >
+        Atualizar
+      </button>
+    </div>
+
+    {loading ? (
+      <p className="text-sm text-textMuted">Carregando saude operacional...</p>
+    ) : (
+      <div className="space-y-3 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Scheduler lembretes</span>
+          <span className={reminderHealth?.schedulerEnabled ? "text-success" : "text-warning"}>
+            {reminderHealth?.schedulerEnabled ? "Ativo" : "Inativo"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Scheduler tarefas</span>
+          <span className={taskHealth?.schedulerEnabled ? "text-success" : "text-warning"}>
+            {taskHealth?.schedulerEnabled ? "Ativo" : "Inativo"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Ocorrencias pendentes</span>
+          <span className="font-semibold text-textMain">{reminderHealth?.pendingOccurrences ?? 0}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Tasks vencidas elegiveis</span>
+          <span className="font-semibold text-danger">{taskHealth?.overdueEligible ?? 0}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Tasks bloqueadas elegiveis</span>
+          <span className="font-semibold text-warning">{taskHealth?.blockedEligible ?? 0}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-textMuted">Alertas hoje</span>
+          <span className="font-semibold text-textMain">
+            {(taskHealth?.dueSoonSentToday ?? 0) +
+              (taskHealth?.overdueSentToday ?? 0) +
+              (taskHealth?.staleSentToday ?? 0) +
+              (taskHealth?.blockedSentToday ?? 0)}
+          </span>
+        </div>
+      </div>
+    )}
+  </article>
 );
 
 interface AdminOverviewOnlineUsersProps {
@@ -55,14 +152,14 @@ export const AdminOverviewOnlineUsers = ({
   loadingOnlineUsers,
   onRefreshOnlineUsers
 }: AdminOverviewOnlineUsersProps) => (
-  <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+  <article className="rounded-[1.25rem] bg-panel p-5">
     <div className="mb-3 flex items-center justify-between">
       <div>
         <h4 className="font-display text-lg text-textMain">Usuarios online agora</h4>
         <p className="text-sm text-textMuted">Presenca em tempo real da operacao</p>
       </div>
       <button
-        className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+        className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-1.5 text-xs text-textMuted"
         onClick={onRefreshOnlineUsers}
       >
         Atualizar
@@ -93,7 +190,7 @@ export const AdminOverviewOnlineUsers = ({
       {onlineUsers.map((item) => (
         <div
           key={item.id}
-          className="flex items-center justify-between rounded-xl border border-slate-700 bg-panelAlt p-3"
+          className="flex items-center justify-between rounded-xl bg-panelAlt p-3"
         >
           <div>
             <p className="text-sm font-semibold text-textMain">{item.name}</p>
@@ -127,21 +224,21 @@ export const AdminOverviewAudit = ({
   loadingAudit,
   onRefreshAudit
 }: AdminOverviewAuditProps) => (
-  <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+  <article className="rounded-[1.25rem] bg-panel p-5">
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h4 className="font-display text-lg text-textMain">Auditoria recente</h4>
         <p className="text-sm text-textMuted">Eventos mais novos do sistema</p>
       </div>
       <button
-        className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMuted transition hover:border-slate-500 hover:text-textMain"
+        className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMuted transition hover:text-textMain"
         onClick={onRefreshAudit}
       >
         Atualizar
       </button>
     </div>
 
-    <div className="mb-4 rounded-xl border border-slate-800/80 bg-panelAlt/20 px-3 py-2">
+    <div className="mb-4 rounded-xl bg-panelAlt px-3 py-2">
       <p className="text-[11px] text-textMuted">
         Filtro atual: {auditEventType || "todos"} | limite {auditLimit} | atualizado{" "}
         {formatDate(lastAuditRefreshAt)}
@@ -155,13 +252,13 @@ export const AdminOverviewAudit = ({
 
     <div className="space-y-3">
       {recentAuditEvents.map((event) => (
-        <div key={event.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+        <div key={event.id} className="rounded-xl bg-panelAlt p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold text-textMain">
                 {formatAuditEventType(event.event_type)}
               </p>
-              <p className="text-[10px] text-slate-500">{event.event_type}</p>
+              <p className="text-[10px] text-textMuted">{event.event_type}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span
@@ -171,19 +268,19 @@ export const AdminOverviewAudit = ({
               >
                 {getAuditCategory(event.event_type).label}
               </span>
-              <span className="text-[11px] text-slate-500">{formatDate(event.created_at)}</span>
+              <span className="text-[11px] text-textMuted">{formatDate(event.created_at)}</span>
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             <div className="rounded-lg bg-panel p-2">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
                 {AUDIT_LABELS.actor}
               </p>
               <p className="mt-1 text-sm text-textMain">{formatAuditActor(event.actor)}</p>
             </div>
             <div className="rounded-lg bg-panel p-2">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
                 {AUDIT_LABELS.target}
               </p>
               <p className="mt-1 text-sm text-textMain">
@@ -193,7 +290,7 @@ export const AdminOverviewAudit = ({
           </div>
 
           <div className="mt-2 rounded-lg bg-panel p-2">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
               {AUDIT_LABELS.details}
             </p>
             <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
@@ -245,14 +342,14 @@ export const AdminOverviewQueue = ({
   onApplyQueueFilters,
   onResetQueueFilters
 }: AdminOverviewQueueProps) => (
-  <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+  <article className="rounded-[1.25rem] bg-panel p-5">
     <div className="mb-3 flex items-center justify-between">
       <div>
         <h4 className="font-display text-lg text-textMain">Fila operacional</h4>
         <p className="text-xs text-textMuted">Inclui nao visualizadas e itens em andamento</p>
       </div>
       <button
-        className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+        className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-1.5 text-xs text-textMuted"
         onClick={onRefreshQueue}
       >
         Atualizar
@@ -263,7 +360,7 @@ export const AdminOverviewQueue = ({
       <label className="text-sm text-textMuted">
         Usuario
         <select
-          className="mt-1 w-full rounded-xl border border-slate-700 bg-panelAlt px-3 py-2 text-sm text-textMain"
+          className="mt-1 w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
           value={queueFilters.userId}
           onChange={(event) =>
             setQueueFilters((prev) => ({ ...prev, userId: event.target.value }))
@@ -281,7 +378,7 @@ export const AdminOverviewQueue = ({
       <label className="text-sm text-textMuted">
         Prioridade
         <select
-          className="mt-1 w-full rounded-xl border border-slate-700 bg-panelAlt px-3 py-2 text-sm text-textMain"
+          className="mt-1 w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
           value={queueFilters.priority}
           onChange={(event) =>
             setQueueFilters((prev) => ({
@@ -301,7 +398,7 @@ export const AdminOverviewQueue = ({
       <label className="text-sm text-textMuted">
         Limite
         <select
-          className="mt-1 w-full rounded-xl border border-slate-700 bg-panelAlt px-3 py-2 text-sm text-textMain"
+          className="mt-1 w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
           value={queueFilters.limit}
           onChange={(event) =>
             setQueueFilters((prev) => ({ ...prev, limit: Number(event.target.value) }))
@@ -316,14 +413,14 @@ export const AdminOverviewQueue = ({
 
       <div className="flex items-end gap-2">
         <button
-          className="rounded-xl border border-accent px-4 py-2 text-sm text-accent"
+          className="rounded-xl border border-accent bg-accent/10 px-4 py-2 text-sm text-accent"
           onClick={onApplyQueueFilters}
           type="button"
         >
           Aplicar filtros
         </button>
         <button
-          className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-textMuted"
+          className="rounded-xl border border-outlineSoft bg-panelAlt px-4 py-2 text-sm text-textMuted"
           onClick={onResetQueueFilters}
           type="button"
         >
@@ -354,7 +451,7 @@ export const AdminOverviewQueue = ({
         const assumedCount = item.stats.assumed ?? 0;
 
         return (
-          <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+          <div key={item.id} className="rounded-[1.25rem] bg-panelAlt p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-semibold text-textMain">{item.title}</p>
@@ -389,13 +486,13 @@ export const AdminOverviewQueue = ({
               </span>
             </div>
 
-            <div className="mt-2 space-y-2">
+            <div className="mt-3 space-y-2">
               {activeRecipients.length === 0 && (
                 <p className="text-xs text-textMuted">Sem usuarios pendentes ou em andamento.</p>
               )}
 
               {activeRecipients.map((recipient) => (
-                <div key={recipient.userId} className="rounded-lg border border-slate-700 px-2 py-2">
+                <div key={recipient.userId} className="rounded-xl border border-outlineSoft bg-panel px-3 py-3">
                   <p className="text-xs text-textMain">
                     <span className="font-semibold">{recipient.name}</span> ({recipient.login}) -{" "}
                     {operationalStatusLabel(recipient.operationalStatus)}
@@ -429,7 +526,7 @@ export const AdminOverviewQueue = ({
       </span>
       <div className="flex gap-2">
         <button
-          className="rounded-md border border-slate-600 px-3 py-1 disabled:opacity-50"
+          className="rounded-md border border-outlineSoft bg-panelAlt px-3 py-1 disabled:opacity-50"
           disabled={queuePagination.page <= 1}
           onClick={() => setQueuePagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
           type="button"
@@ -437,7 +534,7 @@ export const AdminOverviewQueue = ({
           Pagina anterior
         </button>
         <button
-          className="rounded-md border border-slate-600 px-3 py-1 disabled:opacity-50"
+          className="rounded-md border border-outlineSoft bg-panelAlt px-3 py-1 disabled:opacity-50"
           disabled={queuePagination.page >= queuePagination.totalPages}
           onClick={() =>
             setQueuePagination((prev) => ({
@@ -465,11 +562,11 @@ export const AdminOverviewCompleted = ({
   loadingHistoryAll,
   onRefreshCompleted
 }: AdminOverviewCompletedProps) => (
-  <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+  <article className="rounded-[1.25rem] bg-panel p-5">
     <div className="mb-3 flex items-center justify-between">
       <h4 className="font-display text-lg text-textMain">Concluidas recentes</h4>
       <button
-        className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+        className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-1.5 text-xs text-textMuted"
         onClick={onRefreshCompleted}
       >
         Atualizar
@@ -483,7 +580,7 @@ export const AdminOverviewCompleted = ({
 
     <div className="space-y-3">
       {completedNotifications.slice(0, 5).map((item) => (
-        <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+        <div key={item.id} className="rounded-[1.25rem] bg-panelAlt p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="font-semibold text-textMain">{item.title}</p>

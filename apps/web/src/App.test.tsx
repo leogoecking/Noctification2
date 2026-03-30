@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { api, ApiError } from "./lib/api";
+import { getPageTitle } from "./components/app/appShell";
 
 vi.mock("./lib/api", () => ({
   api: {
@@ -187,5 +188,16 @@ describe("App routing", () => {
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
     expect(screen.getByText("Dashboard operacional")).toBeInTheDocument();
+  });
+
+  it("retorna titulo APR para admin quando a rota atual e /apr", () => {
+    expect(
+      getPageTitle("/apr", {
+        id: 1,
+        login: "admin",
+        name: "Administrador",
+        role: "admin"
+      })
+    ).toBe("APR");
   });
 });

@@ -1,14 +1,28 @@
-import type { AuditEventItem, NotificationHistoryItem, OnlineUserItem } from "../../types";
+import type {
+  AuditEventItem,
+  NotificationHistoryItem,
+  OnlineUserItem,
+  ReminderHealthItem,
+  TaskAutomationHealthItem
+} from "../../types";
+import { OperationsBoardRail } from "../OperationsBoardRail";
 import type { AdminMetrics, OnlineSummary, QueueFilters, StateSetter } from "./types";
 import {
   AdminOverviewAudit,
   AdminOverviewCompleted,
   AdminOverviewMetrics,
   AdminOverviewOnlineUsers,
-  AdminOverviewQueue
+  AdminOverviewQueue,
+  AdminOverviewSystemHealth
 } from "./adminOverviewSections";
 
 interface AdminOverviewPanelProps {
+  onError: (message: string) => void;
+  onToast: (message: string) => void;
+  reminderHealth: ReminderHealthItem | null;
+  taskHealth: TaskAutomationHealthItem | null;
+  loadingHealth: boolean;
+  onRefreshHealth: () => void;
   metrics: AdminMetrics;
   onlineUsers: OnlineUserItem[];
   onlineSummary: OnlineSummary;
@@ -52,6 +66,12 @@ interface AdminOverviewPanelProps {
 }
 
 export const AdminOverviewPanel = ({
+  onError,
+  onToast,
+  reminderHealth,
+  taskHealth,
+  loadingHealth,
+  onRefreshHealth,
   metrics,
   onlineUsers,
   onlineSummary,
@@ -81,50 +101,79 @@ export const AdminOverviewPanel = ({
 }: AdminOverviewPanelProps) => {
   return (
     <>
-      <header className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <h3 className="font-display text-xl text-textMain">Dashboard operacional</h3>
-        <p className="text-sm text-textMuted">Visao rapida das pendencias de leitura e atendimento</p>
+      <header className="rounded-[1.5rem] bg-panelAlt/80 p-6 shadow-glow">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+              Operations admin
+            </p>
+            <h3 className="font-display text-3xl font-extrabold tracking-tight text-textMain">
+              Dashboard operacional
+            </h3>
+            <p className="max-w-3xl text-sm text-textMuted">
+              Visao rapida das pendencias de leitura, acompanhamento operacional e atividade
+              administrativa recente.
+            </p>
+          </div>
+        </div>
       </header>
 
       <AdminOverviewMetrics metrics={metrics} />
 
-      <div className="grid gap-4 xl:grid-cols-[1.1fr,0.9fr]">
-        <AdminOverviewOnlineUsers
-          onlineUsers={onlineUsers}
-          onlineSummary={onlineSummary}
-          lastOnlineRefreshAt={lastOnlineRefreshAt}
-          loadingOnlineUsers={loadingOnlineUsers}
-          onRefreshOnlineUsers={onRefreshOnlineUsers}
-        />
-        <AdminOverviewAudit
-          recentAuditEvents={recentAuditEvents}
-          auditEventType={auditEventType}
-          auditLimit={auditLimit}
-          lastAuditRefreshAt={lastAuditRefreshAt}
-          loadingAudit={loadingAudit}
-          onRefreshAudit={onRefreshAudit}
-        />
+      <div className="grid gap-6 xl:grid-cols-12">
+        <div className="space-y-6 xl:col-span-8">
+          <AdminOverviewQueue
+            selectableUserTargets={selectableUserTargets}
+            queueFilters={queueFilters}
+            setQueueFilters={setQueueFilters}
+            queuePagination={queuePagination}
+            setQueuePagination={setQueuePagination}
+            lastQueueRefreshAt={lastQueueRefreshAt}
+            unreadNotifications={unreadNotifications}
+            loadingHistory={loadingHistory}
+            onRefreshQueue={onRefreshQueue}
+            onApplyQueueFilters={onApplyQueueFilters}
+            onResetQueueFilters={onResetQueueFilters}
+          />
+
+          <AdminOverviewCompleted
+            completedNotifications={completedNotifications}
+            loadingHistoryAll={loadingHistoryAll}
+            onRefreshCompleted={onRefreshCompleted}
+          />
+        </div>
+
+        <div className="space-y-6 xl:col-span-4">
+          <OperationsBoardRail
+            currentUserName="admin"
+            onError={onError}
+            onToast={onToast}
+            title="Mural da operacao"
+            subtitle="Canal principal de contexto compartilhado entre administracao e usuarios"
+          />
+          <AdminOverviewSystemHealth
+            reminderHealth={reminderHealth}
+            taskHealth={taskHealth}
+            loading={loadingHealth}
+            onRefresh={onRefreshHealth}
+          />
+          <AdminOverviewOnlineUsers
+            onlineUsers={onlineUsers}
+            onlineSummary={onlineSummary}
+            lastOnlineRefreshAt={lastOnlineRefreshAt}
+            loadingOnlineUsers={loadingOnlineUsers}
+            onRefreshOnlineUsers={onRefreshOnlineUsers}
+          />
+          <AdminOverviewAudit
+            recentAuditEvents={recentAuditEvents}
+            auditEventType={auditEventType}
+            auditLimit={auditLimit}
+            lastAuditRefreshAt={lastAuditRefreshAt}
+            loadingAudit={loadingAudit}
+            onRefreshAudit={onRefreshAudit}
+          />
+        </div>
       </div>
-
-      <AdminOverviewQueue
-        selectableUserTargets={selectableUserTargets}
-        queueFilters={queueFilters}
-        setQueueFilters={setQueueFilters}
-        queuePagination={queuePagination}
-        setQueuePagination={setQueuePagination}
-        lastQueueRefreshAt={lastQueueRefreshAt}
-        unreadNotifications={unreadNotifications}
-        loadingHistory={loadingHistory}
-        onRefreshQueue={onRefreshQueue}
-        onApplyQueueFilters={onApplyQueueFilters}
-        onResetQueueFilters={onResetQueueFilters}
-      />
-
-      <AdminOverviewCompleted
-        completedNotifications={completedNotifications}
-        loadingHistoryAll={loadingHistoryAll}
-        onRefreshCompleted={onRefreshCompleted}
-      />
     </>
   );
 };
