@@ -251,12 +251,11 @@ describe("AdminDashboard", () => {
     await waitFor(() => expect(mockedApi.adminOnlineUsers).toHaveBeenCalled());
     await waitFor(() => expect(mockedApi.adminAudit).toHaveBeenCalled());
 
-    expect(screen.getByText("Usuarios online agora")).toBeInTheDocument();
-    expect(screen.getByText("Operador")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usuarios online" })).toBeInTheDocument();
     expect(screen.getByText("Auditoria recente")).toBeInTheDocument();
     expect(screen.getByText("Notificacao enviada")).toBeInTheDocument();
     expect(screen.getByText("Mural da operacao")).toBeInTheDocument();
-    expect(screen.getAllByText("System health").length).toBeGreaterThan(0);
+    expect(screen.getByText("System health")).toBeInTheDocument();
     expect(screen.getByText("Troca de turno")).toBeInTheDocument();
   });
 
@@ -330,6 +329,7 @@ describe("AdminDashboard", () => {
       });
     });
 
+    fireEvent.click(screen.getByRole("button", { name: "Usuarios online" }));
     await waitFor(() => expect(screen.getByText("Plantonista")).toBeInTheDocument());
     expect(mockedApi.adminAudit).toHaveBeenCalledTimes(auditCalls);
     expect(mockedApi.adminNotifications).toHaveBeenCalledTimes(historyCalls);
@@ -526,6 +526,10 @@ describe("AdminDashboard", () => {
       });
     });
 
+    fireEvent.change(screen.getByLabelText("Busca global do admin"), {
+      target: { value: "nova critica" }
+    });
+
     await waitFor(() => expect(screen.getByText("Nova critica")).toBeInTheDocument());
     expect(mockedApi.adminNotifications).toHaveBeenCalledTimes(historyCalls);
   });
@@ -558,8 +562,8 @@ describe("AdminDashboard", () => {
     );
 
     await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalled());
-    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=6"));
-    expect(screen.getByText("Usuarios online agora")).toBeInTheDocument();
+    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=8"));
+    expect(screen.getByRole("button", { name: "Usuarios online" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Usuarios" }));
     expect(screen.getByText("Cadastrar usuario")).toBeInTheDocument();
@@ -568,7 +572,7 @@ describe("AdminDashboard", () => {
 
     expect(handleNavigate).toHaveBeenCalledWith("/");
     await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledTimes(2));
-    expect(screen.getByText("Usuarios online agora")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usuarios online" })).toBeInTheDocument();
   });
 
   it("aplica filtros de auditoria ao consultar a API", async () => {
@@ -648,7 +652,7 @@ describe("AdminDashboard", () => {
     });
   });
 
-  it("mantem notificacao em andamento fora da lista de concluidas", async () => {
+  it("mantem notificacao em andamento fora da lista de concluidas no overview", async () => {
     mockedApi.adminNotifications
       .mockResolvedValueOnce({
         notifications: [
@@ -745,39 +749,18 @@ describe("AdminDashboard", () => {
 
     await waitFor(() => expect(mockedApi.adminNotifications).toHaveBeenCalled());
 
-    expect(screen.getAllByText("Em andamento: 1").length).toBeGreaterThan(0);
-    expect(screen.getByText("Falha no enlace")).toBeInTheDocument();
     expect(screen.queryByText("Nenhuma notificacao operacionalmente concluida.")).toBeInTheDocument();
+    expect(screen.queryByText("Falha no enlace")).not.toBeInTheDocument();
   });
 
-  it("aplica filtros na fila operacional ao consultar a API", async () => {
+  it("nao renderiza a antiga fila operacional no overview", async () => {
     render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
 
     await waitFor(() => expect(mockedApi.adminNotifications).toHaveBeenCalled());
-    const initialCalls = mockedApi.adminNotifications.mock.calls.length;
 
-    fireEvent.change(screen.getByLabelText("Usuario"), {
-      target: { value: "2" }
-    });
-    fireEvent.change(screen.getByLabelText("Prioridade"), {
-      target: { value: "critical" }
-    });
-    fireEvent.change(screen.getByLabelText("Limite"), {
-      target: { value: "10" }
-    });
-
-    expect(mockedApi.adminNotifications).toHaveBeenCalledTimes(initialCalls);
-
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
-
-    await waitFor(() => {
-      const lastCall = mockedApi.adminNotifications.mock.calls.at(-1)?.[0];
-      expect(lastCall).toContain("scope=operational_active");
-      expect(lastCall).toContain("user_id=2");
-      expect(lastCall).toContain("priority=critical");
-      expect(lastCall).toContain("limit=10");
-      expect(lastCall).toContain("page=1");
-    });
+    expect(screen.queryByText("Fila operacional")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Usuario")).not.toBeInTheDocument();
+    expect(screen.getByTestId("operations-board-rail")).toBeInTheDocument();
   });
 
   it("envia notificacao sem recarregar fila e historico por completo", async () => {
@@ -843,6 +826,10 @@ describe("AdminDashboard", () => {
     fireEvent.click(within(sendPanel!).getByRole("button", { name: "Enviar notificacao" }));
 
     await waitFor(() => expect(mockedApi.sendNotification).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Usuarios online" })).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Busca global do admin"), {
+      target: { value: "teste local" }
+    });
     await waitFor(() => expect(screen.getByText("Teste local")).toBeInTheDocument());
     expect(mockedApi.adminNotifications).toHaveBeenCalledTimes(historyCalls);
   });

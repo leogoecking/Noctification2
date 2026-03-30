@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type {
   AuditEventItem,
   NotificationHistoryItem,
@@ -7,7 +8,6 @@ import type {
 } from "../../types";
 import type { AdminMetrics, OnlineSummary, QueueFilters, StateSetter } from "./types";
 import {
-  AUDIT_LABELS,
   formatAuditActor,
   formatAuditEventType,
   formatAuditTargetType,
@@ -49,20 +49,14 @@ export const AdminOverviewMetrics = ({ metrics }: { metrics: AdminMetrics }) => 
       <p className="mt-1 text-xs text-textMuted">Prioridade maxima na fila atual</p>
     </article>
 
-    <article className="rounded-[1.25rem] border-l-4 border-accent bg-panelAlt p-5">
+    <article className="rounded-[1.25rem] bg-panel p-5">
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
-        System health
+        Em andamento
       </p>
-      <div className="mt-4 space-y-2 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Online agora</span>
-          <span className="font-semibold text-accent">{metrics.onlineUsers}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Em andamento</span>
-          <span className="font-semibold text-textMain">{metrics.inProgressNotifications}</span>
-        </div>
-      </div>
+      <p className="mt-3 font-display text-3xl font-black tracking-tight text-accent">
+        {metrics.inProgressNotifications}
+      </p>
+      <p className="mt-1 text-xs text-textMuted">Notificacoes com retorno operacional em andamento</p>
     </article>
   </div>
 );
@@ -84,7 +78,7 @@ export const AdminOverviewSystemHealth = ({
     <div className="mb-4 flex items-start justify-between gap-3">
       <div>
         <h4 className="font-display text-lg text-textMain">System health</h4>
-        <p className="text-sm text-textMuted">Saude real dos schedulers e da fila automatizada</p>
+        <p className="text-sm text-textMuted">Resumo dos automatos com foco no que exige acao</p>
       </div>
       <button
         className="rounded-lg border border-outlineSoft bg-panel px-3 py-1.5 text-xs text-textMuted"
@@ -98,40 +92,76 @@ export const AdminOverviewSystemHealth = ({
     {loading ? (
       <p className="text-sm text-textMuted">Carregando saude operacional...</p>
     ) : (
-      <div className="space-y-3 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Scheduler lembretes</span>
-          <span className={reminderHealth?.schedulerEnabled ? "text-success" : "text-warning"}>
-            {reminderHealth?.schedulerEnabled ? "Ativo" : "Inativo"}
+      <div className="space-y-4 text-sm">
+        <div className="flex flex-wrap gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+              reminderHealth?.schedulerEnabled
+                ? "bg-success/15 text-success"
+                : "bg-warning/15 text-warning"
+            }`}
+          >
+            Lembretes {reminderHealth?.schedulerEnabled ? "ativos" : "inativos"}
+          </span>
+          <span
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+              taskHealth?.schedulerEnabled ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+            }`}
+          >
+            Tarefas {taskHealth?.schedulerEnabled ? "ativas" : "inativas"}
           </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Scheduler tarefas</span>
-          <span className={taskHealth?.schedulerEnabled ? "text-success" : "text-warning"}>
-            {taskHealth?.schedulerEnabled ? "Ativo" : "Inativo"}
-          </span>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl bg-panel px-3 py-3">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Pendentes</p>
+            <p className="mt-2 text-xl font-bold text-textMain">
+              {reminderHealth?.pendingOccurrences ?? 0}
+            </p>
+            <p className="mt-1 text-xs text-textMuted">Ocorrencias aguardando processamento</p>
+          </div>
+
+          <div className="rounded-xl bg-panel px-3 py-3">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Vencidas</p>
+            <p className="mt-2 text-xl font-bold text-danger">{taskHealth?.overdueEligible ?? 0}</p>
+            <p className="mt-1 text-xs text-textMuted">Tasks elegiveis para alerta de atraso</p>
+          </div>
+
+          <div className="rounded-xl bg-panel px-3 py-3">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Alertas hoje</p>
+            <p className="mt-2 text-xl font-bold text-textMain">
+              {(taskHealth?.dueSoonSentToday ?? 0) +
+                (taskHealth?.overdueSentToday ?? 0) +
+                (taskHealth?.staleSentToday ?? 0) +
+                (taskHealth?.blockedSentToday ?? 0)}
+            </p>
+            <p className="mt-1 text-xs text-textMuted">Disparos automaticos realizados hoje</p>
+          </div>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Ocorrencias pendentes</span>
-          <span className="font-semibold text-textMain">{reminderHealth?.pendingOccurrences ?? 0}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Tasks vencidas elegiveis</span>
-          <span className="font-semibold text-danger">{taskHealth?.overdueEligible ?? 0}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Tasks bloqueadas elegiveis</span>
-          <span className="font-semibold text-warning">{taskHealth?.blockedEligible ?? 0}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-textMuted">Alertas hoje</span>
-          <span className="font-semibold text-textMain">
-            {(taskHealth?.dueSoonSentToday ?? 0) +
-              (taskHealth?.overdueSentToday ?? 0) +
-              (taskHealth?.staleSentToday ?? 0) +
-              (taskHealth?.blockedSentToday ?? 0)}
-          </span>
-        </div>
+
+        <details className="rounded-xl bg-panel px-3 py-3">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.18em] text-textMuted">
+            Ver detalhes tecnicos
+          </summary>
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-textMuted">Scheduler lembretes</span>
+              <span className={reminderHealth?.schedulerEnabled ? "text-success" : "text-warning"}>
+                {reminderHealth?.schedulerEnabled ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-textMuted">Scheduler tarefas</span>
+              <span className={taskHealth?.schedulerEnabled ? "text-success" : "text-warning"}>
+                {taskHealth?.schedulerEnabled ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-textMuted">Tasks bloqueadas elegiveis</span>
+              <span className="font-semibold text-warning">{taskHealth?.blockedEligible ?? 0}</span>
+            </div>
+          </div>
+        </details>
       </div>
     )}
   </article>
@@ -145,67 +175,111 @@ interface AdminOverviewOnlineUsersProps {
   onRefreshOnlineUsers: () => void;
 }
 
-export const AdminOverviewOnlineUsers = ({
+export const AdminOnlineUsersTrigger = ({
   onlineUsers,
   onlineSummary,
   lastOnlineRefreshAt,
   loadingOnlineUsers,
   onRefreshOnlineUsers
-}: AdminOverviewOnlineUsersProps) => (
-  <article className="rounded-[1.25rem] bg-panel p-5">
-    <div className="mb-3 flex items-center justify-between">
-      <div>
-        <h4 className="font-display text-lg text-textMain">Usuarios online agora</h4>
-        <p className="text-sm text-textMuted">Presenca em tempo real da operacao</p>
-      </div>
+}: AdminOverviewOnlineUsersProps) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  return (
+    <>
       <button
-        className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-1.5 text-xs text-textMuted"
-        onClick={onRefreshOnlineUsers}
+        aria-label="Usuarios online"
+        className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-outlineSoft bg-panelAlt text-textMain transition hover:border-accent/40"
+        onClick={() => setIsModalOpen(true)}
+        type="button"
       >
-        Atualizar
+        <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+          <path
+            d="M16 11a4 4 0 1 0-3.999-4A4 4 0 0 0 16 11Zm-8 1a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm8 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4ZM8 14c-.29 0-.62.02-.97.05C4.64 14.25 1 15.43 1 18v2h5v-2c0-1.55.8-2.89 2.18-3.93A8.7 8.7 0 0 0 8 14Z"
+            fill="currentColor"
+          />
+        </svg>
+        <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-success px-1.5 text-[10px] font-bold text-black">
+          {loadingOnlineUsers ? "..." : onlineUsers.length}
+        </span>
       </button>
-    </div>
 
-    <div className="mb-3 flex flex-wrap gap-2 text-xs">
-      <span className="rounded-md bg-success/20 px-2 py-1 text-success">
-        Total online: {onlineUsers.length}
-      </span>
-      <span className="rounded-md bg-accent/20 px-2 py-1 text-accent">
-        Usuarios: {onlineSummary.operators}
-      </span>
-      <span className="rounded-md bg-panelAlt px-2 py-1 text-textMuted">
-        Admins: {onlineSummary.admins}
-      </span>
-      <span className="rounded-md bg-panelAlt px-2 py-1 text-textMuted">
-        Atualizado: {formatDate(lastOnlineRefreshAt)}
-      </span>
-    </div>
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-glow">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+                  Presenca online
+                </p>
+                <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
+                  Usuarios conectados agora
+                </h3>
+                <p className="mt-2 text-sm text-textMuted">
+                  {onlineUsers.length} online. Atualizado em {formatDate(lastOnlineRefreshAt)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-xs text-textMain"
+                  onClick={onRefreshOnlineUsers}
+                  type="button"
+                >
+                  Atualizar
+                </button>
+                <button
+                  className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-xs text-textMain"
+                  onClick={() => setIsModalOpen(false)}
+                  type="button"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
 
-    {loadingOnlineUsers && <p className="text-sm text-textMuted">Carregando...</p>}
-    {!loadingOnlineUsers && onlineUsers.length === 0 && (
-      <p className="text-sm text-textMuted">Nenhum usuario online no momento.</p>
-    )}
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl bg-panelAlt px-3 py-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Total online</p>
+                <p className="mt-2 text-xl font-bold text-success">{onlineUsers.length}</p>
+              </div>
+              <div className="rounded-xl bg-panelAlt px-3 py-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Usuarios</p>
+                <p className="mt-2 text-xl font-bold text-accent">{onlineSummary.operators}</p>
+              </div>
+              <div className="rounded-xl bg-panelAlt px-3 py-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Admins</p>
+                <p className="mt-2 text-xl font-bold text-textMain">{onlineSummary.admins}</p>
+              </div>
+            </div>
 
-    <div className="space-y-2">
-      {onlineUsers.map((item) => (
-        <div
-          key={item.id}
-          className="flex items-center justify-between rounded-xl bg-panelAlt p-3"
-        >
-          <div>
-            <p className="text-sm font-semibold text-textMain">{item.name}</p>
-            <p className="text-xs text-textMuted">
-              {item.login} | {item.department || "Sem setor"} | {item.jobTitle || "Sem funcao"}
-            </p>
+            {loadingOnlineUsers ? <p className="mt-4 text-sm text-textMuted">Carregando...</p> : null}
+            {!loadingOnlineUsers && onlineUsers.length === 0 ? (
+              <p className="mt-4 text-sm text-textMuted">Nenhum usuario online no momento.</p>
+            ) : null}
+
+            <div className="mt-5 space-y-3">
+              {onlineUsers.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-xl bg-panelAlt p-4"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-textMain">{item.name}</p>
+                    <p className="text-xs text-textMuted">
+                      {item.login} | {item.department || "Sem setor"} | {item.jobTitle || "Sem funcao"}
+                    </p>
+                  </div>
+                  <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
+                    {item.role}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-          <span className="rounded-md bg-success/20 px-2 py-1 text-xs text-success">
-            {item.role}
-          </span>
         </div>
-      ))}
-    </div>
-  </article>
-);
+      ) : null}
+    </>
+  );
+};
 
 interface AdminOverviewAuditProps {
   recentAuditEvents: AuditEventItem[];
@@ -214,6 +288,7 @@ interface AdminOverviewAuditProps {
   lastAuditRefreshAt: string | null;
   loadingAudit: boolean;
   onRefreshAudit: () => void;
+  onOpenAudit: () => void;
 }
 
 export const AdminOverviewAudit = ({
@@ -222,20 +297,31 @@ export const AdminOverviewAudit = ({
   auditLimit,
   lastAuditRefreshAt,
   loadingAudit,
-  onRefreshAudit
+  onRefreshAudit,
+  onOpenAudit
 }: AdminOverviewAuditProps) => (
   <article className="rounded-[1.25rem] bg-panel p-5">
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h4 className="font-display text-lg text-textMain">Auditoria recente</h4>
-        <p className="text-sm text-textMuted">Eventos mais novos do sistema</p>
+        <p className="text-sm text-textMuted">Linha do tempo curta das ultimas acoes relevantes</p>
       </div>
-      <button
-        className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMuted transition hover:text-textMain"
-        onClick={onRefreshAudit}
-      >
-        Atualizar
-      </button>
+      <div className="flex gap-2">
+        <button
+          className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMuted transition hover:text-textMain"
+          onClick={onRefreshAudit}
+          type="button"
+        >
+          Atualizar
+        </button>
+        <button
+          className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMuted transition hover:text-textMain"
+          onClick={onOpenAudit}
+          type="button"
+        >
+          Abrir auditoria
+        </button>
+      </div>
     </div>
 
     <div className="mb-4 rounded-xl bg-panelAlt px-3 py-2">
@@ -250,16 +336,15 @@ export const AdminOverviewAudit = ({
       <p className="text-sm text-textMuted">Nenhum evento de auditoria.</p>
     )}
 
-    <div className="space-y-3">
-      {recentAuditEvents.map((event) => (
-        <div key={event.id} className="rounded-xl bg-panelAlt p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold text-textMain">
-                {formatAuditEventType(event.event_type)}
-              </p>
-              <p className="text-[10px] text-textMuted">{event.event_type}</p>
-            </div>
+    <div className="space-y-2">
+      {recentAuditEvents.slice(0, 3).map((event) => (
+        <button
+          key={event.id}
+          className="flex w-full items-start justify-between gap-3 rounded-xl bg-panelAlt p-3 text-left transition hover:bg-panel"
+          onClick={onOpenAudit}
+          type="button"
+        >
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={`rounded-full px-2.5 py-1 text-[10px] ${
@@ -270,32 +355,17 @@ export const AdminOverviewAudit = ({
               </span>
               <span className="text-[11px] text-textMuted">{formatDate(event.created_at)}</span>
             </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
-            <div className="rounded-lg bg-panel p-2">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
-                {AUDIT_LABELS.actor}
-              </p>
-              <p className="mt-1 text-sm text-textMain">{formatAuditActor(event.actor)}</p>
-            </div>
-            <div className="rounded-lg bg-panel p-2">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
-                {AUDIT_LABELS.target}
-              </p>
-              <p className="mt-1 text-sm text-textMain">
-                {formatAuditTargetType(event.target_type)} {event.target_id ?? "-"}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-2 rounded-lg bg-panel p-2">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
-              {AUDIT_LABELS.details}
+            <p className="mt-2 text-sm font-semibold text-textMain">
+              {formatAuditEventType(event.event_type)}
             </p>
-            <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
+            <p className="mt-1 text-xs text-textMuted">
+              {formatAuditActor(event.actor)} • {formatAuditTargetType(event.target_type)} {event.target_id ?? "-"}
+            </p>
+            <p className="mt-1 line-clamp-1 text-xs text-textMuted">
+              {summarizeAuditMetadata(event.metadata)}
+            </p>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   </article>

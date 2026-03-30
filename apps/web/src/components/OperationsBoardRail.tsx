@@ -53,7 +53,7 @@ export const OperationsBoardRail = ({
 
     setLoading(true);
     try {
-      const response = await api.myOperationsBoard("?status=active&limit=6");
+      const response = await api.myOperationsBoard("?status=active&limit=8");
       if (mountedRef.current) {
         setMessages(response.messages);
       }
@@ -237,7 +237,7 @@ export const OperationsBoardRail = ({
             </button>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-accent/15 bg-panel/80 p-4">
+          <div className="mt-4 rounded-2xl border border-accent/15 bg-panel/80 p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold text-textMain">Turno atual</p>
@@ -288,7 +288,7 @@ export const OperationsBoardRail = ({
           {messages.map((message) => (
             <button
               key={message.id}
-              className="block w-full rounded-[1.1rem] border border-outlineSoft/70 bg-panelAlt p-4 text-left transition hover:border-accent/35 hover:bg-panelAlt/80"
+              className="block w-full rounded-[1.1rem] border border-outlineSoft/70 bg-panelAlt p-5 text-left transition hover:border-accent/35 hover:bg-panelAlt/80"
               onClick={() => void openMessage(message)}
               type="button"
             >
