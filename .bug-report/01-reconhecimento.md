@@ -1,131 +1,48 @@
-# Fase 1 - Reconhecimento do repositorio
+# 01 - Reconhecimento
 
-## Visao estrutural
+## Visao estrutural do repositorio
 
-- Tipo de repositorio: monorepo Node.js/TypeScript com workspaces npm.
+- Tipo: monorepo npm workspaces.
 - Workspaces detectados:
   - `apps/api`
   - `apps/web`
   - `packages/apr-core`
-- Pastas de apoio relevantes:
-  - `docs/`
-  - `ops/`
-  - `scripts/`
-  - `.github/workflows/`
+  - `packages/poste-kml-core` (novo nesta rodada)
 
-## Stack detectada com evidencia
+## Stack detectada
 
-- Runtime principal: Node.js.
-  Evidencia: scripts com `node`, `tsx` e `vite` em `package.json`.
-- Gerenciador de pacotes: npm workspaces.
-  Evidencia: campo `workspaces` na raiz e `package-lock.json`.
-- Backend: Express + Socket.IO + SQLite (`better-sqlite3`).
-  Evidencia: [`apps/api/package.json`](/home/leo/Noctification2/apps/api/package.json), [`apps/api/src/app.ts`](/home/leo/Noctification2/apps/api/src/app.ts), [`apps/api/src/index.ts`](/home/leo/Noctification2/apps/api/src/index.ts).
-- Frontend: React 18 + Vite + TypeScript.
-  Evidencia: [`apps/web/package.json`](/home/leo/Noctification2/apps/web/package.json), [`apps/web/src/main.tsx`](/home/leo/Noctification2/apps/web/src/main.tsx), [`apps/web/vite.config.ts`](/home/leo/Noctification2/apps/web/vite.config.ts).
-- Pacote compartilhado: biblioteca TypeScript `@noctification/apr-core`.
-  Evidencia: [`packages/apr-core/package.json`](/home/leo/Noctification2/packages/apr-core/package.json).
-- Test runner: Vitest em API, web e pacote compartilhado.
-- Lint: ESLint com `@typescript-eslint` e `react-hooks`.
-- Typecheck: `tsc --noEmit` e build TypeScript por workspace.
-- CI: GitHub Actions com lint, typecheck, testes, auditoria e verificacoes de seguranca.
-  Evidencia: [`.github/workflows/main.yml`](/home/leo/Noctification2/.github/workflows/main.yml).
+- Backend: Node.js + TypeScript + Express + better-sqlite3 + socket.io + Vitest.
+- Frontend: React 18 + Vite + TypeScript + Vitest + Testing Library.
+- Pacotes compartilhados: `apr-core` e novo `poste-kml-core`.
+- Package manager: npm com workspaces.
 
 ## Ferramentas disponiveis e indisponiveis
 
-- Disponiveis: `git`, `node`, `npm`, `sqlite3`, `python3`.
-- Indisponiveis confirmadas: `rg`, `pnpm`, `yarn`, `bun`, `docker`, `docker-compose`, `pytest`, `cargo`, `go`, `javac`, `mvn`, `gradle`.
+- Disponiveis: `node`, `npm`, `git`, `find`, `grep`, `sed`, `eslint`.
+- Indisponivel: `rg`.
 
-## Pontos de entrada
+## Entrypoints relevantes
 
-- API HTTP:
-  - [`apps/api/src/index.ts`](/home/leo/Noctification2/apps/api/src/index.ts)
-  - Healthcheck em `/api/v1/health`
-- Composicao da API:
-  - [`apps/api/src/app.ts`](/home/leo/Noctification2/apps/api/src/app.ts)
-- Frontend:
-  - [`apps/web/src/main.tsx`](/home/leo/Noctification2/apps/web/src/main.tsx)
-  - [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx)
-- Scripts operacionais:
-  - `scripts/setup.cjs`
-  - `scripts/dev.cjs`
-  - `scripts/prepare-deploy.cjs`
-  - `scripts/prepare-local-lan.cjs`
-  - `ops/scripts/*.sh`
+- API: `apps/api/src/index.ts`, `apps/api/src/app.ts`
+- Frontend: `apps/web/src/main.tsx`, `apps/web/src/App.tsx`
+- Shell admin/user: `apps/web/src/components/app/appShell.tsx`
+- Dashboard admin: `apps/web/src/components/AdminDashboard.tsx`
 
-## Estrutura funcional relevante
+## Modulos criticos
 
-- API:
-  - autenticacao e sessao
-  - notificacoes admin/me
-  - reminders
-  - tasks e automacao
-  - APR
-  - web push
-  - testes integrados em `apps/api/src/test`
-- Web:
-  - login
-  - dashboard admin
-  - dashboard do usuario
-  - notificacoes, reminders e tasks
-  - feature APR
-  - hooks de socket e web push
-- Core:
-  - normalizacao/importacao/comparacao APR
+- Autenticacao e middlewares do backend.
+- Shell de navegacao do frontend.
+- Dashboard administrativo e sidebar.
+- Novo fluxo de upload/processamento KML/KMZ.
 
-## Infra e automacao
+## Areas de maior risco
 
-- Workflow CI com:
-  - varredura de arquivos sensiveis
-  - busca de segredos hardcoded
-  - `npm ci`
-  - lint
-  - typecheck
-  - `npm audit`
-  - testes API
-  - testes web
-- Templates e scripts de deploy Debian, nginx, systemd, backup e certificados locais.
+- Regressao na navegacao admin por causa da nova rota `/kml-postes`.
+- Divergencia entre patch fornecido e estrutura atual do repositrio.
+- Dependencias novas (`adm-zip`, `@xmldom/xmldom`) e scripts de workspace.
 
-## Modulos criticos e areas de maior risco
+## Estrategia proposta
 
-- [`apps/api/src/routes/auth.ts`](/home/leo/Noctification2/apps/api/src/routes/auth.ts) e helpers correlatos.
-  Motivo: autenticacao, sessao, controle de acesso.
-- [`apps/api/src/routes/me.ts`](/home/leo/Noctification2/apps/api/src/routes/me.ts) e [`apps/api/src/routes/admin.ts`](/home/leo/Noctification2/apps/api/src/routes/admin.ts).
-  Motivo: superficie principal da API.
-- Modulos `reminders`, `tasks` e `socket*`.
-  Motivo: logica de estado, scheduler e eventos em tempo real.
-- Modulo APR (`apps/api/src/modules/apr`, `apps/web/src/features/apr`, `packages/apr-core/src`).
-  Motivo: integracao multiworkspace e regras de dominio.
-- Hooks e runtime URLs do frontend.
-  Motivo: acoplamento com API/socket e chance de regressao de ambiente.
-
-## Estrategia proposta para analise
-
-1. Validar primeiro o pacote compartilhado `packages/apr-core`, porque ele influencia API e web.
-2. Rodar `typecheck`, `lint` e testes por workspace, registrando falhas com evidencias brutas.
-3. Correlacionar qualquer falha com leitura direcionada do modulo afetado.
-4. Inspecionar manualmente modulos criticos mesmo se a automacao passar, buscando inconsistencias logicas demonstraveis.
-5. Corrigir apenas bugs confirmados com baixo risco de regressao e validacao objetiva.
-
-## Analise incremental 2026-03-28
-
-### Visao estrutural confirmada
-
-- Monorepo `npm workspaces` com tres workspaces principais: raiz, [`apps/api`](/home/leo/Noctification2/apps/api/package.json), [`apps/web`](/home/leo/Noctification2/apps/web/package.json) e [`packages/apr-core`](/home/leo/Noctification2/packages/apr-core/package.json).
-- API em Node + Express + Socket.IO + SQLite, frontend React + Vite, pacote compartilhado TypeScript para dominio APR.
-- Infra local e de deploy concentrada em `scripts/`, `ops/` e `.github/workflows`.
-
-### Entrypoints e automacao relevantes
-
-- Entrypoint API: [`apps/api/src/index.ts`](/home/leo/Noctification2/apps/api/src/index.ts)
-- Entrypoint web: [`apps/web/src/main.tsx`](/home/leo/Noctification2/apps/web/src/main.tsx)
-- Shell principal do frontend: [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx)
-- Pipeline CI: [`.github/workflows/main.yml`](/home/leo/Noctification2/.github/workflows/main.yml)
-- Scripts raiz: [`package.json`](/home/leo/Noctification2/package.json)
-
-### Sinais de risco organizacional observados
-
-- O frontend ainda concentra navegacao, sessao e toasts manualmente em [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx), aumentando acoplamento.
-- Pastas criticas mantem muitos arquivos de mesmo nivel, especialmente `apps/api/src/routes`, `apps/api/src/tasks`, `apps/web/src/components` e `apps/web/src/lib`.
-- Ha arquivos extensos acima de 300 linhas em componentes, helpers e testes; os maiores testes passam de 700 linhas, indicando custo alto de manutencao.
-- `apps/web/tsconfig.tsbuildinfo` aparece modificado no `git status`, sinal de artefato gerado sem protecao adequada de `.gitignore`.
+- Integrar a feature de forma incremental.
+- Manter o layout e contratos existentes do monorepo.
+- Cobrir o algoritmo central no pacote compartilhado e validar a exposicao do modulo no backend/frontend.

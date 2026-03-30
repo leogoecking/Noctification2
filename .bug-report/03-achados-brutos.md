@@ -1,78 +1,38 @@
-# Fase 3 - Achados brutos
+# 03 - Achados Brutos
 
-## Evidencias coletadas
+## ACH-KML-001
 
-### ACH-001
-
-- Tipo preliminar: `bug_reproduzivel`
-- Origem: `npm run test --workspace @noctification/web`
+- Categoria: `melhoria`
 - Evidencia:
-  - Falha em `src/App.test.tsx > App routing > redireciona admin de /apr para dashboard quando o modulo nao esta ativo`
-  - O DOM renderizado permaneceu na tela APR em vez de redirecionar para o dashboard
-  - No ambiente local, `apps/web/.env` define `VITE_ENABLE_APR_MODULE=true`
-- Interpretacao:
-  - O frontend lia a flag APR em escopo de modulo (`import.meta.env`) em [`App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx) e [`appShell.tsx`](/home/leo/Noctification2/apps/web/src/components/app/appShell.tsx)
-  - O teste assumia APR desativado, mas dependia do `.env` local do desenvolvedor
-  - Resultado: suite web nao deterministica e falha reproduzivel neste ambiente
+  - O repositorio nao possuia `packages/poste-kml-core`.
+  - Nao existia rota `POST /api/v1/kml-postes/standardize`.
+  - Nao existia rota/navegacao admin `/kml-postes`.
+- Impacto: impossibilitava a entrega da feature solicitada.
 
-### ACH-002
+## ACH-KML-002
 
-- Tipo preliminar: `problema_de_qualidade`
-- Origem: `npm run lint --workspace @noctification/api`
+- Categoria: `risco_potencial`
 - Evidencia:
-  - ESLint falhou em [`apps/api/src/modules/apr/import.ts`](/home/leo/Noctification2/apps/api/src/modules/apr/import.ts) com `File is defined but never used`
-- Interpretacao:
-  - Nao houve evidencia de bug funcional, mas a quebra bloqueava a validacao de qualidade e a CI local
+  - O patch fornecido substituia `apps/api/src/app.ts` removendo a rota atual `operations-board`.
+- Impacto: regressao potencial fora do escopo da feature.
 
-## Achados nao confirmados como bug de producao
+## ACH-KML-003
 
-- Os avisos `npm warn Unknown builtin config "globalignorefile"` apareceram nas execucoes de `npm`.
-- Nao atribui esse ponto ao repositorio porque nao encontrei configuracao correspondente versionada aqui.
-- Classificacao por enquanto: fora do escopo do codigo versionado, requer inspecao do ambiente do desenvolvedor/runner.
-## Analise incremental 2026-03-28
+- Categoria: `erro_de_configuracao`
+- Evidencia:
+  - Dependencias `adm-zip` e `@xmldom/xmldom` nao estavam instaladas.
+- Impacto: build e execucao do modulo falhariam.
 
-### Evidencias coletadas
+## ACH-KML-004
 
-- `npm run lint`: sucesso.
-- `npm run typecheck`: sucesso.
-- `npm` emitiu aviso recorrente sobre `globalignorefile`, indicando ruido de ambiente ou configuracao local do runner.
-- `git status --short`: `M apps/web/tsconfig.tsbuildinfo`.
-- Scripts raiz executam `build` e `test` em serie via `npm workspaces` sem cache/orquestracao dedicada.
-- CI repete `npm ci` em multiplos jobs independentes.
-- O frontend implementa navegacao com `window.history` e regras de acesso dentro de [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx).
-- `.eslintrc.cjs` contem conjunto minimo de regras, sem guardrails para imports, promessas e limites arquiteturais.
-- `.gitignore` nao contem `*.tsbuildinfo`.
+- Categoria: `problema_de_qualidade`
+- Evidencia:
+  - O novo export `isKmlPosteModuleEnabled` quebrou mocks antigos em `AdminDashboard.test.tsx`.
+- Impacto: falha de suite web apos a integracao inicial.
 
-### Achados classificados
+## ACH-KML-005
 
-1. `QLT-ORG-001` | `problema_de_qualidade`
-   Sintoma: artefato gerado `apps/web/tsconfig.tsbuildinfo` aparece sujando o worktree.
-   Evidencia: `git status --short`.
-
-2. `MEL-PROD-001` | `melhoria`
-   Sintoma: raiz usa scripts seriais em [`package.json`](/home/leo/Noctification2/package.json) para `build` e `test`.
-   Evidencia: linhas 18-23 do manifest raiz.
-
-3. `MEL-CI-001` | `melhoria`
-   Sintoma: o workflow executa `npm ci` novamente em `install-and-quality`, `dependency-audit`, `test-api` e `test-web`.
-   Evidencia: [`.github/workflows/main.yml`](/home/leo/Noctification2/.github/workflows/main.yml) linhas 88-89, 112-113, 133-134, 154-155.
-
-4. `MEL-FE-001` | `melhoria`
-   Sintoma: navegacao, sessao, toasts e gating por papel estao concentrados em um unico shell React.
-   Evidencia: [`apps/web/src/App.tsx`](/home/leo/Noctification2/apps/web/src/App.tsx) linhas 26-247.
-
-5. `MEL-ARC-001` | `melhoria`
-   Sintoma: alta densidade de arquivos em pastas criticas e muitos helpers de mesmo nivel em `routes`, `tasks`, `components` e `lib`.
-   Evidencia: inventario estrutural com 71 arquivos de primeiro nivel nessas pastas.
-
-6. `MEL-QUAL-001` | `melhoria`
-   Sintoma: arquivos de componente/helper/teste longos, varios acima de 300 linhas e testes acima de 700.
-   Evidencia: medicao por `wc -l`, com destaques para `AdminTasksPanel.test.tsx` (839), `AdminDashboard.test.tsx` (831), `TaskUserPanel.test.tsx` (788), `reminder-routes.test.ts` (708).
-
-7. `MEL-QUAL-002` | `melhoria`
-   Sintoma: padrao de lint esta funcional, mas com cobertura arquitetural minima.
-   Evidencia: [`.eslintrc.cjs`](/home/leo/Noctification2/.eslintrc.cjs) linhas 16-31.
-
-8. `RISK-ENV-001` | `risco_potencial`
-   Sintoma: warnings de `npm config globalignorefile` poluem a saida e podem mascarar sinais reais em CI/local.
-   Evidencia: saida de `npm run lint` e `npm run typecheck`.
+- Categoria: `risco_potencial`
+- Evidencia:
+  - Prefixos com hifen final, como `POSTE-TAF-`, gerariam nome com duplo hifen se concatenados de forma literal.
+- Impacto: nomenclatura incorreta nos arquivos gerados.

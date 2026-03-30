@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminDashboard } from "./AdminDashboard";
 import { api } from "../lib/api";
-import { isAprModuleEnabled } from "../lib/featureFlags";
+import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "../lib/featureFlags";
 import {
   buildTaskItem,
   buildNotificationHistoryItem,
@@ -59,11 +59,13 @@ vi.mock("../features/apr/AprPage", () => ({
 }));
 
 vi.mock("../lib/featureFlags", () => ({
-  isAprModuleEnabled: vi.fn(() => true)
+  isAprModuleEnabled: vi.fn(() => true),
+  isKmlPosteModuleEnabled: vi.fn(() => false)
 }));
 
 const mockedApi = vi.mocked(api);
 const mockedIsAprModuleEnabled = vi.mocked(isAprModuleEnabled);
+const mockedIsKmlPosteModuleEnabled = vi.mocked(isKmlPosteModuleEnabled);
 
 const renderAdminDashboard = () => render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
 
@@ -71,6 +73,7 @@ describe("AdminDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedIsAprModuleEnabled.mockReturnValue(true);
+    mockedIsKmlPosteModuleEnabled.mockReturnValue(false);
     socketHandlers.clear();
     mockedApi.sendNotification.mockResolvedValue({ notification: buildNotificationHistoryItem() });
     mockedApi.createUser.mockResolvedValue({

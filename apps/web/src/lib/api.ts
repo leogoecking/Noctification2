@@ -5,6 +5,7 @@ import { operationsBoardApi } from "./apiOperationsBoard";
 import { reminderApi } from "./apiReminders";
 import { webPushApi } from "./apiWebPush";
 import { taskApi } from "../features/tasks/api/tasksApi";
+import { kmlPosteApi } from "../features/kml-postes/api/kmlPosteApi";
 
 export { ApiError } from "./apiCore";
 
@@ -15,5 +16,6 @@ export const api = {
   ...notificationApi,
   ...operationsBoardApi,
   ...reminderApi,
-  ...webPushApi
+  ...webPushApi,
+  ...kmlPosteApi
 };

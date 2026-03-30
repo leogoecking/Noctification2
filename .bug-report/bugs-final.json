@@ -1,35 +1,13 @@
 [
   {
-    "id": "BUG-001",
-    "tipo": "bug_reproduzivel",
-    "severidade": "media",
+    "id": "KML-001",
+    "tipo": "melhoria",
+    "severidade": "alta",
     "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "arquivo": "apps/web/src/App.tsx",
-    "linha": 26,
+    "risco_de_regressao": "medio",
+    "arquivo": "packages/poste-kml-core/src/standardize.ts",
+    "linha": 1,
     "prioridade": 1,
     "status": "corrigido"
-  },
-  {
-    "id": "QLT-001",
-    "tipo": "problema_de_qualidade",
-    "severidade": "baixa",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "arquivo": "apps/api/src/modules/apr/import.ts",
-    "linha": 3,
-    "prioridade": 2,
-    "status": "corrigido"
-  },
-  {
-    "id": "ENV-001",
-    "tipo": "risco_potencial",
-    "severidade": "baixa",
-    "confianca_diagnostica": "baixa",
-    "risco_de_regressao": "baixo",
-    "arquivo": "",
-    "linha": 0,
-    "prioridade": 99,
-    "status": "nao_confirmado"
   }
 ]

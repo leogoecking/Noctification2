@@ -1,72 +1,40 @@
 [
   {
-    "id": "BUG-001",
-    "tipo": "bug_reproduzivel",
-    "status": "corrigido",
-    "severidade": "media",
+    "id": "KML-001",
+    "tipo": "melhoria",
+    "status": "confirmado",
+    "severidade": "alta",
     "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/web roteamento e testes de feature flag APR",
-    "arquivo": "apps/web/src/App.tsx",
-    "linha": 26,
-    "componente": "App routing / APR feature flag",
-    "sintoma": "Falha reproduzivel da suite web ao depender do .env local para decidir acesso a /apr.",
+    "risco_de_regressao": "medio",
+    "escopo": "apps/api, apps/web, packages/poste-kml-core",
+    "arquivo": "packages/poste-kml-core/src/standardize.ts",
+    "linha": 1,
+    "componente": "Modulo KML/KMZ",
+    "sintoma": "Nao existia fluxo para upload, padronizacao e download de KML/KMZ/CSV.",
     "evidencia": [
-      "Falha inicial de npm run test --workspace @noctification/web",
-      "Leitura estatica de VITE_ENABLE_APR_MODULE em App.tsx e appShell.tsx",
-      "apps/web/.env com VITE_ENABLE_APR_MODULE=true"
+      "ausencia de rota /api/v1/kml-postes/standardize",
+      "ausencia de workspace poste-kml-core",
+      "ausencia de rota admin /kml-postes"
     ],
-    "causa_raiz": "Leitura da flag em escopo de modulo, acoplando a suite ao ambiente local.",
+    "causa_raiz": "A feature ainda nao estava integrada no backend, frontend e shared core.",
     "impacto": {
-      "usuario": "baixo",
+      "usuario": "alto",
       "sistema": "medio",
-      "negocio": "baixo"
+      "negocio": "alto"
     },
     "reproducao": [
-      "Definir VITE_ENABLE_APR_MODULE=true em apps/web/.env",
-      "Executar npm run test --workspace @noctification/web"
+      "inspecionar workspaces do package.json",
+      "inspecionar apps/api/src/app.ts",
+      "inspecionar navegacao admin no frontend"
     ],
-    "correcao_recomendada": "Avaliar a flag via helper em tempo de execucao e fixar o valor no teste com vi.stubEnv.",
+    "correcao_recomendada": "Adicionar pacote compartilhado, rota backend, tela admin, flags e testes.",
     "validacao": [
-      "npm run typecheck --workspace @noctification/web",
-      "npm run lint --workspace @noctification/web",
-      "npm run test --workspace @noctification/web",
-      "npm run test"
+      "npm install",
+      "npm run typecheck",
+      "npm run test",
+      "npm run build"
     ],
     "prioridade": 1,
-    "corrigir_agora": true
-  },
-  {
-    "id": "QLT-001",
-    "tipo": "problema_de_qualidade",
-    "status": "corrigido",
-    "severidade": "baixa",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/api modulo APR import",
-    "arquivo": "apps/api/src/modules/apr/import.ts",
-    "linha": 3,
-    "componente": "APR import parser",
-    "sintoma": "Lint da API falhava por import residual nao utilizado.",
-    "evidencia": [
-      "Falha inicial de npm run lint --workspace @noctification/api",
-      "Erro ESLint em apps/api/src/modules/apr/import.ts:3"
-    ],
-    "causa_raiz": "Import de File mantido sem uso.",
-    "impacto": {
-      "usuario": "baixo",
-      "sistema": "baixo",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Executar npm run lint --workspace @noctification/api"
-    ],
-    "correcao_recomendada": "Remover o import nao utilizado.",
-    "validacao": [
-      "npm run lint --workspace @noctification/api",
-      "npm run lint"
-    ],
-    "prioridade": 2,
     "corrigir_agora": true
   }
 ]

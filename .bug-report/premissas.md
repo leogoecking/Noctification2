@@ -1,21 +1,22 @@
 ## Premissas
 
-- Escopo desta rodada: varredura final de consistencia visual da migracao Stitch no frontend.
-- Nao houve objetivo de alterar regra de negocio, contratos de API ou rotas.
-- A validacao desta rodada foi baseada em leitura de codigo, `git status` e comparacao com os HTMLs exportados em `stitch/`.
-- O ambiente nao possui `rg`; buscas textuais foram feitas com `grep`.
+- Rodada atual: implementacao do modulo KML/KMZ para padronizacao de postes conforme `PATCH_PARA_CODEX_KML_MODULE.md`.
+- O patch fornecido foi tratado como especificacao funcional, nao como diff literal, porque a versao atual do repositorio possui rotas e shell administrativo mais recentes do que a base do patch.
+- A prioridade foi preservar comportamento existente fora do escopo da feature, especialmente `operations-board`, dashboards e navegacao admin.
 
-## Limitacoes
+## Limitacoes do ambiente
 
-- Nao houve comparacao pixel-perfect em navegador.
-- Nao foi executado teste visual automatizado.
-- A analise se concentrou nas superficies que participaram da migracao principal.
+- O ambiente nao possui `rg`; a navegacao no repositorio foi feita com `find`, `grep` e `sed`.
+- O sandbox bloqueia testes HTTP que tentam abrir porta efemera; por isso a cobertura funcional principal do algoritmo ficou no pacote compartilhado puro, sem sockets ou `listen`.
+- Os comandos `npm` emitem warning de configuracao `globalignorefile`; o warning nao bloqueou `install`, `typecheck`, `test` nem `build`.
+
+## Ferramentas disponiveis
+
+- Disponiveis: `node`, `npm`, `git`, `find`, `grep`, `sed`, `eslint`.
+- Indisponiveis: `rg`.
 
 ## Escopo inferido
 
-- Shell principal
-- Dashboard do usuario
-- Dashboard admin
-- Kanban de tarefas
-- Modulo APR
-- Componentes filhos ainda nao harmonizados visualmente
+- Backend Express com feature flag `ENABLE_KML_POSTE_MODULE`.
+- Frontend React/Vite com feature flag `VITE_ENABLE_KML_POSTE_MODULE`.
+- Novo pacote compartilhado `packages/poste-kml-core` para parsing e padronizacao de KML.

@@ -3,8 +3,9 @@ import { ReminderAlertCenter } from "../ReminderAlertCenter";
 import { ReminderUserPanel } from "../ReminderUserPanel";
 import { UserDashboard } from "../UserDashboard";
 import { AprPage } from "../../features/apr/AprPage";
+import { KmlPostePage } from "../../features/kml-postes/KmlPostePage";
 import { TaskUserPanel } from "../../features/tasks";
-import { isAprModuleEnabled } from "../../lib/featureFlags";
+import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "../../lib/featureFlags";
 import type { AuthUser } from "../../types";
 
 export type AppPath =
@@ -14,7 +15,8 @@ export type AppPath =
   | "/notifications"
   | "/reminders"
   | "/tasks"
-  | "/apr";
+  | "/apr"
+  | "/kml-postes";
 
 interface Toast {
   id: number;
@@ -24,6 +26,7 @@ interface Toast {
 
 export const normalizePath = (rawPath: string): AppPath => {
   const aprModuleEnabled = isAprModuleEnabled();
+  const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
 
   if (rawPath === "/login") {
     return "/login";
@@ -49,6 +52,10 @@ export const normalizePath = (rawPath: string): AppPath => {
     return "/apr";
   }
 
+  if (rawPath === "/kml-postes" && kmlPosteModuleEnabled) {
+    return "/kml-postes";
+  }
+
   return "/";
 };
 
@@ -62,6 +69,10 @@ export const getPageTitle = (
 
   if (currentPath === "/apr") {
     return "APR";
+  }
+
+  if (currentPath === "/kml-postes") {
+    return "Padronizador KML/KMZ";
   }
 
   if (currentUser.role === "admin") {
@@ -270,6 +281,15 @@ const IconApr = () => (
   </svg>
 );
 
+const IconMapPin = () => (
+  <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+    <path
+      d="M12 22s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11m0-8.5A2.5 2.5 0 1 0 12 8a2.5 2.5 0 0 0 0 5"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 type UserNavItem = {
   label: string;
   path: AppPath;
@@ -306,15 +326,27 @@ export const UserWorkspace = ({
   onToast
 }: UserWorkspaceProps) => {
   const aprModuleEnabled = isAprModuleEnabled();
-  const navigationSections = aprModuleEnabled
-    ? [
-        ...USER_NAV_ITEMS,
-        {
-          title: "Operacao",
-          items: [{ label: "APR", path: "/apr" as AppPath, icon: <IconApr /> }]
-        }
-      ]
-    : USER_NAV_ITEMS;
+  const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
+  const operationItems: UserNavItem[] = [];
+
+  if (aprModuleEnabled) {
+    operationItems.push({ label: "APR", path: "/apr", icon: <IconApr /> });
+  }
+
+  if (kmlPosteModuleEnabled) {
+    operationItems.push({ label: "KML/KMZ", path: "/kml-postes", icon: <IconMapPin /> });
+  }
+
+  const navigationSections =
+    operationItems.length > 0
+      ? [
+          ...USER_NAV_ITEMS,
+          {
+            title: "Operacao",
+            items: operationItems
+          }
+        ]
+      : USER_NAV_ITEMS;
   const userInitial = currentUser.name.trim().charAt(0).toUpperCase() || "U";
 
   return (
@@ -407,6 +439,8 @@ export const UserWorkspace = ({
           <TaskUserPanel user={currentUser} onError={onError} onToast={onToast} />
         ) : currentPath === "/apr" ? (
           <AprPage onError={onError} onToast={onToast} />
+        ) : currentPath === "/kml-postes" ? (
+          <KmlPostePage onError={onError} onToast={onToast} />
         ) : currentPath === "/reminders" ? (
           <ReminderUserPanel onError={onError} onToast={onToast} />
         ) : (

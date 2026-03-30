@@ -1,73 +1,32 @@
 [
   {
-    "id": "BUG-001",
-    "tipo": "bug_reproduzivel",
+    "id": "ACH-KML-001",
+    "tipo": "melhoria",
     "status": "confirmado",
-    "severidade": "media",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/web roteamento e testes de feature flag APR",
-    "arquivo": "apps/web/src/App.tsx",
-    "linha": 26,
-    "componente": "App routing / APR feature flag",
-    "sintoma": "A suite web falha no caso que espera redirecionamento de /apr para o dashboard quando o modulo APR esta desativado.",
-    "evidencia": [
-      "npm run test --workspace @noctification/web falhou em src/App.test.tsx",
-      "apps/web/.env define VITE_ENABLE_APR_MODULE=true",
-      "App.tsx e appShell.tsx liam a flag em escopo de modulo"
-    ],
-    "causa_raiz": "O valor de VITE_ENABLE_APR_MODULE era capturado em constante de modulo, tornando o comportamento dos testes dependente do .env local e impedindo isolamento previsivel da flag.",
-    "impacto": {
-      "usuario": "baixo",
-      "sistema": "medio",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Manter apps/web/.env com VITE_ENABLE_APR_MODULE=true",
-      "Executar npm run test --workspace @noctification/web",
-      "Observar falha do teste App routing que esperava dashboard em /apr com modulo inativo"
-    ],
-    "correcao_recomendada": "Centralizar a leitura da flag em helper chamado em tempo de execucao e isolar o teste com vi.stubEnv.",
-    "validacao": [
-      "npm run test --workspace @noctification/web",
-      "npm run typecheck --workspace @noctification/web",
-      "npm run test"
-    ],
-    "prioridade": 1,
-    "corrigir_agora": true
+    "descricao": "Feature KML/KMZ ausente no backend, frontend e pacote compartilhado."
   },
   {
-    "id": "QLT-001",
+    "id": "ACH-KML-002",
+    "tipo": "risco_potencial",
+    "status": "confirmado",
+    "descricao": "Aplicar o patch literalmente removeria integracoes atuais do app.ts."
+  },
+  {
+    "id": "ACH-KML-003",
+    "tipo": "erro_de_configuracao",
+    "status": "confirmado",
+    "descricao": "Dependencias novas do modulo nao estavam instaladas."
+  },
+  {
+    "id": "ACH-KML-004",
     "tipo": "problema_de_qualidade",
     "status": "confirmado",
-    "severidade": "baixa",
-    "confianca_diagnostica": "alta",
-    "risco_de_regressao": "baixo",
-    "escopo": "apps/api modulo APR import",
-    "arquivo": "apps/api/src/modules/apr/import.ts",
-    "linha": 3,
-    "componente": "APR import parser",
-    "sintoma": "A validacao de lint da API falhava com import nao utilizado.",
-    "evidencia": [
-      "npm run lint --workspace @noctification/api falhou",
-      "ESLint apontou type File importado e nao usado"
-    ],
-    "causa_raiz": "Import residual de tipo nao referenciado no arquivo.",
-    "impacto": {
-      "usuario": "baixo",
-      "sistema": "baixo",
-      "negocio": "baixo"
-    },
-    "reproducao": [
-      "Executar npm run lint --workspace @noctification/api",
-      "Observar erro em apps/api/src/modules/apr/import.ts linha 3"
-    ],
-    "correcao_recomendada": "Remover o import nao utilizado.",
-    "validacao": [
-      "npm run lint --workspace @noctification/api",
-      "npm run lint"
-    ],
-    "prioridade": 2,
-    "corrigir_agora": true
+    "descricao": "Mocks de testes web nao contemplavam a nova flag KML."
+  },
+  {
+    "id": "ACH-KML-005",
+    "tipo": "risco_potencial",
+    "status": "confirmado",
+    "descricao": "Prefixos terminados em hifen poderiam gerar nomes com duplo hifen."
   }
 ]

@@ -5,7 +5,10 @@ interface AdminSidebarProps {
   onSelect: (menu: AdminMenu) => void;
   aprActive?: boolean;
   aprEnabled?: boolean;
+  kmlPosteActive?: boolean;
+  kmlPosteEnabled?: boolean;
   onOpenApr?: () => void;
+  onOpenKmlPostes?: () => void;
   onOpenDashboard?: () => void;
   onLogout?: () => void;
 }
@@ -100,12 +103,24 @@ const IconApr = () => (
   </svg>
 );
 
+const IconMapPin = () => (
+  <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+    <path
+      d="M12 22s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11m0-8.5A2.5 2.5 0 1 0 12 8a2.5 2.5 0 0 0 0 5"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 export const AdminSidebar = ({
   menu,
   onSelect,
   aprActive = false,
   aprEnabled = false,
+  kmlPosteActive = false,
+  kmlPosteEnabled = false,
   onOpenApr,
+  onOpenKmlPostes,
   onOpenDashboard,
   onLogout
 }: AdminSidebarProps) => {
@@ -169,7 +184,11 @@ export const AdminSidebar = ({
             {mainItems.map((item) => (
               <button
                 aria-label={item.ariaLabel}
-                className={menuButtonClass(item.menu === "dashboard" ? !aprActive && menu === "dashboard" : menu === item.menu)}
+                className={menuButtonClass(
+                  item.menu === "dashboard"
+                    ? !aprActive && !kmlPosteActive && menu === "dashboard"
+                    : menu === item.menu
+                )}
                 key={item.menu}
                 onClick={() => {
                   if (item.menu === "dashboard" && onOpenDashboard) {
@@ -195,6 +214,19 @@ export const AdminSidebar = ({
                   <IconApr />
                 </span>
                 APR
+              </button>
+            ) : null}
+            {kmlPosteEnabled && onOpenKmlPostes ? (
+              <button
+                aria-label="KML/KMZ"
+                className={menuButtonClass(kmlPosteActive)}
+                onClick={onOpenKmlPostes}
+                type="button"
+              >
+                <span className="text-textMain">
+                  <IconMapPin />
+                </span>
+                KML/KMZ
               </button>
             ) : null}
           </div>

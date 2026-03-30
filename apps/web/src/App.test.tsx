@@ -41,6 +41,7 @@ vi.mock("./lib/api", () => ({
     deleteMyReminder: vi.fn(),
     myReminderOccurrences: vi.fn(),
     completeReminderOccurrence: vi.fn(),
+    standardizeKmlPostes: vi.fn(),
     adminReminders: vi.fn(),
     adminReminderOccurrences: vi.fn(),
     adminReminderHealth: vi.fn(),
@@ -62,6 +63,7 @@ describe("App routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("VITE_ENABLE_APR_MODULE", "false");
+    vi.stubEnv("VITE_ENABLE_KML_POSTE_MODULE", "false");
     mockedApi.me.mockRejectedValue(new Error("Nao autenticado"));
   });
 
@@ -188,6 +190,24 @@ describe("App routing", () => {
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
     expect(screen.getByText("Dashboard operacional")).toBeInTheDocument();
+  });
+
+  it("renderiza kml-postes para usuario quando o modulo esta ativo", async () => {
+    vi.stubEnv("VITE_ENABLE_KML_POSTE_MODULE", "true");
+    window.history.replaceState({}, "", "/kml-postes");
+    mockedApi.me.mockResolvedValueOnce({
+      user: {
+        id: 2,
+        login: "user",
+        name: "Usuario",
+        role: "user"
+      }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("Padronizador de postes KML/KMZ")).toBeInTheDocument();
   });
 
   it("retorna titulo APR para admin quando a rota atual e /apr", () => {

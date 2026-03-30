@@ -5,7 +5,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
-import { isAprModuleEnabled } from "./lib/featureFlags";
+import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "./lib/featureFlags";
 import type { AuthUser } from "./types";
 import {
   AppHeader,
@@ -24,6 +24,7 @@ interface Toast {
 
 export default function App() {
   const aprModuleEnabled = isAprModuleEnabled();
+  const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [submittingAuth, setSubmittingAuth] = useState(false);
@@ -106,7 +107,15 @@ export default function App() {
     }
 
     if (currentUser.role === "admin") {
-      if (currentPath !== "/" && (!aprModuleEnabled || currentPath !== "/apr")) {
+      const allowedPaths = new Set<AppPath>(["/"]);
+      if (aprModuleEnabled) {
+        allowedPaths.add("/apr");
+      }
+      if (kmlPosteModuleEnabled) {
+        allowedPaths.add("/kml-postes");
+      }
+
+      if (!allowedPaths.has(currentPath)) {
         navigate("/", true);
       }
       return;
@@ -114,8 +123,23 @@ export default function App() {
 
     if (currentUser.role === "user" && currentPath === "/admin/login") {
       navigate("/", true);
+      return;
     }
-  }, [aprModuleEnabled, currentPath, currentUser, loadingSession, navigate]);
+
+    if (currentUser.role === "user") {
+      const allowedPaths = new Set<AppPath>(["/", "/notifications", "/reminders", "/tasks"]);
+      if (aprModuleEnabled) {
+        allowedPaths.add("/apr");
+      }
+      if (kmlPosteModuleEnabled) {
+        allowedPaths.add("/kml-postes");
+      }
+
+      if (!allowedPaths.has(currentPath)) {
+        navigate("/", true);
+      }
+    }
+  }, [aprModuleEnabled, currentPath, currentUser, kmlPosteModuleEnabled, loadingSession, navigate]);
 
   const login = useCallback(
     async (loginValue: string, password: string, expectedRole: AuthUser["role"]) => {

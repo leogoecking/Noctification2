@@ -10,8 +10,9 @@ import { AdminRemindersPanel } from "./admin/AdminRemindersPanel";
 import { useAdminDashboardData } from "./admin/useAdminDashboardData";
 import { AdminTasksPanel } from "../features/tasks";
 import { AprPage } from "../features/apr/AprPage";
+import { KmlPostePage } from "../features/kml-postes/KmlPostePage";
 import { api } from "../lib/api";
-import { isAprModuleEnabled } from "../lib/featureFlags";
+import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "../lib/featureFlags";
 import type { AppPath } from "./app/appShell";
 import type {
   AuditEventItem,
@@ -38,6 +39,7 @@ export const AdminDashboard = ({
   onLogout
 }: AdminDashboardProps) => {
   const aprModuleEnabled = isAprModuleEnabled();
+  const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
   const [searchQuery, setSearchQuery] = useState("");
   const [taskSearchResults, setTaskSearchResults] = useState<TaskItem[]>([]);
   const [loadingTaskSearch, setLoadingTaskSearch] = useState(false);
@@ -227,14 +229,15 @@ export const AdminDashboard = ({
   }, [loadSystemHealth]);
 
   const isAprPage = currentPath === "/apr";
+  const isKmlPostePage = currentPath === "/kml-postes";
   const handleSidebarSelect = useCallback(
     (nextMenu: typeof menu) => {
       setMenu(nextMenu);
-      if (isAprPage && onNavigate) {
+      if ((isAprPage || isKmlPostePage) && onNavigate) {
         onNavigate("/");
       }
     },
-    [isAprPage, onNavigate, setMenu]
+    [isAprPage, isKmlPostePage, onNavigate, setMenu]
   );
 
   return (
@@ -243,6 +246,8 @@ export const AdminDashboard = ({
         <AdminSidebar
           aprActive={isAprPage}
           aprEnabled={aprModuleEnabled}
+          kmlPosteActive={isKmlPostePage}
+          kmlPosteEnabled={kmlPosteModuleEnabled}
           menu={menu}
           onOpenApr={
             onNavigate
@@ -259,6 +264,13 @@ export const AdminDashboard = ({
                 }
               : undefined
           }
+          onOpenKmlPostes={
+            onNavigate
+              ? () => {
+                  onNavigate("/kml-postes");
+                }
+              : undefined
+          }
           onLogout={onLogout}
           onSelect={handleSidebarSelect}
         />
@@ -266,6 +278,8 @@ export const AdminDashboard = ({
         <div className="space-y-4">
           {isAprPage ? (
             <AprPage onError={onError} onToast={onToast} />
+          ) : isKmlPostePage ? (
+            <KmlPostePage onError={onError} onToast={onToast} />
           ) : (
             <>
           <header className="rounded-[1.5rem] bg-panel p-4 shadow-glow">

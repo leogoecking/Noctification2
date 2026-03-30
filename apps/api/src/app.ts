@@ -12,6 +12,7 @@ import { createReminderMeRouter } from "./routes/reminders-me";
 import { createOperationsBoardMeRouter } from "./routes/operations-board-me";
 import { createAprRouter } from "./modules/apr/route";
 import { createTaskAdminRouterWithIo, createTaskMeRouterWithIo } from "./modules/tasks";
+import { createKmlPosteRouter } from "./modules/kml-postes/routes";
 
 const isCorsOriginAllowed = (allowedOrigins: Set<string>, origin?: string): boolean => {
   if (!origin) {
@@ -67,6 +68,10 @@ export const createApp = (db: Database.Database, io: Server, config: AppConfig) 
 
   if (config.enableAprModule) {
     app.use("/api/v1/apr", createAprRouter(db, config));
+  }
+
+  if (config.enableKmlPosteModule) {
+    app.use("/api/v1/kml-postes", createKmlPosteRouter(db, config));
   }
 
   app.use((_req, res) => {
