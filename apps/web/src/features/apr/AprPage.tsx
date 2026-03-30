@@ -62,20 +62,20 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
   } = useAprPageController({ onError, onToast });
 
   return (
-    <section className="space-y-6">
-      <header className="rounded-[1.5rem] bg-panelAlt/80 p-6 shadow-glow">
+    <section className="space-y-5">
+      <header className="rounded-[1.5rem] bg-panel p-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">APR module</p>
-            <h2 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-textMain">Controle de APR</h2>
-            <p className="mt-2 max-w-3xl text-sm text-textMuted">
-              Modulo isolado para referencia mensal, conferencia manual e historico.
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+              APR module
             </p>
+            <h2 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-textMain">
+              Controle de APR
+            </h2>
+            <p className="mt-2 text-sm text-textMuted">Mes ativo: {selectedMonth}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-xl border border-outlineSoft bg-panel px-4 py-2 text-sm text-textMuted">
-              Referencia mensal isolada
-            </span>
+          <div className="rounded-xl bg-panelAlt px-4 py-3 text-sm text-textMuted">
+            Historico: <strong className="capitalize text-textMain">{historySource}</strong>
           </div>
         </div>
       </header>
@@ -95,58 +95,87 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
         />
 
         <div className="space-y-6">
-          <section className="grid gap-6 xl:grid-cols-[0.92fr,1.08fr]">
+          <section className="space-y-4">
+            <div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+                  Operacao manual
+                </p>
+                <h3 className="mt-2 font-display text-2xl text-textMain">Base manual</h3>
+              </div>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.18fr),minmax(18rem,0.82fr)]">
+              <AprManualTableSection
+                selectedMonth={selectedMonth}
+                loadingMonthData={loadingMonthData}
+                manualSearch={manualSearch}
+                setManualSearch={setManualSearch}
+                filteredManualRows={filteredManualRows}
+                paginatedManualRows={paginatedManualRows}
+                manualPage={manualPage}
+                manualTotalPages={manualTotalPages}
+                setManualPage={setManualPage}
+                startEditManual={startEditManual}
+                removeManual={removeManual}
+              />
+
+              <AprManualFormSection
+                manualForm={manualForm}
+                setManualForm={setManualForm}
+                visibleSubjectSuggestions={visibleSubjectSuggestions}
+                visibleCollaboratorSuggestions={visibleCollaboratorSuggestions}
+                savingManual={savingManual}
+                resetManualForm={resetManualForm}
+                saveManual={saveManual}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+                  Conferencia
+                </p>
+                <h3 className="mt-2 font-display text-2xl text-textMain">Divergencias e historico</h3>
+              </div>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <AprAuditSection
+                auditStatus={audit.summary.statusGeral}
+                auditSearch={auditSearch}
+                setAuditSearch={setAuditSearch}
+                divergentAuditRows={divergentAuditRows}
+                filteredAuditRows={filteredAuditRows}
+                paginatedAuditRows={paginatedAuditRows}
+                auditPage={auditPage}
+                auditTotalPages={auditTotalPages}
+                setAuditPage={setAuditPage}
+                exportAuditPdf={exportAuditPdf}
+              />
+
+              <AprHistorySection
+                history={history}
+                historySource={historySource}
+                setHistorySource={setHistorySource}
+                historySearch={historySearch}
+                setHistorySearch={setHistorySearch}
+                filteredHistoryRows={filteredHistoryRows}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+                Colaboradores
+              </p>
+              <h3 className="mt-2 font-display text-2xl text-textMain">Leitura por colaborador</h3>
+            </div>
+
             <AprCollaboratorComparisonSection collaboratorRiskBars={collaboratorRiskBars} />
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr),minmax(0,0.85fr)]">
-            <AprManualTableSection
-              selectedMonth={selectedMonth}
-              loadingMonthData={loadingMonthData}
-              manualSearch={manualSearch}
-              setManualSearch={setManualSearch}
-              filteredManualRows={filteredManualRows}
-              paginatedManualRows={paginatedManualRows}
-              manualPage={manualPage}
-              manualTotalPages={manualTotalPages}
-              setManualPage={setManualPage}
-              startEditManual={startEditManual}
-              removeManual={removeManual}
-            />
-
-            <AprManualFormSection
-              manualForm={manualForm}
-              setManualForm={setManualForm}
-              visibleSubjectSuggestions={visibleSubjectSuggestions}
-              visibleCollaboratorSuggestions={visibleCollaboratorSuggestions}
-              savingManual={savingManual}
-              resetManualForm={resetManualForm}
-              saveManual={saveManual}
-            />
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-2">
-            <AprAuditSection
-              auditStatus={audit.summary.statusGeral}
-              auditSearch={auditSearch}
-              setAuditSearch={setAuditSearch}
-              divergentAuditRows={divergentAuditRows}
-              filteredAuditRows={filteredAuditRows}
-              paginatedAuditRows={paginatedAuditRows}
-              auditPage={auditPage}
-              auditTotalPages={auditTotalPages}
-              setAuditPage={setAuditPage}
-              exportAuditPdf={exportAuditPdf}
-            />
-
-            <AprHistorySection
-              history={history}
-              historySource={historySource}
-              setHistorySource={setHistorySource}
-              historySearch={historySearch}
-              setHistorySearch={setHistorySearch}
-              filteredHistoryRows={filteredHistoryRows}
-            />
           </section>
         </div>
       </div>

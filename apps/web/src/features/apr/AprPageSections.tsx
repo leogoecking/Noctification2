@@ -40,8 +40,8 @@ export const AprSidebar = ({
   uploading,
   submitImport
 }: SidebarProps) => (
-  <aside className="space-y-4">
-    <article className="rounded-[1.25rem] bg-panel p-5">
+  <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+    <article className="rounded-[1.25rem] bg-panel p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-display text-base text-textMain">Meses</h3>
         {loadingMonths && <span className="text-xs text-textMuted">Atualizando...</span>}
@@ -60,7 +60,7 @@ export const AprSidebar = ({
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="max-h-[22rem] space-y-2 overflow-y-auto pr-1">
         {orderedMonths.length === 0 && !loadingMonths ? (
           <p className="rounded-xl border border-dashed border-outlineSoft px-3 py-4 text-sm text-textMuted">
             Nenhum mes APR persistido ainda. Voce pode comecar pelo mes atual.
@@ -87,9 +87,11 @@ export const AprSidebar = ({
       </div>
     </article>
 
-    <article className="rounded-[1.25rem] bg-panel p-5">
+    <article className="rounded-[1.25rem] bg-panel p-4">
       <h3 className="font-display text-base text-textMain">Importacao</h3>
-      <p className="mt-1 text-sm text-textMuted">Envia CSV ou XLSX para a base APR deste modulo.</p>
+      <p className="mt-1 text-sm text-textMuted">
+        Traga a base do mes por CSV ou XLSX e atualize o workspace sem sair desta tela.
+      </p>
 
       <div className="mt-4 space-y-3">
         <label className="block">
@@ -171,7 +173,7 @@ export const AprManualTableSection = ({
   startEditManual,
   removeManual
 }: ManualSectionProps) => (
-  <article className="rounded-[1.5rem] bg-panel p-5">
+  <article className="rounded-[1.25rem] bg-panel p-5">
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h3 className="font-display text-lg text-textMain">Tabela manual</h3>
@@ -284,7 +286,7 @@ export const AprManualFormSection = ({
   resetManualForm,
   saveManual
 }: ManualFormProps) => (
-  <article className="rounded-[1.25rem] bg-panel p-5">
+  <article className="rounded-[1.25rem] bg-panel p-5 xl:sticky xl:top-24">
     <div className="mb-4 flex items-start justify-between gap-3">
       <div>
         <h3 className="font-display text-lg text-textMain">
@@ -431,7 +433,7 @@ export const AprAuditSection = ({
         <p className="text-sm text-textMuted">Nenhuma divergencia encontrada para este filtro.</p>
       ) : (
         paginatedAuditRows.map((item) => (
-          <div key={item.externalId} className="rounded-[1.25rem] bg-panelAlt p-4">
+          <div key={item.externalId} className="rounded-[1.1rem] bg-panelAlt p-4">
             <div className="flex items-center justify-between gap-2">
               <strong className="text-sm text-textMain">{item.externalId}</strong>
               <span className="text-xs text-textMuted">{item.status}</span>
@@ -489,7 +491,7 @@ export const AprHistorySection = ({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <article className="rounded-[1.5rem] bg-panel p-5">
+    <article className="rounded-[1.25rem] bg-panel p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="font-display text-lg text-textMain">History</h3>
@@ -545,7 +547,7 @@ export const AprHistorySection = ({
               <p className="text-sm text-textMuted">Sem historico encontrado para este filtro.</p>
             ) : (
               filteredHistoryRows.slice(0, 8).map((item) => (
-                <div key={item.externalId} className="rounded-[1.25rem] bg-panelAlt p-4">
+                <div key={item.externalId} className="rounded-[1.1rem] bg-panelAlt p-4">
                   <div className="flex items-center justify-between gap-2">
                     <strong className="text-sm text-textMain">{item.externalId}</strong>
                     <span className="text-xs text-textMuted">{item.status}</span>
@@ -590,12 +592,12 @@ export const AprCollaboratorComparisonSection = ({
   }, [collaboratorRiskBars, selectedCollaborator]);
 
   return (
-    <article className="relative overflow-hidden rounded-[1.5rem] bg-panel p-6">
+    <article className="relative overflow-hidden rounded-[1.25rem] bg-panel p-5">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">APR por colaborador</h3>
         <span className="rounded-md bg-panelAlt px-2 py-1 text-[10px] text-textMuted">Dados reais</span>
       </div>
-      <div className="mt-5 rounded-[1.25rem] bg-panelAlt p-4">
+      <div className="mt-4 rounded-[1.1rem] bg-panelAlt p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">Comparativo por colaborador</h4>
           <span className="text-[10px] text-textMuted">Sistema x manual</span>
