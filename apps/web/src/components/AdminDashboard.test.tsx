@@ -33,7 +33,6 @@ vi.mock("../lib/api", () => ({
     adminAudit: vi.fn(),
     adminNotifications: vi.fn(),
     adminTasks: vi.fn(),
-    adminReminderHealth: vi.fn(),
     adminTaskHealth: vi.fn(),
     myOperationsBoard: vi.fn(),
     myOperationsBoardMessage: vi.fn(),
@@ -140,18 +139,6 @@ describe("AdminDashboard", () => {
         totalPages: 1
       }
     });
-    mockedApi.adminReminderHealth.mockResolvedValue({
-      health: {
-        schedulerEnabled: true,
-        totalReminders: 4,
-        activeReminders: 3,
-        pendingOccurrences: 2,
-        completedToday: 1,
-        expiredToday: 0,
-        deliveriesToday: 5,
-        retriesToday: 0
-      }
-    });
     mockedApi.adminTaskHealth.mockResolvedValue({
       health: {
         schedulerEnabled: true,
@@ -256,6 +243,7 @@ describe("AdminDashboard", () => {
     expect(screen.getByText("Notificacao enviada")).toBeInTheDocument();
     expect(screen.getByText("Mural da operacao")).toBeInTheDocument();
     expect(screen.getByText("System health")).toBeInTheDocument();
+    expect(screen.queryByText(/Lembretes ativos|Lembretes inativos/)).toBeNull();
     expect(screen.getByText("Troca de turno")).toBeInTheDocument();
   });
 

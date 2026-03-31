@@ -462,7 +462,7 @@ describeHttp("API notification flow", () => {
     expect(forbiddenUpdate.status).toBe(404);
   });
 
-  it("retorna contexto de usuario nos endpoints admin de lembretes e permite filtrar por busca textual", async () => {
+  it("bloqueia acesso administrativo direto aos lembretes pessoais, mas mantem ocorrencias filtraveis", async () => {
     const adminCookie = await loginAs("admin", "admin");
     const adminClient = withCookie(app, adminCookie);
 
@@ -488,18 +488,34 @@ describeHttp("API notification flow", () => {
     ).run(reminderId, timestamp, timestamp);
 
     const remindersBySearch = await adminClient.get("/api/v1/admin/reminders?user_search=Usuario");
-    expect(remindersBySearch.status).toBe(200);
-    expect(remindersBySearch.body.reminders).toHaveLength(1);
-    expect(remindersBySearch.body.reminders[0].userName).toBe("Usuario Teste");
-    expect(remindersBySearch.body.reminders[0].userLogin).toBe("user");
+    expect(remindersBySearch.status).toBe(403);
+
+    const forbiddenCreate = await adminClient.post("/api/v1/admin/reminders").send({
+      userId: 2,
+      title: "Tentativa indevida",
+      startDate: "2026-03-13",
+      timeOfDay: "08:00",
+      timezone: "America/Bahia",
+      repeatType: "none"
+    });
+    expect(forbiddenCreate.status).toBe(403);
+
+    const forbiddenUpdate = await adminClient.patch(`/api/v1/admin/reminders/${reminderId}`).send({
+      title: "Tentativa indevida"
+    });
+    expect(forbiddenUpdate.status).toBe(403);
+
+    const forbiddenDelete = await adminClient.delete(`/api/v1/admin/reminders/${reminderId}`);
+    expect(forbiddenDelete.status).toBe(403);
 
     const occurrencesBySearch = await adminClient.get(
       "/api/v1/admin/reminder-occurrences?user_search=user&status=pending"
     );
-    expect(occurrencesBySearch.status).toBe(200);
-    expect(occurrencesBySearch.body.occurrences).toHaveLength(1);
-    expect(occurrencesBySearch.body.occurrences[0].userName).toBe("Usuario Teste");
-    expect(occurrencesBySearch.body.occurrences[0].userLogin).toBe("user");
-    expect(occurrencesBySearch.body.occurrences[0].title).toBe("Checklist diario");
+    expect(occurrencesBySearch.status).toBe(403);
+
+    const forbiddenToggle = await adminClient.patch(`/api/v1/admin/reminders/${reminderId}/toggle`).send({
+      isActive: false
+    });
+    expect(forbiddenToggle.status).toBe(403);
   });
 });

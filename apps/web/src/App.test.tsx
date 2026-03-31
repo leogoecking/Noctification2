@@ -42,11 +42,6 @@ vi.mock("./lib/api", () => ({
     myReminderOccurrences: vi.fn(),
     completeReminderOccurrence: vi.fn(),
     standardizeKmlPostes: vi.fn(),
-    adminReminders: vi.fn(),
-    adminReminderOccurrences: vi.fn(),
-    adminReminderHealth: vi.fn(),
-    adminReminderLogs: vi.fn(),
-    toggleAdminReminder: vi.fn()
   },
   ApiError: class ApiError extends Error {
     status: number;

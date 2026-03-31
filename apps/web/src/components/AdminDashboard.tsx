@@ -18,7 +18,6 @@ import type { AppPath } from "./app/appShell";
 import type {
   AuditEventItem,
   NotificationHistoryItem,
-  ReminderHealthItem,
   TaskAutomationHealthItem,
   TaskItem,
   UserItem
@@ -121,7 +120,6 @@ export const AdminDashboard = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [taskSearchResults, setTaskSearchResults] = useState<TaskItem[]>([]);
   const [loadingTaskSearch, setLoadingTaskSearch] = useState(false);
-  const [reminderHealth, setReminderHealth] = useState<ReminderHealthItem | null>(null);
   const [taskHealth, setTaskHealth] = useState<TaskAutomationHealthItem | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -283,14 +281,9 @@ export const AdminDashboard = ({
   const loadSystemHealth = useCallback(async () => {
     setLoadingHealth(true);
     try {
-      const [nextReminderHealth, nextTaskHealth] = await Promise.all([
-        api.adminReminderHealth(),
-        api.adminTaskHealth()
-      ]);
-      setReminderHealth(nextReminderHealth.health);
+      const nextTaskHealth = await api.adminTaskHealth();
       setTaskHealth(nextTaskHealth.health);
     } catch {
-      setReminderHealth(null);
       setTaskHealth(null);
     } finally {
       setLoadingHealth(false);
@@ -409,13 +402,12 @@ export const AdminDashboard = ({
           ) : null}
 
           {!isSearching && menu === "dashboard" && (
-            <AdminOverviewPanel
-              onError={onError}
-              onToast={onToast}
-              reminderHealth={reminderHealth}
-              taskHealth={taskHealth}
-              loadingHealth={loadingHealth}
-              onRefreshHealth={() => void loadSystemHealth()}
+          <AdminOverviewPanel
+            onError={onError}
+            onToast={onToast}
+            taskHealth={taskHealth}
+            loadingHealth={loadingHealth}
+            onRefreshHealth={() => void loadSystemHealth()}
               metrics={metrics}
               recentAuditEvents={recentAuditEvents}
               auditEventType={auditFilters.eventType}

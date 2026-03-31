@@ -32,7 +32,12 @@ export const listUserReminders = (
           timezone,
           repeat_type AS repeatType,
           weekdays_json AS weekdaysJson,
+          checklist_json AS checklistJson,
           is_active AS isActive,
+          note_kind AS noteKind,
+          is_pinned AS isPinned,
+          tag,
+          color,
           last_scheduled_for AS lastScheduledFor,
           created_at AS createdAt,
           updated_at AS updatedAt
@@ -44,6 +49,37 @@ export const listUserReminders = (
     .all(...values) as ReminderRow[];
 
   return reminders.map(normalizeReminderRow);
+};
+
+export const archiveStaleUserReminders = (
+  db: Database.Database,
+  params: { userId: number; staleDays: number }
+): number => {
+  const cutoff = new Date(Date.now() - params.staleDays * 24 * 60 * 60 * 1000).toISOString();
+  const timestamp = nowIso();
+
+  const result = db
+    .prepare(
+      `
+        UPDATE reminders
+        SET
+          deleted_at = ?,
+          updated_at = ?
+        WHERE user_id = ?
+          AND deleted_at IS NULL
+          AND is_active = 0
+          AND updated_at <= ?
+          AND NOT EXISTS (
+            SELECT 1
+            FROM reminder_occurrences o
+            WHERE o.reminder_id = reminders.id
+              AND o.status = 'pending'
+          )
+      `
+    )
+    .run(timestamp, timestamp, params.userId, cutoff);
+
+  return result.changes;
 };
 
 export const fetchReminderById = (db: Database.Database, reminderId: number): ReminderRow =>
@@ -60,7 +96,12 @@ export const fetchReminderById = (db: Database.Database, reminderId: number): Re
           timezone,
           repeat_type AS repeatType,
           weekdays_json AS weekdaysJson,
+          checklist_json AS checklistJson,
           is_active AS isActive,
+          note_kind AS noteKind,
+          is_pinned AS isPinned,
+          tag,
+          color,
           last_scheduled_for AS lastScheduledFor,
           created_at AS createdAt,
           updated_at AS updatedAt

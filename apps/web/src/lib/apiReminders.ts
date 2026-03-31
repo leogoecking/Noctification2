@@ -1,18 +1,19 @@
 import type {
-  ReminderHealthItem,
   ReminderItem,
-  ReminderLogItem,
   ReminderOccurrenceItem
 } from "../types";
 import { request } from "./apiCore";
 
 type ReminderListResponse = { reminders: ReminderItem[] };
 type ReminderOccurrencesResponse = { occurrences: ReminderOccurrenceItem[] };
-type ReminderHealthResponse = { health: ReminderHealthItem };
-type ReminderLogsResponse = { logs: ReminderLogItem[] };
 
 export const reminderApi = {
   myReminders: (query = "") => request<ReminderListResponse>(`/me/reminders${query}`),
+
+  archiveMyStaleReminders: () =>
+    request<{ archivedCount: number }>("/me/reminders/archive-stale", {
+      method: "POST"
+    }),
 
   createMyReminder: (payload: unknown) =>
     request<{ reminder: ReminderItem }>("/me/reminders", {
@@ -45,19 +46,4 @@ export const reminderApi = {
       method: "POST"
     }),
 
-  adminReminders: (query = "") => request<ReminderListResponse>(`/admin/reminders${query}`),
-
-  adminReminderOccurrences: (query = "") =>
-    request<ReminderOccurrencesResponse>(`/admin/reminder-occurrences${query}`),
-
-  adminReminderHealth: () => request<ReminderHealthResponse>("/admin/reminders/health"),
-
-  adminReminderLogs: (query = "") =>
-    request<ReminderLogsResponse>(`/admin/reminder-logs${query}`),
-
-  toggleAdminReminder: (id: number, isActive: boolean) =>
-    request<{ ok: boolean }>(`/admin/reminders/${id}/toggle`, {
-      method: "PATCH",
-      bodyJson: { is_active: isActive }
-    })
 };

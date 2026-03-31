@@ -9,6 +9,7 @@ import {
   normalizeReminderRow
 } from "../reminders/service";
 import {
+  archiveStaleUserReminders,
   completeUserReminderOccurrence,
   deleteUserReminder,
   fetchReminderById,
@@ -48,6 +49,20 @@ export const createReminderMeRouter = (
     });
   });
 
+  router.post("/reminders/archive-stale", (req, res) => {
+    if (!req.authUser) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return;
+    }
+
+    const archivedCount = archiveStaleUserReminders(db, {
+      userId: req.authUser.id,
+      staleDays: 30
+    });
+
+    res.json({ archivedCount });
+  });
+
   router.post("/reminders", (req, res) => {
     if (!req.authUser) {
       res.status(401).json({ error: "Nao autenticado" });
@@ -72,7 +87,11 @@ export const createReminderMeRouter = (
       timezone: resolved.timezone,
       supportedTimezone: config.reminderTimezone,
       repeatType: resolved.repeatType,
-      weekdays: resolved.weekdays
+      weekdays: resolved.weekdays,
+      checklistItems: resolved.checklistItems,
+      noteKind: resolved.noteKind,
+      tag: resolved.tag,
+      color: resolved.color
     });
     if (validationError) {
       res.status(400).json({ error: validationError });
@@ -91,10 +110,15 @@ export const createReminderMeRouter = (
             timezone,
             repeat_type,
             weekdays_json,
+            checklist_json,
             is_active,
+            note_kind,
+            is_pinned,
+            tag,
+            color,
             created_at,
             updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
         `
       )
       .run(
@@ -106,6 +130,11 @@ export const createReminderMeRouter = (
         resolved.timezone,
         resolved.repeatType,
         resolved.weekdaysJson,
+        resolved.checklistJson,
+        resolved.noteKind,
+        resolved.isPinned ? 1 : 0,
+        resolved.tag,
+        resolved.color,
         timestamp,
         timestamp
       );
@@ -123,7 +152,12 @@ export const createReminderMeRouter = (
             timezone,
             repeat_type AS repeatType,
             weekdays_json AS weekdaysJson,
+            checklist_json AS checklistJson,
             is_active AS isActive,
+            note_kind AS noteKind,
+            is_pinned AS isPinned,
+            tag,
+            color,
             last_scheduled_for AS lastScheduledFor,
             created_at AS createdAt,
             updated_at AS updatedAt
@@ -189,6 +223,11 @@ export const createReminderMeRouter = (
             timezone,
             repeat_type AS repeatType,
             weekdays_json AS weekdaysJson,
+            checklist_json AS checklistJson,
+            note_kind AS noteKind,
+            is_pinned AS isPinned,
+            tag,
+            color,
             last_scheduled_for AS lastScheduledFor
           FROM reminders
           WHERE id = ? AND user_id = ?
@@ -203,6 +242,11 @@ export const createReminderMeRouter = (
       timezone: string;
       repeatType: string;
       weekdaysJson: string;
+      checklistJson: string;
+      noteKind: "note" | "checklist" | "alarm";
+      isPinned: number;
+      tag: string;
+      color: "slate" | "sky" | "amber" | "emerald" | "rose";
       lastScheduledFor: string | null;
     };
 
@@ -216,7 +260,11 @@ export const createReminderMeRouter = (
       timezone: resolved.timezone,
       supportedTimezone: config.reminderTimezone,
       repeatType: resolved.repeatType,
-      weekdays: resolved.weekdays
+      weekdays: resolved.weekdays,
+      checklistItems: resolved.checklistItems,
+      noteKind: resolved.noteKind,
+      tag: resolved.tag,
+      color: resolved.color
     });
     if (validationError) {
       res.status(400).json({ error: validationError });
@@ -234,6 +282,11 @@ export const createReminderMeRouter = (
           timezone = ?,
           repeat_type = ?,
           weekdays_json = ?,
+          checklist_json = ?,
+          note_kind = ?,
+          is_pinned = ?,
+          tag = ?,
+          color = ?,
           last_scheduled_for = ?,
           updated_at = ?
         WHERE id = ?
@@ -248,6 +301,11 @@ export const createReminderMeRouter = (
       resolved.timezone,
       resolved.repeatType,
       resolved.weekdaysJson,
+      resolved.checklistJson,
+      resolved.noteKind,
+      resolved.isPinned ? 1 : 0,
+      resolved.tag,
+      resolved.color,
       resolved.lastScheduledFor,
       nowIso(),
       reminderId,

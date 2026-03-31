@@ -1,7 +1,6 @@
 import type {
   AuditEventItem,
   NotificationHistoryItem,
-  ReminderHealthItem,
   TaskAutomationHealthItem,
 } from "../../types";
 import { OperationsBoardRail } from "../OperationsBoardRail";
@@ -16,7 +15,6 @@ import {
 interface AdminOverviewPanelProps {
   onError: (message: string) => void;
   onToast: (message: string) => void;
-  reminderHealth: ReminderHealthItem | null;
   taskHealth: TaskAutomationHealthItem | null;
   loadingHealth: boolean;
   onRefreshHealth: () => void;
@@ -36,7 +34,6 @@ interface AdminOverviewPanelProps {
 export const AdminOverviewPanel = ({
   onError,
   onToast,
-  reminderHealth,
   taskHealth,
   loadingHealth,
   onRefreshHealth,
@@ -75,7 +72,6 @@ export const AdminOverviewPanel = ({
 
         <div className="space-y-6 xl:col-span-3">
           <AdminOverviewSystemHealth
-            reminderHealth={reminderHealth}
             taskHealth={taskHealth}
             loading={loadingHealth}
             onRefresh={onRefreshHealth}

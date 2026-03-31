@@ -3,7 +3,6 @@ import type {
   AuditEventItem,
   NotificationHistoryItem,
   OnlineUserItem,
-  ReminderHealthItem,
   TaskAutomationHealthItem
 } from "../../types";
 import type { AdminMetrics, OnlineSummary, QueueFilters, StateSetter } from "./types";
@@ -62,14 +61,12 @@ export const AdminOverviewMetrics = ({ metrics }: { metrics: AdminMetrics }) => 
 );
 
 interface AdminOverviewSystemHealthProps {
-  reminderHealth: ReminderHealthItem | null;
   taskHealth: TaskAutomationHealthItem | null;
   loading: boolean;
   onRefresh: () => void;
 }
 
 export const AdminOverviewSystemHealth = ({
-  reminderHealth,
   taskHealth,
   loading,
   onRefresh
@@ -96,15 +93,6 @@ export const AdminOverviewSystemHealth = ({
         <div className="flex flex-wrap gap-2">
           <span
             className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-              reminderHealth?.schedulerEnabled
-                ? "bg-success/15 text-success"
-                : "bg-warning/15 text-warning"
-            }`}
-          >
-            Lembretes {reminderHealth?.schedulerEnabled ? "ativos" : "inativos"}
-          </span>
-          <span
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
               taskHealth?.schedulerEnabled ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
             }`}
           >
@@ -114,11 +102,11 @@ export const AdminOverviewSystemHealth = ({
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-panel px-3 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Pendentes</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">A vencer</p>
             <p className="mt-2 text-xl font-bold text-textMain">
-              {reminderHealth?.pendingOccurrences ?? 0}
+              {taskHealth?.dueSoonEligible ?? 0}
             </p>
-            <p className="mt-1 text-xs text-textMuted">Ocorrencias aguardando processamento</p>
+            <p className="mt-1 text-xs text-textMuted">Tasks proximas do SLA configurado</p>
           </div>
 
           <div className="rounded-xl bg-panel px-3 py-3">
@@ -144,12 +132,6 @@ export const AdminOverviewSystemHealth = ({
             Ver detalhes tecnicos
           </summary>
           <div className="mt-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-textMuted">Scheduler lembretes</span>
-              <span className={reminderHealth?.schedulerEnabled ? "text-success" : "text-warning"}>
-                {reminderHealth?.schedulerEnabled ? "Ativo" : "Inativo"}
-              </span>
-            </div>
             <div className="flex items-center justify-between">
               <span className="text-textMuted">Scheduler tarefas</span>
               <span className={taskHealth?.schedulerEnabled ? "text-success" : "text-warning"}>

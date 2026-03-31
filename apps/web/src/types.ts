@@ -36,6 +36,12 @@ export type TaskEventType =
   | "automation_recurring_task";
 export type ReminderRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
 export type ReminderOccurrenceStatus = "pending" | "completed" | "expired" | "cancelled";
+export type ReminderNoteKind = "note" | "checklist" | "alarm";
+export type ReminderColorKey = "slate" | "sky" | "amber" | "emerald" | "rose";
+export interface ReminderChecklistItem {
+  checked: boolean;
+  label: string;
+}
 export type OperationsBoardStatus = "active" | "resolved";
 export type OperationsBoardEventType =
   | "created"
@@ -301,7 +307,12 @@ export interface ReminderItem {
   timezone: string;
   repeatType: ReminderRepeatType;
   weekdays: number[];
+  checklistItems?: ReminderChecklistItem[];
   isActive: boolean;
+  noteKind?: ReminderNoteKind;
+  pinned?: boolean;
+  tag?: string;
+  color?: ReminderColorKey;
   lastScheduledFor: string | null;
   createdAt: string;
   updatedAt: string;
@@ -325,29 +336,6 @@ export interface ReminderOccurrenceItem {
   updatedAt: string;
   title: string;
   description: string;
-}
-
-export interface ReminderLogItem {
-  id: number;
-  reminderId: number | null;
-  occurrenceId: number | null;
-  userId: number | null;
-  userName?: string | null;
-  userLogin?: string | null;
-  eventType: string;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-export interface ReminderHealthItem {
-  schedulerEnabled: boolean;
-  totalReminders: number;
-  activeReminders: number;
-  pendingOccurrences: number;
-  completedToday: number;
-  expiredToday: number;
-  deliveriesToday: number;
-  retriesToday: number;
 }
 
 export interface OperationsBoardMessageItem {
