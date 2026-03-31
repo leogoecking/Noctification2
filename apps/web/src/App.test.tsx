@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { api, ApiError } from "./lib/api";
+import { getPageTitle } from "./components/app/appShell";
 
 vi.mock("./lib/api", () => ({
   api: {
@@ -40,11 +41,7 @@ vi.mock("./lib/api", () => ({
     deleteMyReminder: vi.fn(),
     myReminderOccurrences: vi.fn(),
     completeReminderOccurrence: vi.fn(),
-    adminReminders: vi.fn(),
-    adminReminderOccurrences: vi.fn(),
-    adminReminderHealth: vi.fn(),
-    adminReminderLogs: vi.fn(),
-    toggleAdminReminder: vi.fn()
+    standardizeKmlPostes: vi.fn(),
   },
   ApiError: class ApiError extends Error {
     status: number;
@@ -61,6 +58,7 @@ describe("App routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("VITE_ENABLE_APR_MODULE", "false");
+    vi.stubEnv("VITE_ENABLE_KML_POSTE_MODULE", "false");
     mockedApi.me.mockRejectedValue(new Error("Nao autenticado"));
   });
 
@@ -169,7 +167,7 @@ describe("App routing", () => {
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("heading", { level: 1, name: "Tarefas" })).toBeInTheDocument();
-    expect(screen.getByText("Acompanhamento da sua fila operacional")).toBeInTheDocument();
+    expect(screen.getByText("Kanban principal da operacao com busca direta e SLA")).toBeInTheDocument();
   });
 
   it("redireciona admin de /apr para dashboard quando o modulo nao esta ativo", async () => {
@@ -187,5 +185,34 @@ describe("App routing", () => {
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
     expect(screen.getByText("Dashboard operacional")).toBeInTheDocument();
+  });
+
+  it("renderiza kml-postes para usuario quando o modulo esta ativo", async () => {
+    vi.stubEnv("VITE_ENABLE_KML_POSTE_MODULE", "true");
+    window.history.replaceState({}, "", "/kml-postes");
+    mockedApi.me.mockResolvedValueOnce({
+      user: {
+        id: 2,
+        login: "user",
+        name: "Usuario",
+        role: "user"
+      }
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("Padronizador de postes KML/KMZ")).toBeInTheDocument();
+  });
+
+  it("retorna titulo APR para admin quando a rota atual e /apr", () => {
+    expect(
+      getPageTitle("/apr", {
+        id: 1,
+        login: "admin",
+        name: "Administrador",
+        role: "admin"
+      })
+    ).toBe("APR");
   });
 });

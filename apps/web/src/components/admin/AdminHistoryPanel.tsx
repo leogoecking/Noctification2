@@ -36,14 +36,14 @@ export const AdminHistoryPanel = ({
   onRefresh
 }: AdminHistoryPanelProps) => {
   return (
-    <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
+    <article className="space-y-3 rounded-[1.25rem] bg-panel p-5">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h3 className="font-display text-lg text-textMain">Historico de notificacoes</h3>
           <p className="text-sm text-textMuted">Ultimas notificacoes enviadas e status por destinatario</p>
         </div>
         <button
-          className="rounded-md border border-slate-600 px-3 py-1 text-xs text-textMuted"
+          className="rounded-md border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMuted"
           onClick={onRefresh}
         >
           Atualizar
@@ -151,7 +151,7 @@ export const AdminHistoryPanel = ({
         </button>
 
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+          className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
           onClick={onResetFilters}
         >
           Limpar filtros
@@ -168,14 +168,14 @@ export const AdminHistoryPanel = ({
 
       <div className="flex flex-wrap gap-2">
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+          className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
           onClick={() => setHistoryPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
           disabled={historyPagination.page <= 1}
         >
           Pagina anterior
         </button>
         <button
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain disabled:opacity-50"
+          className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
           onClick={() =>
             setHistoryPagination((prev) => ({
               ...prev,
@@ -198,7 +198,7 @@ export const AdminHistoryPanel = ({
           const notificationResponses = item.recipients.filter(hasRecipientResponse);
 
           return (
-            <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+            <div key={item.id} className="rounded-xl bg-panelAlt p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-semibold text-textMain">{item.title}</p>
@@ -243,7 +243,7 @@ export const AdminHistoryPanel = ({
                 )}
 
                 {notificationResponses.map((recipient) => (
-                  <div key={recipient.userId} className="rounded-lg border border-slate-700 px-2 py-2">
+                  <div key={recipient.userId} className="rounded-lg border border-outlineSoft bg-panel px-2 py-2">
                     <p className="text-xs text-textMain">
                       <span className="font-semibold">{recipient.name}</span> ({recipient.login}) -{" "}
                       {operationalStatusLabel(recipient.operationalStatus)}

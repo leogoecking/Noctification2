@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { TaskStatus } from "../../../types";
 import {
   isTaskTerminal,
   parseLimit,
@@ -25,6 +26,29 @@ export const TASK_ORDER_BY = `
     t.id DESC
 `;
 
+const TASK_STATUS_SEARCH_TERMS: Record<TaskStatus, string[]> = {
+  new: ["new", "nova"],
+  assumed: ["assumed", "assumida"],
+  in_progress: ["in_progress", "in progress", "em andamento", "em_andamento", "andamento"],
+  blocked: ["blocked", "bloqueada", "bloqueado"],
+  waiting_external: ["waiting_external", "waiting external", "aguardando externo", "externo"],
+  done: ["done", "concluida", "concluido", "finalizada", "finalizado"],
+  cancelled: ["cancelled", "cancelada", "cancelado"]
+};
+
+const findTaskStatusesBySearch = (search: string): TaskStatus[] => {
+  const normalizedSearch = search.trim().toLowerCase();
+  if (!normalizedSearch) {
+    return [];
+  }
+
+  return (Object.entries(TASK_STATUS_SEARCH_TERMS) as Array<[TaskStatus, string[]]>)
+    .filter(([, terms]) =>
+      terms.some((term) => term.includes(normalizedSearch) || normalizedSearch.includes(term))
+    )
+    .map(([status]) => status);
+};
+
 export const parseTaskIdParam = (value: string): number | null => {
   const taskId = Number(value);
   return Number.isInteger(taskId) && taskId > 0 ? taskId : null;
@@ -36,6 +60,7 @@ export const buildTaskListParams = (
     defaultLimit: number;
     maxLimit: number;
     scopeUserId?: number;
+    includeAssigneeSearch?: boolean;
   }
 ):
   | {
@@ -53,6 +78,7 @@ export const buildTaskListParams = (
   const priority = toNullableString(query.priority);
   const dueBefore = toNullableString(query.due_before);
   const dueAfter = toNullableString(query.due_after);
+  const search = toNullableString(query.search);
   const assigneeUserId = parseOptionalUserId(query.assignee_user_id);
   const creatorUserId = parseOptionalUserId(query.creator_user_id);
   const includeArchived = String(query.include_archived ?? "").toLowerCase() === "true";
@@ -139,6 +165,29 @@ export const buildTaskListParams = (
     values.push(dueBefore);
   }
 
+  if (search) {
+    const normalizedSearch = `%${search.trim().toLowerCase()}%`;
+    const matchedStatuses = findTaskStatusesBySearch(search);
+    const searchConditions = [
+      "LOWER(t.title) LIKE ?",
+      "LOWER(COALESCE(t.description, '')) LIKE ?"
+    ];
+    values.push(normalizedSearch, normalizedSearch);
+
+    if (options.includeAssigneeSearch) {
+      searchConditions.push("LOWER(COALESCE(assignee.name, '')) LIKE ?");
+      searchConditions.push("LOWER(COALESCE(assignee.login, '')) LIKE ?");
+      values.push(normalizedSearch, normalizedSearch);
+    }
+
+    if (matchedStatuses.length > 0) {
+      searchConditions.push(`t.status IN (${matchedStatuses.map(() => "?").join(", ")})`);
+      values.push(...matchedStatuses);
+    }
+
+    conditions.push(`(${searchConditions.join(" OR ")})`);
+  }
+
   return {
     conditions,
     values,
@@ -212,7 +261,15 @@ export const buildTaskListResponse = (
 ) => {
   const whereClause = params.conditions.length > 0 ? `WHERE ${params.conditions.join(" AND ")}` : "";
   const total = (
-    db.prepare(`SELECT COUNT(*) AS total FROM tasks t ${whereClause}`).get(...params.values) as {
+    db.prepare(
+      `
+        SELECT COUNT(*) AS total
+        FROM (
+          ${taskSelectSql}
+          ${whereClause}
+        ) task_list
+      `
+    ).get(...params.values) as {
       total: number;
     }
   ).total;

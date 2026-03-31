@@ -1,5 +1,11 @@
 export type ReminderRepeatType = "none" | "daily" | "weekly" | "monthly" | "weekdays";
 export type ReminderOccurrenceStatus = "pending" | "completed" | "expired" | "cancelled";
+export type ReminderNoteKind = "note" | "checklist" | "alarm";
+export type ReminderColorKey = "slate" | "sky" | "amber" | "emerald" | "rose";
+export interface ReminderChecklistItem {
+  checked: boolean;
+  label: string;
+}
 
 export interface ReminderRow {
   id: number;
@@ -13,7 +19,12 @@ export interface ReminderRow {
   timezone: string;
   repeatType: ReminderRepeatType;
   weekdaysJson: string;
+  checklistJson: string;
   isActive: number;
+  noteKind: ReminderNoteKind;
+  isPinned: number;
+  tag: string;
+  color: ReminderColorKey;
   lastScheduledFor: string | null;
   createdAt: string;
   updatedAt: string;

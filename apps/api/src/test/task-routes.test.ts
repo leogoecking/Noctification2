@@ -245,6 +245,54 @@ describe("task routes", () => {
     expect((createRes.body as { error: string }).error).toContain("atribuir");
   });
 
+  it("permite buscar tarefas do usuario por titulo e descricao", () => {
+    const createHandler = getRouteHandler(meRouter, "/tasks", "post");
+    const listHandler = getRouteHandler(meRouter, "/tasks", "get");
+
+    const firstCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Investigar falha no enlace",
+          description: "Evento de rede no setor sul",
+          assignee_user_id: regularUser.id
+        }
+      },
+      firstCreateRes
+    );
+    expect(firstCreateRes.statusCode).toBe(201);
+
+    const secondCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Revisar checklist",
+          description: "Procedimento rotineiro",
+          assignee_user_id: regularUser.id
+        }
+      },
+      secondCreateRes
+    );
+    expect(secondCreateRes.statusCode).toBe(201);
+
+    const listRes = createMockResponse();
+    listHandler(
+      {
+        authUser: regularUser,
+        query: {
+          search: "falha"
+        }
+      },
+      listRes
+    );
+
+    expect(listRes.statusCode).toBe(200);
+    expect((listRes.body as { tasks: Array<{ title: string }> }).tasks).toHaveLength(1);
+    expect((listRes.body as { tasks: Array<{ title: string }> }).tasks[0]?.title).toContain("falha");
+  });
+
   it("permite ao admin criar para outro usuario, filtrar e cancelar", () => {
     const createHandler = getRouteHandler(adminRouter, "/tasks", "post");
     const listHandler = getRouteHandler(adminRouter, "/tasks", "get");
@@ -415,5 +463,141 @@ describe("task routes", () => {
         .get() as { count: number }
     ).count;
     expect(auditCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("permite ao admin buscar tarefas por responsavel", () => {
+    const createHandler = getRouteHandler(adminRouter, "/tasks", "post");
+    const listHandler = getRouteHandler(adminRouter, "/tasks", "get");
+
+    const firstCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Validar roteiro",
+          description: "Checklist de campo",
+          assignee_user_id: secondUser.id
+        }
+      },
+      firstCreateRes
+    );
+    expect(firstCreateRes.statusCode).toBe(201);
+
+    const secondCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Verificar estoque",
+          description: "Fluxo interno",
+          assignee_user_id: regularUser.id
+        }
+      },
+      secondCreateRes
+    );
+    expect(secondCreateRes.statusCode).toBe(201);
+
+    const listRes = createMockResponse();
+    listHandler(
+      {
+        authUser: adminUser,
+        query: {
+          search: "user2"
+        }
+      },
+      listRes
+    );
+
+    expect(listRes.statusCode).toBe(200);
+    expect((listRes.body as { tasks: Array<{ assigneeLogin: string | null }> }).tasks).toHaveLength(1);
+    expect((listRes.body as { tasks: Array<{ assigneeLogin: string | null }> }).tasks[0]?.assigneeLogin).toBe("user2");
+  });
+
+  it("permite ao admin buscar tarefas por status usando rotulo e valor interno", () => {
+    const createHandler = getRouteHandler(adminRouter, "/tasks", "post");
+    const listHandler = getRouteHandler(adminRouter, "/tasks", "get");
+    const updateHandler = getRouteHandler(adminRouter, "/tasks/:id", "patch");
+    const completeHandler = getRouteHandler(adminRouter, "/tasks/:id/complete", "post");
+
+    const firstCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Tarefa aguardando terceiro",
+          description: "Dependencia externa"
+        }
+      },
+      firstCreateRes
+    );
+    expect(firstCreateRes.statusCode).toBe(201);
+    const waitingTaskId = (firstCreateRes.body as { task: { id: number } }).task.id;
+
+    const waitingUpdateRes = createMockResponse();
+    updateHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(waitingTaskId) },
+        body: { status: "waiting_external" }
+      },
+      waitingUpdateRes
+    );
+    expect(waitingUpdateRes.statusCode).toBe(200);
+
+    const secondCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Tarefa encerrada",
+          description: "Fluxo concluido"
+        }
+      },
+      secondCreateRes
+    );
+    expect(secondCreateRes.statusCode).toBe(201);
+    const doneTaskId = (secondCreateRes.body as { task: { id: number } }).task.id;
+
+    const completeRes = createMockResponse();
+    completeHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(doneTaskId) }
+      },
+      completeRes
+    );
+    expect(completeRes.statusCode).toBe(200);
+
+    const byLabelRes = createMockResponse();
+    listHandler(
+      {
+        authUser: adminUser,
+        query: {
+          search: "concluida"
+        }
+      },
+      byLabelRes
+    );
+
+    expect(byLabelRes.statusCode).toBe(200);
+    expect((byLabelRes.body as { tasks: Array<{ id: number; status: string }> }).tasks).toHaveLength(1);
+    expect((byLabelRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.id).toBe(doneTaskId);
+    expect((byLabelRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.status).toBe("done");
+
+    const byValueRes = createMockResponse();
+    listHandler(
+      {
+        authUser: adminUser,
+        query: {
+          search: "waiting_external"
+        }
+      },
+      byValueRes
+    );
+
+    expect(byValueRes.statusCode).toBe(200);
+    expect((byValueRes.body as { tasks: Array<{ id: number; status: string }> }).tasks).toHaveLength(1);
+    expect((byValueRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.id).toBe(waitingTaskId);
+    expect((byValueRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.status).toBe("waiting_external");
   });
 });

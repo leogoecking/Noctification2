@@ -212,7 +212,7 @@ describe("TaskUserPanel", () => {
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByRole("button", { name: "Novo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nova tarefa" }));
     fireEvent.change(screen.getByPlaceholderText("Titulo da tarefa"), {
       target: { value: "Nova tarefa" }
     });
@@ -235,7 +235,7 @@ describe("TaskUserPanel", () => {
     );
   });
 
-  it("fecha o detalhe quando a tarefa sai do filtro apos concluir", async () => {
+  it("fecha o detalhe quando a tarefa eh excluida pelo detalhe", async () => {
     mockedApi.myTasks
       .mockResolvedValueOnce({
         tasks: [buildTaskItem({ id: 7, title: "Tarefa 7" })],
@@ -249,8 +249,8 @@ describe("TaskUserPanel", () => {
       task: buildTaskItem({ id: 7, title: "Tarefa 7" }),
       timeline: []
     });
-    mockedApi.completeMyTask.mockResolvedValue({
-      task: { ...buildTaskItem({ id: 7, title: "Tarefa 7" }), status: "done" }
+    mockedApi.cancelMyTask.mockResolvedValue({
+      task: { ...buildTaskItem({ id: 7, title: "Tarefa 7" }), status: "cancelled" }
     });
 
     renderTaskUserPanel();
@@ -260,11 +260,11 @@ describe("TaskUserPanel", () => {
     await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(7));
     fireEvent.click(
       within(screen.getByRole("dialog", { name: "Detalhe da tarefa" })).getByRole("button", {
-        name: "Concluir"
+        name: "Excluir"
       })
     );
 
-    await waitFor(() => expect(mockedApi.completeMyTask).toHaveBeenCalledWith(7));
+    await waitFor(() => expect(mockedApi.cancelMyTask).toHaveBeenCalledWith(7));
     await waitFor(() =>
       expect(screen.queryByRole("heading", { name: "Tarefa 7" })).not.toBeInTheDocument()
     );
@@ -371,7 +371,7 @@ describe("TaskUserPanel", () => {
     expect((await within(inProgressColumn).findAllByText("Em andamento")).length).toBeGreaterThan(0);
   });
 
-  it("permite mudar o status pelo board", async () => {
+  it("permite mover a tarefa por drag and drop no board", async () => {
     mockedApi.myTasks
       .mockResolvedValueOnce({
         tasks: [
@@ -465,9 +465,23 @@ describe("TaskUserPanel", () => {
     renderTaskUserPanel();
 
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole("button", { name: "Abrir tarefa Aguardando externo" }));
-    await waitFor(() => expect(mockedApi.myTask).toHaveBeenCalledWith(3));
-    fireEvent.click(screen.getByRole("button", { name: "Mover para em andamento" }));
+    const card = screen.getByRole("button", { name: "Abrir tarefa Aguardando externo" });
+    const targetColumn = screen.getByLabelText("Coluna Em andamento");
+    const dataTransfer = {
+      effectAllowed: "",
+      dropEffect: "",
+      data: new Map<string, string>(),
+      setData(type: string, value: string) {
+        this.data.set(type, value);
+      },
+      getData(type: string) {
+        return this.data.get(type) ?? "";
+      }
+    };
+
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragOver(targetColumn, { dataTransfer });
+    fireEvent.drop(targetColumn, { dataTransfer });
 
     await waitFor(() => expect(mockedApi.updateMyTask).toHaveBeenCalledWith(3, { status: "in_progress" }));
   });
@@ -737,52 +751,7 @@ describe("TaskUserPanel", () => {
     expect(screen.getAllByText("Comentario de acompanhamento").length).toBeGreaterThan(0);
   });
 
-  it("aplica a fila rapida de atrasadas no board", async () => {
-    const now = Date.now();
-
-    mockedApi.myTasks.mockResolvedValue({
-      tasks: [
-        buildTaskItem({
-          id: 30,
-          title: "Tarefa vencida",
-          dueAt: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
-          status: "in_progress",
-          priority: "high"
-        }),
-        buildTaskItem({
-          id: 31,
-          title: "Tarefa futura",
-          dueAt: new Date(now + 27 * 60 * 60 * 1000).toISOString(),
-          status: "new"
-        })
-      ],
-      pagination: { page: 1, limit: 50, total: 2, totalPages: 1 }
-    });
-    mockedApi.myTask.mockResolvedValue({
-      task: buildTaskItem({ id: 30, title: "Tarefa vencida" }),
-      timeline: []
-    });
-
-    renderTaskUserPanel();
-
-    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole("button", { name: "Atrasadas (1)" }));
-
-    expect(screen.getByText("Tarefa vencida")).toBeInTheDocument();
-    expect(screen.queryByText("Tarefa futura")).not.toBeInTheDocument();
-    expect(screen.getByText("Atrasada")).toBeInTheDocument();
-  });
-
-  it("restaura filtros operacionais salvos do usuario", async () => {
-    window.localStorage.setItem(
-      "tasks:user:filters",
-      JSON.stringify({
-        statusFilter: "blocked",
-        priorityFilter: "high",
-        queueFilter: "stale"
-      })
-    );
-
+  it("envia busca textual de tarefas do usuario", async () => {
     mockedApi.myTasks.mockResolvedValue({
       tasks: [],
       pagination: { page: 1, limit: 50, total: 0, totalPages: 1 }
@@ -790,7 +759,66 @@ describe("TaskUserPanel", () => {
 
     renderTaskUserPanel();
 
-    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledWith("?status=blocked&priority=high"));
-    expect(screen.getByRole("button", { name: "Paradas 24h+ (0)" })).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText("titulo, descricao ou status"), {
+      target: { value: "falha" }
+    });
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenLastCalledWith("?search=falha"));
+  });
+
+  it("conclui a tarefa ao arrastar para a coluna concluida no board", async () => {
+    mockedApi.myTasks
+      .mockResolvedValueOnce({
+        tasks: [buildTaskItem({ id: 32, title: "Fechar no kanban", status: "in_progress" })],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      })
+      .mockResolvedValueOnce({
+        tasks: [
+          buildTaskItem({
+            id: 32,
+            title: "Fechar no kanban",
+            status: "done",
+            completedAt: "2026-03-21T12:05:00.000Z"
+          })
+        ],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      });
+    mockedApi.myTask.mockResolvedValue({
+      task: buildTaskItem({ id: 32, title: "Fechar no kanban", status: "in_progress" }),
+      timeline: []
+    });
+    mockedApi.completeMyTask.mockResolvedValue({
+      task: buildTaskItem({
+        id: 32,
+        title: "Fechar no kanban",
+        status: "done",
+        completedAt: "2026-03-21T12:05:00.000Z"
+      })
+    });
+
+    renderTaskUserPanel();
+
+    await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
+
+    const card = screen.getByRole("button", { name: "Abrir tarefa Fechar no kanban" });
+    const targetColumn = screen.getByLabelText("Coluna Concluida");
+    const dataTransfer = {
+      effectAllowed: "",
+      dropEffect: "",
+      data: new Map<string, string>(),
+      setData(type: string, value: string) {
+        this.data.set(type, value);
+      },
+      getData(type: string) {
+        return this.data.get(type) ?? "";
+      }
+    };
+
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragOver(targetColumn, { dataTransfer });
+    fireEvent.drop(targetColumn, { dataTransfer });
+
+    await waitFor(() => expect(mockedApi.completeMyTask).toHaveBeenCalledWith(32));
   });
 });

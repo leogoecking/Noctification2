@@ -70,6 +70,12 @@ type ReminderResponseBody = {
     title: string;
     weekdays: number[];
     repeatType: string;
+    noteKind: string;
+    pinned: boolean;
+    tag: string;
+    color: string;
+    description: string;
+    checklistItems?: Array<{ checked: boolean; label: string }>;
   };
 };
 
@@ -84,29 +90,12 @@ type ReminderListResponseBody = {
 
 type OccurrenceListResponseBody = {
   occurrences: Array<{
+    id: number;
     title: string;
+    status: string;
     userName?: string;
     userLogin?: string;
   }>;
-};
-
-type LogsResponseBody = {
-  logs: Array<{
-    userName?: string;
-    eventType: string;
-    metadata: { retryCount?: number } | null;
-  }>;
-};
-
-type HealthResponseBody = {
-  health: {
-    schedulerEnabled: boolean;
-    totalReminders: number;
-    activeReminders: number;
-    pendingOccurrences: number;
-    deliveriesToday: number;
-    retriesToday: number;
-  };
 };
 
 type ErrorResponseBody = {
@@ -220,12 +209,20 @@ describe("reminder routes", () => {
         authUser: regularUser,
         body: {
           title: "Tomar agua",
-          description: "500ml",
+          description: "- [ ] Beber 500ml\n- [x] Registrar horario",
           startDate: "2026-03-13",
           timeOfDay: "09:30",
           timezone: "America/Bahia",
           repeatType: "weekly",
-          weekdays: [1, 3, 5]
+          weekdays: [1, 3, 5],
+          checklistItems: [
+            { checked: false, label: "Beber 500ml" },
+            { checked: true, label: "Registrar horario" }
+          ],
+          noteKind: "checklist",
+          isPinned: true,
+          tag: "saude",
+          color: "amber"
         }
       },
       createRes
@@ -235,6 +232,14 @@ describe("reminder routes", () => {
     expect(createRes.statusCode).toBe(201);
     expect(createBody.reminder.title).toBe("Tomar agua");
     expect(createBody.reminder.weekdays).toEqual([1, 3, 5]);
+    expect(createBody.reminder.noteKind).toBe("checklist");
+    expect(createBody.reminder.pinned).toBe(true);
+    expect(createBody.reminder.tag).toBe("saude");
+    expect(createBody.reminder.color).toBe("amber");
+    expect(createBody.reminder.checklistItems).toEqual([
+      { checked: false, label: "Beber 500ml" },
+      { checked: true, label: "Registrar horario" }
+    ]);
 
     const reminderId = createBody.reminder.id;
 
@@ -243,7 +248,17 @@ describe("reminder routes", () => {
       {
         authUser: regularUser,
         params: { id: String(reminderId) },
-        body: { title: "Tomar agua cedo", repeatType: "daily", weekdays: [] }
+        body: {
+          title: "Tomar agua cedo",
+          description: "- [x] Beber 700ml",
+          repeatType: "daily",
+          weekdays: [],
+          noteKind: "checklist",
+          isPinned: false,
+          tag: "rotina",
+          color: "emerald",
+          checklistItems: [{ checked: true, label: "Beber 700ml" }]
+        }
       },
       updateRes
     );
@@ -252,6 +267,12 @@ describe("reminder routes", () => {
     expect(updateRes.statusCode).toBe(200);
     expect(updateBody.reminder.title).toBe("Tomar agua cedo");
     expect(updateBody.reminder.repeatType).toBe("daily");
+    expect(updateBody.reminder.description).toBe("- [x] Beber 700ml");
+    expect(updateBody.reminder.noteKind).toBe("checklist");
+    expect(updateBody.reminder.pinned).toBe(false);
+    expect(updateBody.reminder.tag).toBe("rotina");
+    expect(updateBody.reminder.color).toBe("emerald");
+    expect(updateBody.reminder.checklistItems).toEqual([{ checked: true, label: "Beber 700ml" }]);
 
     const toggleRes = createMockResponse();
     toggleHandler(
@@ -472,7 +493,6 @@ describe("reminder routes", () => {
     const deleteHandler = getRouteHandler(meRouter, "/reminders/:id", "delete");
     const listHandler = getRouteHandler(meRouter, "/reminders", "get");
     const listOccurrencesHandler = getRouteHandler(meRouter, "/reminder-occurrences", "get");
-    const listLogsHandler = getRouteHandler(adminRouter, "/reminder-logs", "get");
     const timestamp = nowIso();
 
     const reminderResult = db
@@ -543,18 +563,18 @@ describe("reminder routes", () => {
     expect(occurrencesBody.occurrences[0].id).toBe(occurrenceId);
     expect(occurrencesBody.occurrences[0].status).toBe("cancelled");
 
-    const logsRes = createMockResponse();
-    listLogsHandler(
-      {
-        authUser: adminUser,
-        query: { reminder_id: String(reminderId) }
-      },
-      logsRes
-    );
-
-    const logsBody = logsRes.body as LogsResponseBody;
-    expect(logsBody.logs.some((item) => item.eventType === "reminder.deleted")).toBe(true);
-    expect(logsBody.logs.some((item) => item.eventType === "reminder.occurrence.cancelled")).toBe(true);
+    const logRows = db
+      .prepare(
+        `
+          SELECT event_type AS eventType
+          FROM reminder_logs
+          WHERE reminder_id = ?
+          ORDER BY id ASC
+        `
+      )
+      .all(reminderId) as Array<{ eventType: string }>;
+    expect(logRows.some((item) => item.eventType === "reminder.deleted")).toBe(true);
+    expect(logRows.some((item) => item.eventType === "reminder.occurrence.cancelled")).toBe(true);
 
     expect(
       emittedEvents.some(
@@ -566,11 +586,15 @@ describe("reminder routes", () => {
     ).toBe(true);
   });
 
-  it("retorna contexto de usuario no admin e permite busca textual", () => {
+  it("bloqueia qualquer acesso administrativo a dados de lembretes pessoais", () => {
     const listRemindersHandler = getRouteHandler(adminRouter, "/reminders", "get");
     const listOccurrencesHandler = getRouteHandler(adminRouter, "/reminder-occurrences", "get");
     const listLogsHandler = getRouteHandler(adminRouter, "/reminder-logs", "get");
     const healthHandler = getRouteHandler(adminRouter, "/reminders/health", "get");
+    const toggleHandler = getRouteHandler(adminRouter, "/reminders/:id/toggle", "patch");
+    const createHandler = getRouteHandler(adminRouter, "/reminders", "post");
+    const updateHandler = getRouteHandler(adminRouter, "/reminders/:id", "patch");
+    const deleteHandler = getRouteHandler(adminRouter, "/reminders/:id", "delete");
     const timestamp = nowIso();
 
     const reminderResult = db
@@ -617,11 +641,7 @@ describe("reminder routes", () => {
       remindersRes
     );
 
-    const remindersBody = remindersRes.body as ReminderListResponseBody;
-    expect(remindersRes.statusCode).toBe(200);
-    expect(remindersBody.reminders).toHaveLength(1);
-    expect(remindersBody.reminders[0].userName).toBe("Usuario Teste");
-    expect(remindersBody.reminders[0].userLogin).toBe("user");
+    expect(remindersRes.statusCode).toBe(403);
 
     const occurrencesRes = createMockResponse();
     listOccurrencesHandler(
@@ -632,12 +652,52 @@ describe("reminder routes", () => {
       occurrencesRes
     );
 
-    const occurrencesBody = occurrencesRes.body as OccurrenceListResponseBody;
-    expect(occurrencesRes.statusCode).toBe(200);
-    expect(occurrencesBody.occurrences).toHaveLength(1);
-    expect(occurrencesBody.occurrences[0].userName).toBe("Usuario Teste");
-    expect(occurrencesBody.occurrences[0].userLogin).toBe("user");
-    expect(occurrencesBody.occurrences[0].title).toBe("Checklist diario");
+    expect(occurrencesRes.statusCode).toBe(403);
+
+    const createRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          userId: regularUser.id,
+          title: "Tentativa indevida"
+        }
+      },
+      createRes
+    );
+    expect(createRes.statusCode).toBe(403);
+
+    const updateRes = createMockResponse();
+    updateHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(reminderId) },
+        body: { title: "Tentativa indevida" }
+      },
+      updateRes
+    );
+    expect(updateRes.statusCode).toBe(403);
+
+    const toggleRes = createMockResponse();
+    toggleHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(reminderId) },
+        body: { isActive: false }
+      },
+      toggleRes
+    );
+    expect(toggleRes.statusCode).toBe(403);
+
+    const deleteRes = createMockResponse();
+    deleteHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(reminderId) }
+      },
+      deleteRes
+    );
+    expect(deleteRes.statusCode).toBe(403);
 
     const logsRes = createMockResponse();
     listLogsHandler(
@@ -647,62 +707,72 @@ describe("reminder routes", () => {
       },
       logsRes
     );
-
-    const logsBody = logsRes.body as LogsResponseBody;
-    expect(logsRes.statusCode).toBe(200);
-    expect(logsBody.logs).toHaveLength(1);
-    expect(logsBody.logs[0].userName).toBe("Usuario Teste");
-    expect(logsBody.logs[0].eventType).toBe("reminder.occurrence.retried");
-    expect(logsBody.logs[0].metadata?.retryCount).toBe(1);
+    expect(logsRes.statusCode).toBe(403);
 
     const healthRes = createMockResponse();
     healthHandler({ authUser: adminUser, query: {} }, healthRes);
-
-    const healthBody = healthRes.body as HealthResponseBody;
-    expect(healthRes.statusCode).toBe(200);
-    expect(healthBody.health.totalReminders).toBe(1);
-    expect(healthBody.health.activeReminders).toBe(1);
-    expect(healthBody.health.pendingOccurrences).toBe(1);
-    expect(healthBody.health.deliveriesToday).toBe(1);
-    expect(healthBody.health.retriesToday).toBe(1);
-    expect(healthBody.health.schedulerEnabled).toBe(testConfig.enableReminderScheduler);
+    expect(healthRes.statusCode).toBe(403);
   });
 
-  it("rejeita filtros invalidos no admin de lembretes", () => {
+  it("bloqueia ocorrencias, logs e health no admin sem depender de filtros", () => {
     const listOccurrencesHandler = getRouteHandler(adminRouter, "/reminder-occurrences", "get");
     const listLogsHandler = getRouteHandler(adminRouter, "/reminder-logs", "get");
+    const healthHandler = getRouteHandler(adminRouter, "/reminders/health", "get");
 
-    const invalidStatusRes = createMockResponse();
+    const occurrencesForbiddenRes = createMockResponse();
     listOccurrencesHandler(
       {
         authUser: adminUser,
         query: { status: "wrong" }
       },
-      invalidStatusRes
+      occurrencesForbiddenRes
     );
-    expect(invalidStatusRes.statusCode).toBe(400);
-    expect((invalidStatusRes.body as ErrorResponseBody).error).toMatch(/status invalido/i);
+    expect(occurrencesForbiddenRes.statusCode).toBe(403);
 
-    const invalidFilterRes = createMockResponse();
-    listOccurrencesHandler(
-      {
-        authUser: adminUser,
-        query: { filter: "tomorrow" }
-      },
-      invalidFilterRes
-    );
-    expect(invalidFilterRes.statusCode).toBe(400);
-    expect((invalidFilterRes.body as ErrorResponseBody).error).toMatch(/filter invalido/i);
-
-    const invalidEventTypeRes = createMockResponse();
+    const logsForbiddenRes = createMockResponse();
     listLogsHandler(
       {
         authUser: adminUser,
         query: { event_type: "reminder.unknown" }
       },
-      invalidEventTypeRes
+      logsForbiddenRes
     );
-    expect(invalidEventTypeRes.statusCode).toBe(400);
-    expect((invalidEventTypeRes.body as ErrorResponseBody).error).toMatch(/event_type invalido/i);
+    expect(logsForbiddenRes.statusCode).toBe(403);
+
+    const healthForbiddenRes = createMockResponse();
+    healthHandler({ authUser: adminUser, query: {} }, healthForbiddenRes);
+    expect(healthForbiddenRes.statusCode).toBe(403);
+  });
+
+  it("arquiva automaticamente lembretes inativos e antigos sem pendencias", () => {
+    const archiveHandler = getRouteHandler(meRouter, "/reminders/archive-stale", "post");
+    const timestamp = nowIso();
+    const staleDate = "2026-01-01T10:00:00.000Z";
+
+    db.prepare(
+      `
+        INSERT INTO reminders (
+          user_id, title, description, start_date, time_of_day, timezone,
+          repeat_type, weekdays_json, checklist_json, is_active, note_kind, is_pinned, tag, color, created_at, updated_at
+        ) VALUES
+          (?, 'Arquivar', '', '2026-03-13', '08:00', 'America/Bahia', 'none', '[]', '[]', 0, 'note', 0, '', 'slate', ?, ?),
+          (?, 'Manter ativo', '', '2026-03-13', '08:00', 'America/Bahia', 'none', '[]', '[]', 1, 'note', 0, '', 'slate', ?, ?)
+      `
+    ).run(regularUser.id, staleDate, staleDate, regularUser.id, timestamp, timestamp);
+
+    const archiveRes = createMockResponse();
+    archiveHandler({ authUser: regularUser, body: {} }, archiveRes);
+
+    expect(archiveRes.statusCode).toBe(200);
+    expect(archiveRes.body).toEqual({ archivedCount: 1 });
+
+    const rows = db
+      .prepare("SELECT title, deleted_at AS deletedAt FROM reminders WHERE user_id = ? ORDER BY id ASC")
+      .all(regularUser.id) as Array<{ title: string; deletedAt: string | null }>;
+
+    expect(rows[0].title).toBe("Arquivar");
+    expect(rows[0].deletedAt).toBeTruthy();
+    expect(rows[1].title).toBe("Manter ativo");
+    expect(rows[1].deletedAt).toBeNull();
   });
 });

@@ -8,12 +8,12 @@ import {
   EMPTY_MANUAL_FORM,
   MANUAL_ROWS_PER_PAGE,
   buildDivergentAuditRows,
+  buildAprCollaboratorRiskBars,
   clampPage,
   currentMonthRef,
   filterAuditRows,
   filterHistoryRows,
   filterManualRows,
-  getMonthStats,
   getVisibleCollaboratorSuggestions,
   getVisibleSubjectSuggestions,
   openAuditReportPreview,
@@ -72,7 +72,7 @@ export interface UseAprPageControllerResult {
   loadingMonthData: boolean;
   savingManual: boolean;
   uploading: boolean;
-  monthStats: ReturnType<typeof getMonthStats>;
+  collaboratorRiskBars: ReturnType<typeof buildAprCollaboratorRiskBars>;
   filteredManualRows: AprRow[];
   manualTotalPages: number;
   paginatedManualRows: AprRow[];
@@ -274,7 +274,10 @@ export const useAprPageController = ({
     }
   }, [importFile, importSource, onError, onToast, refreshAfterMutation, selectedMonth]);
 
-  const monthStats = useMemo(() => getMonthStats(summary), [summary]);
+  const collaboratorRiskBars = useMemo(
+    () => buildAprCollaboratorRiskBars(manualRows, audit, history),
+    [manualRows, audit, history]
+  );
   const filteredManualRows = useMemo(
     () => filterManualRows(manualRows, manualSearch),
     [manualRows, manualSearch]
@@ -368,7 +371,7 @@ export const useAprPageController = ({
     loadingMonthData,
     savingManual,
     uploading,
-    monthStats,
+    collaboratorRiskBars,
     filteredManualRows,
     manualTotalPages,
     paginatedManualRows,

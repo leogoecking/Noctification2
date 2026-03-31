@@ -2,27 +2,31 @@
 
 ## Metricas uteis
 
-- Taxa de falha de suites por workspace (`api`, `web`, `apr-core`).
-- Tempo medio de execucao de `lint`, `typecheck` e testes por workspace.
-- Numero de flags ativas por ambiente e mudancas recentes em configuracao.
+- Quantidade de uploads KML/KMZ por dia.
+- Taxa de sucesso vs falha do endpoint `/api/v1/kml-postes/standardize`.
+- Tempo medio de processamento por arquivo.
+- Contagem de placemarks renomeados, ignorados e pulados por execucao.
 
-## Logs e sinais
+## Logs
 
-- Registrar no pipeline qual conjunto de variaveis relevantes de feature flag foi aplicado ao job, sem expor segredos.
-- Destacar falhas recorrentes de roteamento frontend e inconsistencias entre ambiente e expectativa de teste.
+- Logar falhas de parse XML e de leitura de KMZ com nome do arquivo e modo utilizado.
+- Logar erros de validacao de upload sem registrar conteudo sensivel do arquivo.
 
 ## Alertas
 
-- Alertar quando testes comecarem a falhar apenas em certos ambientes/branches.
-- Alertar quando `lint` falhar por residuos simples apos merge, pois isso costuma indicar falta de validacao local minima.
+- Alerta para pico de falhas 4xx/5xx no endpoint KML/KMZ.
+- Alerta para crescimento anormal do tempo de processamento.
 
-## Tracing e health checks
+## Tracing
 
-- No frontend, manter rastreabilidade de flags criticas em logs de bootstrap em ambiente de desenvolvimento quando isso nao expuser dados sensiveis.
-- Na API, continuar usando o healthcheck existente e incluir no processo de release a validacao de rotas mais sensiveis quando houver mudancas de auth/scheduler.
+- Medir etapas: upload recebido, parse KML/KMZ, padronizacao, serializacao, resposta.
 
-## Sinais para producao
+## Health checks
 
-- Divergencia entre flags esperadas e comportamento observado da UI.
-- Aumento de erros de navegacao/rotas bloqueadas apos alteracoes em toggles.
-- Regressao de pipelines por falhas localizadas em um workspace especifico.
+- Manter `GET /api/v1/kml-postes/health` habilitado quando a feature estiver ativa.
+
+## Sinais de producao
+
+- Prefixos frequentemente rejeitados ou vazios.
+- Percentual alto de `skippedNames` em arquivos operacionais.
+- Arquivos `.kmz` sem `doc.kml` ou sem KML interno valido.

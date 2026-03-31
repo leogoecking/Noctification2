@@ -1,26 +1,23 @@
-# Regras preventivas
+# Regras Preventivas
 
-## Sugestoes de lint e disciplina
+## Sugestoes de lint / type rules
 
-- Manter `@typescript-eslint/no-unused-vars` como erro.
-- Tratar qualquer teste dependente de `import.meta.env` como obrigacao de stub/mocking explicito.
-
-## Type rules
-
-- Preferir helpers dedicados para feature flags em vez de constantes espalhadas em componentes.
-- Evitar leitura de flag de ambiente em escopo de modulo quando o comportamento precisar ser testavel/isolavel.
+- Exigir que mocks Vitest de modulos utilitarios exportem todos os simbolos usados pelos componentes.
+- Padronizar funcoes de feature flag em um modulo unico e cobrir seu uso com testes de navegacao.
 
 ## Testes ausentes prioritarios
 
-- Adicionar caso explicito cobrindo APR ativo e inativo via stub da flag no frontend.
-- Considerar teste unitario do helper de feature flags se o numero de flags crescer.
+- Teste HTTP real do endpoint multipart `POST /api/v1/kml-postes/standardize` em CI.
+- Teste de UI da tela `KmlPostePage` cobrindo upload e exibicao do resumo.
+- Teste com `.kmz` contendo `doc.kml` e com `.kmz` contendo outro `.kml` interno.
 
 ## Validacoes de CI recomendadas
 
-- Manter `npm run lint`, `npm run typecheck` e `npm run test` como gates minimos.
-- Se o projeto passar a usar mais feature flags, incluir testes parametrizados por ambiente para caminhos criticos.
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
 
 ## Politicas de revisao uteis
 
-- Em PRs que mudam flags/feature toggles, exigir evidencia de comportamento ligado e desligado.
-- Em PRs de manutencao, separar correcoes funcionais de limpeza cosmética quando possivel.
+- Ao integrar patches externos, comparar primeiro com a estrutura atual antes de substituir arquivos centrais.
+- Nao aceitar feature nova sem validar impacto em mocks de testes existentes.

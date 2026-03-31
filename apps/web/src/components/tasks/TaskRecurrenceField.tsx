@@ -47,8 +47,8 @@ export const TaskRecurrenceField = ({
               aria-label={`${weekdayAriaLabelPrefix} ${item.full}`}
               className={`rounded-lg border px-3 py-2 text-xs ${
                 weekdays.includes(item.value)
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-slate-600 text-textMuted"
+                  ? "border-accent bg-accent text-white"
+                  : "border-outlineSoft bg-panel text-textMuted"
               }`}
               onClick={() =>
                 onWeekdaysChange(

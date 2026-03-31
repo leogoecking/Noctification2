@@ -58,6 +58,7 @@ export interface AppConfig {
   enableReminderScheduler: boolean;
   enableTaskAutomationScheduler?: boolean;
   enableAprModule?: boolean;
+  enableKmlPosteModule?: boolean;
   taskAutomationDueSoonMinutes?: number;
   taskAutomationStaleHours?: number;
   webPushSubject?: string;
@@ -110,6 +111,7 @@ export const config: AppConfig = {
   ),
   enableTaskAutomationScheduler: toBoolean(process.env.ENABLE_TASK_AUTOMATION_SCHEDULER, false),
   enableAprModule: toBoolean(process.env.ENABLE_APR_MODULE, false),
+  enableKmlPosteModule: toBoolean(process.env.ENABLE_KML_POSTE_MODULE, false),
   taskAutomationDueSoonMinutes: toNumber(
     process.env.TASK_AUTOMATION_DUE_SOON_MINUTES,
     120

@@ -1,16 +1,23 @@
 import {
   isValidTimeOfDay,
+  parseReminderColor,
+  parseReminderChecklistItems,
+  parseReminderNoteKind,
   parseReminderRepeatType,
   parseWeekdays,
+  stringifyReminderChecklistItems,
   stringifyWeekdays
 } from "./service";
 import { getZonedParts, parseDateOnly, parseTimeOfDay, zonedDateTimeToUtc } from "./timezone";
 
 type ParsedReminderRepeatType = Exclude<ReturnType<typeof parseReminderRepeatType>, null>;
+type ParsedReminderNoteKind = Exclude<ReturnType<typeof parseReminderNoteKind>, null>;
+type ParsedReminderColor = Exclude<ReturnType<typeof parseReminderColor>, null>;
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_TIMEZONE_LENGTH = 64;
+const MAX_TAG_LENGTH = 40;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface ReminderCurrentSchedule {
@@ -21,6 +28,11 @@ export interface ReminderCurrentSchedule {
   timezone: string;
   repeatType: string;
   weekdaysJson: string;
+  checklistJson: string;
+  noteKind: ParsedReminderNoteKind;
+  isPinned: boolean | number;
+  tag: string;
+  color: ParsedReminderColor;
   lastScheduledFor: string | null;
 }
 
@@ -32,6 +44,11 @@ export interface ParsedReminderCreateInput {
   timezone: string;
   repeatType: ReturnType<typeof parseReminderRepeatType>;
   weekdays: number[];
+  checklistItems: ReturnType<typeof parseReminderChecklistItems>;
+  noteKind: ReturnType<typeof parseReminderNoteKind>;
+  isPinned: boolean;
+  tag: string;
+  color: ReturnType<typeof parseReminderColor>;
 }
 
 export interface ParsedReminderUpdateInput {
@@ -43,6 +60,13 @@ export interface ParsedReminderUpdateInput {
   repeatTypeRaw: unknown;
   repeatType: ReturnType<typeof parseReminderRepeatType> | undefined;
   weekdays: number[] | undefined;
+  checklistItems: ReturnType<typeof parseReminderChecklistItems> | undefined;
+  noteKindRaw: unknown;
+  noteKind: ReturnType<typeof parseReminderNoteKind> | undefined;
+  isPinned: boolean | undefined;
+  tag: string | undefined;
+  colorRaw: unknown;
+  color: ReturnType<typeof parseReminderColor> | undefined;
 }
 
 interface ResolvedReminderWrite {
@@ -54,6 +78,12 @@ interface ResolvedReminderWrite {
   repeatType: ParsedReminderRepeatType;
   weekdays: number[];
   weekdaysJson: string;
+  checklistItems: ReturnType<typeof parseReminderChecklistItems>;
+  checklistJson: string;
+  noteKind: ParsedReminderNoteKind;
+  isPinned: boolean;
+  tag: string;
+  color: ParsedReminderColor;
   lastScheduledFor: string | null;
 }
 
@@ -89,6 +119,14 @@ const parseWeekdaysJson = (value: string): number[] => {
   }
 };
 
+const parseChecklistJson = (value: string) => {
+  try {
+    return parseReminderChecklistItems(JSON.parse(value));
+  } catch {
+    return [];
+  }
+};
+
 export const validateReminderFields = (params: {
   title?: string | null;
   description?: string | null;
@@ -98,6 +136,10 @@ export const validateReminderFields = (params: {
   supportedTimezone: string;
   repeatType?: ReturnType<typeof parseReminderRepeatType> | null;
   weekdays?: number[];
+  noteKind?: ReturnType<typeof parseReminderNoteKind> | null;
+  tag?: string | null;
+  color?: ReturnType<typeof parseReminderColor> | null;
+  checklistItems?: ReturnType<typeof parseReminderChecklistItems>;
 }) => {
   if (params.title !== undefined) {
     if (!params.title || params.title.length === 0) {
@@ -115,6 +157,10 @@ export const validateReminderFields = (params: {
     params.description.length > MAX_DESCRIPTION_LENGTH
   ) {
     return `description deve ter no maximo ${MAX_DESCRIPTION_LENGTH} caracteres`;
+  }
+
+  if (params.tag !== undefined && params.tag !== null && params.tag.length > MAX_TAG_LENGTH) {
+    return `tag deve ter no maximo ${MAX_TAG_LENGTH} caracteres`;
   }
 
   if (
@@ -151,6 +197,18 @@ export const validateReminderFields = (params: {
 
   if (params.repeatType === "weekly" && (!params.weekdays || params.weekdays.length === 0)) {
     return "weekdays e obrigatorio para repeticao semanal";
+  }
+
+  if (params.noteKind !== undefined && params.noteKind === null) {
+    return "noteKind invalido";
+  }
+
+  if (params.color !== undefined && params.color === null) {
+    return "color invalida";
+  }
+
+  if (params.noteKind === "checklist" && (!params.checklistItems || params.checklistItems.length === 0)) {
+    return "checklistItems e obrigatorio para nota checklist";
   }
 
   return null;
@@ -190,13 +248,20 @@ export const parseReminderCreateInput = (
   timeOfDay: toNullableString(body?.timeOfDay ?? body?.time_of_day),
   timezone: toNullableString(body?.timezone) ?? reminderTimezone,
   repeatType: parseReminderRepeatType(body?.repeatType ?? body?.repeat_type),
-  weekdays: parseWeekdays(body?.weekdays)
+  weekdays: parseWeekdays(body?.weekdays),
+  checklistItems: parseReminderChecklistItems(body?.checklistItems ?? body?.checklist_items),
+  noteKind: parseReminderNoteKind(body?.noteKind ?? body?.note_kind) ?? "note",
+  isPinned: body?.isPinned === true || body?.is_pinned === true,
+  tag: toNullableString(body?.tag) ?? "",
+  color: parseReminderColor(body?.color) ?? "slate"
 });
 
 export const parseReminderUpdateInput = (
   body: Record<string, unknown> | undefined
 ): ParsedReminderUpdateInput => {
   const repeatTypeRaw = body?.repeatType ?? body?.repeat_type;
+  const noteKindRaw = body?.noteKind ?? body?.note_kind;
+  const colorRaw = body?.color;
 
   return {
     title: toNullableString(body?.title),
@@ -207,7 +272,22 @@ export const parseReminderUpdateInput = (
     repeatTypeRaw,
     repeatType:
       repeatTypeRaw !== undefined ? parseReminderRepeatType(repeatTypeRaw) : undefined,
-    weekdays: body?.weekdays !== undefined ? parseWeekdays(body?.weekdays) : undefined
+    weekdays: body?.weekdays !== undefined ? parseWeekdays(body?.weekdays) : undefined,
+    checklistItems:
+      body?.checklistItems !== undefined || body?.checklist_items !== undefined
+        ? parseReminderChecklistItems(body?.checklistItems ?? body?.checklist_items)
+        : undefined,
+    noteKindRaw,
+    noteKind: noteKindRaw !== undefined ? parseReminderNoteKind(noteKindRaw) : undefined,
+    isPinned:
+      body?.isPinned === true || body?.is_pinned === true
+        ? true
+        : body?.isPinned === false || body?.is_pinned === false
+          ? false
+          : undefined,
+    tag: body?.tag !== undefined ? toNullableString(body?.tag) ?? "" : undefined,
+    colorRaw,
+    color: colorRaw !== undefined ? parseReminderColor(colorRaw) : undefined
   };
 };
 
@@ -222,6 +302,12 @@ export const resolveReminderCreate = (
   repeatType: input.repeatType as ParsedReminderRepeatType,
   weekdays: input.weekdays,
   weekdaysJson: stringifyWeekdays(input.weekdays),
+  checklistItems: input.checklistItems,
+  checklistJson: stringifyReminderChecklistItems(input.checklistItems),
+  noteKind: (input.noteKind ?? "note") as ParsedReminderNoteKind,
+  isPinned: input.isPinned,
+  tag: input.tag,
+  color: (input.color ?? "slate") as ParsedReminderColor,
   lastScheduledFor: null
 });
 
@@ -235,10 +321,15 @@ export const resolveReminderUpdate = (
   const repeatType = (input.repeatType ??
     parseReminderRepeatType(current.repeatType)) as ParsedReminderRepeatType;
   const weekdays = input.weekdays ?? parseWeekdaysJson(current.weekdaysJson);
+  const checklistItems = input.checklistItems ?? parseChecklistJson(current.checklistJson);
   const startDate = input.startDate ?? current.startDate;
   const timeOfDay = input.timeOfDay ?? current.timeOfDay;
   const timezone = input.timezone ?? currentTimezone;
   const weekdaysJson = stringifyWeekdays(weekdays);
+  const noteKind = (input.noteKind ?? parseReminderNoteKind(current.noteKind) ?? "note") as ParsedReminderNoteKind;
+  const isPinned = input.isPinned ?? (current.isPinned === true || current.isPinned === 1);
+  const tag = input.tag ?? current.tag;
+  const color = (input.color ?? parseReminderColor(current.color) ?? "slate") as ParsedReminderColor;
   const scheduleChanged =
     startDate !== current.startDate ||
     timeOfDay !== current.timeOfDay ||
@@ -255,6 +346,12 @@ export const resolveReminderUpdate = (
     repeatType,
     weekdays,
     weekdaysJson,
+    checklistItems,
+    checklistJson: stringifyReminderChecklistItems(checklistItems),
+    noteKind,
+    isPinned,
+    tag,
+    color,
     lastScheduledFor: scheduleChanged
       ? recalculateLastScheduledFor({
           currentLastScheduledFor: current.lastScheduledFor,

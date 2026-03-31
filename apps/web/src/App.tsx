@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { AdminDashboard } from "./components/AdminDashboard";
-import { AprPage } from "./features/apr/AprPage";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
-import { isAprModuleEnabled } from "./lib/featureFlags";
+import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "./lib/featureFlags";
 import type { AuthUser } from "./types";
 import {
   AppHeader,
@@ -25,11 +24,24 @@ interface Toast {
 
 export default function App() {
   const aprModuleEnabled = isAprModuleEnabled();
+  const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [submittingAuth, setSubmittingAuth] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [currentPath, setCurrentPath] = useState<AppPath>(normalizePath(window.location.pathname));
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const savedTheme = window.localStorage.getItem("noctification-theme");
+    if (savedTheme === "dark") {
+      return true;
+    }
+    if (savedTheme === "light") {
+      return false;
+    }
+    return typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : false;
+  });
 
   const navigate = useCallback((path: AppPath, replace = false) => {
     if (replace) {
@@ -78,6 +90,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    window.localStorage.setItem("noctification-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
+
+  useEffect(() => {
     if (loadingSession) {
       return;
     }
@@ -90,7 +107,15 @@ export default function App() {
     }
 
     if (currentUser.role === "admin") {
-      if (currentPath !== "/" && (!aprModuleEnabled || currentPath !== "/apr")) {
+      const allowedPaths = new Set<AppPath>(["/"]);
+      if (aprModuleEnabled) {
+        allowedPaths.add("/apr");
+      }
+      if (kmlPosteModuleEnabled) {
+        allowedPaths.add("/kml-postes");
+      }
+
+      if (!allowedPaths.has(currentPath)) {
         navigate("/", true);
       }
       return;
@@ -98,8 +123,23 @@ export default function App() {
 
     if (currentUser.role === "user" && currentPath === "/admin/login") {
       navigate("/", true);
+      return;
     }
-  }, [aprModuleEnabled, currentPath, currentUser, loadingSession, navigate]);
+
+    if (currentUser.role === "user") {
+      const allowedPaths = new Set<AppPath>(["/", "/notifications", "/reminders", "/tasks"]);
+      if (aprModuleEnabled) {
+        allowedPaths.add("/apr");
+      }
+      if (kmlPosteModuleEnabled) {
+        allowedPaths.add("/kml-postes");
+      }
+
+      if (!allowedPaths.has(currentPath)) {
+        navigate("/", true);
+      }
+    }
+  }, [aprModuleEnabled, currentPath, currentUser, kmlPosteModuleEnabled, loadingSession, navigate]);
 
   const login = useCallback(
     async (loginValue: string, password: string, expectedRole: AuthUser["role"]) => {
@@ -197,13 +237,15 @@ export default function App() {
 
   return (
     <main className="min-h-screen bg-canvas text-textMain">
-      <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mx-auto w-full max-w-[1600px] px-4 py-6 lg:px-6">
         <AppHeader
           currentPath={currentPath}
           currentUser={currentUser}
           pageTitle={pageTitle}
+          darkMode={darkMode}
           onLogout={() => void logout()}
           onNavigate={navigate}
+          onToggleDarkMode={() => setDarkMode((current) => !current)}
         />
 
         {loadingSession && <p className="text-sm text-textMuted">Carregando sessao...</p>}
@@ -235,12 +277,15 @@ export default function App() {
           />
         )}
 
-        {!loadingSession && currentUser?.role === "admin" &&
-          (currentPath === "/apr" && aprModuleEnabled ? (
-            <AprPage onError={handleErrorToast} onToast={handleOkToast} />
-          ) : (
-            <AdminDashboard onError={handleErrorToast} onToast={handleOkToast} />
-          ))}
+        {!loadingSession && currentUser?.role === "admin" && (
+          <AdminDashboard
+            currentPath={currentPath}
+            onError={handleErrorToast}
+            onNavigate={navigate}
+            onLogout={() => void logout()}
+            onToast={handleOkToast}
+          />
+        )}
       </div>
 
       <AppToastStack toasts={toasts} />

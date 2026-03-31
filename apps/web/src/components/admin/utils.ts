@@ -198,7 +198,7 @@ export const getAuditCategory = (
 
   return {
     label: "Sistema",
-    className: "bg-slate-500/15 text-slate-200 border border-slate-500/30"
+    className: "border border-outlineSoft/70 bg-panel text-textMain"
   };
 };
 

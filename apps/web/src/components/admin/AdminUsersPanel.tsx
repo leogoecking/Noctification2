@@ -24,13 +24,13 @@ export const AdminUsersPanel = ({
 }: AdminUsersPanelProps) => {
   return (
     <div className="space-y-4">
-      <header className="rounded-2xl border border-slate-700 bg-panel p-4">
+      <header className="rounded-[1.25rem] bg-panel p-5">
         <h3 className="font-display text-lg text-textMain">Gestao de usuarios</h3>
         <p className="text-sm text-textMuted">Cadastro, edicao e status de acesso</p>
       </header>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
+        <article className="space-y-3 rounded-[1.25rem] bg-panel p-5">
           <h4 className="font-display text-base text-textMain">Cadastrar usuario</h4>
           <input className="input" placeholder="Nome" value={newUserForm.name} onChange={(event) => setNewUserForm((prev) => ({ ...prev, name: event.target.value }))} />
           <input className="input" placeholder="Login" value={newUserForm.login} onChange={(event) => setNewUserForm((prev) => ({ ...prev, login: event.target.value }))} />
@@ -44,7 +44,7 @@ export const AdminUsersPanel = ({
           <button className="btn-primary w-full" onClick={onCreateUser}>Cadastrar</button>
         </article>
 
-        <article className="space-y-3 rounded-2xl border border-slate-700 bg-panel p-4">
+        <article className="space-y-3 rounded-[1.25rem] bg-panel p-5">
           <h4 className="font-display text-base text-textMain">Editar usuario</h4>
           <select
             className="input"
@@ -86,18 +86,18 @@ export const AdminUsersPanel = ({
         </article>
       </div>
 
-      <article className="rounded-2xl border border-slate-700 bg-panel p-4">
+      <article className="rounded-[1.25rem] bg-panel p-5">
         <h4 className="mb-3 font-display text-base text-textMain">Status dos usuarios</h4>
         <div className="grid gap-2 md:grid-cols-2">
           {users.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-700 bg-panelAlt p-3">
+            <div key={item.id} className="rounded-xl bg-panelAlt p-3">
               <p className="text-sm font-semibold text-textMain">{item.name}</p>
               <p className="text-xs text-textMuted">{item.login}</p>
               <p className="mt-1 text-xs text-textMuted">
                 {item.department} - {item.jobTitle}
               </p>
               <button
-                className={`mt-2 rounded-md px-3 py-1 text-xs font-semibold ${item.isActive ? "bg-danger text-white" : "bg-success text-slate-900"}`}
+                className={`mt-2 rounded-md px-3 py-1 text-xs font-semibold ${item.isActive ? "bg-danger text-white" : "bg-success text-white"}`}
                 onClick={() => onToggleStatus(item)}
               >
                 {item.isActive ? "Desativar" : "Ativar"}

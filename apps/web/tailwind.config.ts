@@ -6,22 +6,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#0b1018",
-        panel: "#111827",
-        panelAlt: "#182334",
-        accent: "#22d3ee",
-        accentWarm: "#fb7185",
-        textMain: "#d6e2ff",
-        textMuted: "#93a6c8",
-        success: "#10b981",
-        warning: "#f59e0b",
-        danger: "#ef4444"
+        canvas: "rgb(var(--color-canvas) / <alpha-value>)",
+        panel: "rgb(var(--color-panel) / <alpha-value>)",
+        panelAlt: "rgb(var(--color-panel-alt) / <alpha-value>)",
+        accent: "rgb(var(--color-accent) / <alpha-value>)",
+        accentWarm: "rgb(var(--color-accent-warm) / <alpha-value>)",
+        textMain: "rgb(var(--color-text-main) / <alpha-value>)",
+        textMuted: "rgb(var(--color-text-muted) / <alpha-value>)",
+        success: "rgb(var(--color-success) / <alpha-value>)",
+        warning: "rgb(var(--color-warning) / <alpha-value>)",
+        danger: "rgb(var(--color-danger) / <alpha-value>)",
+        outlineSoft: "rgb(var(--color-outline-soft) / <alpha-value>)",
+        surfaceHigh: "rgb(var(--color-surface-high) / <alpha-value>)",
+        surfaceHighest: "rgb(var(--color-surface-highest) / <alpha-value>)"
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(34, 211, 238, 0.35), 0 8px 25px rgba(34, 211, 238, 0.12)"
+        glow: "0 8px 32px rgba(19, 27, 46, 0.06)"
       },
       fontFamily: {
-        display: ["Space Grotesk", "Segoe UI", "sans-serif"]
+        display: ["Inter", "Segoe UI", "sans-serif"]
       },
       animation: {
         "fade-in": "fadeIn 250ms ease-out",

@@ -25,7 +25,7 @@ export const LoginScreen = ({ mode, onLogin, onRegister, isLoading }: LoginScree
   }, [isRegisterMode, mode]);
 
   return (
-    <div className="mx-auto max-w-md animate-rise-in rounded-3xl border border-slate-700 bg-panel/95 p-6 shadow-glow backdrop-blur">
+    <div className="mx-auto max-w-md animate-rise-in rounded-3xl bg-panel/95 p-6 shadow-glow backdrop-blur ring-1 ring-outlineSoft/50">
       <p className="text-xs uppercase tracking-[0.22em] text-accent">Noctification</p>
       <h1 className="mt-2 font-display text-3xl text-textMain">{heading}</h1>
       <p className="mt-1 text-sm text-textMuted">
@@ -37,17 +37,17 @@ export const LoginScreen = ({ mode, onLogin, onRegister, isLoading }: LoginScree
       </p>
 
       {mode === "user" && (
-        <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-slate-700 bg-panelAlt p-1">
+        <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-panelAlt p-1">
           <button
             type="button"
-            className={`rounded-lg px-3 py-2 text-sm ${formMode === "login" ? "bg-accent text-slate-900" : "text-textMuted"}`}
+            className={`rounded-lg px-3 py-2 text-sm ${formMode === "login" ? "bg-accent text-white" : "text-textMuted"}`}
             onClick={() => setFormMode("login")}
           >
             Entrar
           </button>
           <button
             type="button"
-            className={`rounded-lg px-3 py-2 text-sm ${formMode === "register" ? "bg-accent text-slate-900" : "text-textMuted"}`}
+            className={`rounded-lg px-3 py-2 text-sm ${formMode === "register" ? "bg-accent text-white" : "text-textMuted"}`}
             onClick={() => setFormMode("register")}
           >
             Criar conta
@@ -110,7 +110,7 @@ export const LoginScreen = ({ mode, onLogin, onRegister, isLoading }: LoginScree
             />
             <button
               type="button"
-              className="rounded-lg border border-slate-600 px-3 text-sm text-textMuted"
+              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 text-sm text-textMuted"
               onClick={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? "Ocultar" : "Mostrar"}

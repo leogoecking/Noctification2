@@ -1,30 +1,16 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminRemindersPanel } from "./AdminRemindersPanel";
 import { api } from "../../lib/api";
 
-const socketHandlers = new Map<string, (payload: unknown) => void>();
-
-vi.mock("../../lib/socket", () => ({
-  acquireSocket: () => ({
-    on: vi.fn((event: string, handler: (payload: unknown) => void) => {
-      socketHandlers.set(event, handler);
-    }),
-    off: vi.fn((event: string) => {
-      socketHandlers.delete(event);
-    }),
-    disconnect: vi.fn()
-  }),
-  releaseSocket: vi.fn(),
-  connectSocket: vi.fn()
-}));
-
 vi.mock("../../lib/api", () => ({
   api: {
-    adminReminderHealth: vi.fn(),
-    adminReminders: vi.fn(),
-    adminReminderOccurrences: vi.fn(),
-    toggleAdminReminder: vi.fn()
+    myReminders: vi.fn(),
+    archiveMyStaleReminders: vi.fn(),
+    createMyReminder: vi.fn(),
+    updateMyReminder: vi.fn(),
+    deleteMyReminder: vi.fn(),
+    createMyOperationsBoardMessage: vi.fn()
   },
   ApiError: class ApiError extends Error {
     status: number;
@@ -38,35 +24,43 @@ vi.mock("../../lib/api", () => ({
 const mockedApi = vi.mocked(api);
 
 describe("AdminRemindersPanel", () => {
+  const getReminderBoardPanel = () => {
+    const panel = screen.getByText("Organizacao visual dos lembretes").closest("article") as HTMLElement | null;
+    expect(panel).not.toBeNull();
+    return panel!;
+  };
+
+  const getReminderCardByTitle = (title: string) => {
+    const card = within(getReminderBoardPanel())
+      .getByText((_content, element) => element?.tagName === "P" && element.textContent === title)
+      .closest("div.rounded-xl") as HTMLElement | null;
+    expect(card).not.toBeNull();
+    return card!;
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
-    socketHandlers.clear();
-    mockedApi.adminReminderHealth.mockResolvedValue({
-      health: {
-        schedulerEnabled: true,
-        totalReminders: 1,
-        activeReminders: 1,
-        pendingOccurrences: 1,
-        completedToday: 0,
-        expiredToday: 0,
-        deliveriesToday: 2,
-        retriesToday: 1
-      }
-    });
-    mockedApi.adminReminders.mockResolvedValue({
+    window.localStorage.clear();
+    mockedApi.myReminders.mockResolvedValue({
       reminders: [
         {
           id: 1,
-          userId: 7,
-          userName: "Maria Silva",
-          userLogin: "maria",
+          userId: 1,
           title: "Checklist",
-          description: "",
+          description: "- [x] Validar alarmes\n- [ ] Checar comunicacao",
           startDate: "2026-03-13",
           timeOfDay: "08:00",
           timezone: "America/Bahia",
-          repeatType: "daily",
+          repeatType: "none",
           weekdays: [],
+          checklistItems: [
+            { checked: true, label: "Validar alarmes" },
+            { checked: false, label: "Checar comunicacao" }
+          ],
+          noteKind: "checklist",
+          pinned: false,
+          tag: "",
+          color: "emerald",
           isActive: true,
           lastScheduledFor: null,
           createdAt: new Date().toISOString(),
@@ -74,159 +68,155 @@ describe("AdminRemindersPanel", () => {
         }
       ]
     });
-    mockedApi.adminReminderOccurrences.mockResolvedValue({
-      occurrences: [
-        {
-          id: 10,
-          reminderId: 1,
-          userId: 7,
-          userName: "Maria Silva",
-          userLogin: "maria",
-          scheduledFor: new Date().toISOString(),
-          triggeredAt: new Date().toISOString(),
-          status: "pending",
-          retryCount: 1,
-          nextRetryAt: null,
-          completedAt: null,
-          expiredAt: null,
-          triggerSource: "scheduler",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          title: "Checklist",
-          description: ""
-        }
-      ]
+    mockedApi.archiveMyStaleReminders.mockResolvedValue({
+      archivedCount: 0
     });
-    mockedApi.toggleAdminReminder.mockResolvedValue({ ok: true });
-  });
-
-  it("carrega resumo e listas de lembretes", async () => {
-    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
-
-    await waitFor(() => expect(mockedApi.adminReminderHealth).toHaveBeenCalled());
-    await waitFor(() => expect(mockedApi.adminReminders).toHaveBeenCalledWith(""));
-    await waitFor(() => expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledWith(""));
-    await waitFor(() => expect(screen.getAllByText("Checklist").length).toBeGreaterThan(0));
-    expect(screen.getAllByText("Pendentes").length).toBeGreaterThan(0);
-    expect(screen.getByText("Disparos hoje")).toBeInTheDocument();
-    expect(
-      screen.getAllByText((_, element) => element?.textContent?.includes("Maria Silva (maria)") ?? false)
-        .length
-    ).toBeGreaterThan(0);
-  });
-
-  it("aplica filtros administrativos ao consultar a API", async () => {
-    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
-    await waitFor(() => expect(mockedApi.adminReminders).toHaveBeenCalled());
-
-    fireEvent.change(screen.getByPlaceholderText("Usuario ou login"), {
-      target: { value: "maria" }
-    });
-
-    await waitFor(() =>
-      expect(mockedApi.adminReminders).toHaveBeenLastCalledWith("?user_search=maria")
-    );
-    await waitFor(() =>
-      expect(mockedApi.adminReminderOccurrences).toHaveBeenLastCalledWith("?user_search=maria")
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Inativos" }));
-    await waitFor(() =>
-      expect(mockedApi.adminReminders).toHaveBeenLastCalledWith("?user_search=maria&active=false")
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Expiradas" }));
-    await waitFor(() =>
-      expect(mockedApi.adminReminderOccurrences).toHaveBeenLastCalledWith(
-        "?user_search=maria&status=expired"
-      )
-    );
-  });
-
-  it("altera status do lembrete sem recarregar tudo", async () => {
-    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
-    await waitFor(() => expect(mockedApi.adminReminders).toHaveBeenCalledTimes(1));
-    const reminderCalls = mockedApi.adminReminders.mock.calls.length;
-    const occurrenceCalls = mockedApi.adminReminderOccurrences.mock.calls.length;
-
-    fireEvent.click(screen.getByRole("button", { name: "Desativar" }));
-
-    await waitFor(() => expect(mockedApi.toggleAdminReminder).toHaveBeenCalledWith(1, false));
-    expect(screen.getByRole("button", { name: "Ativar" })).toBeInTheDocument();
-    expect(mockedApi.adminReminders).toHaveBeenCalledTimes(reminderCalls);
-    expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledTimes(occurrenceCalls);
-  });
-
-  it("aplica evento realtime de lembrete sem recarregar tudo", async () => {
-    const onToast = vi.fn();
-    render(<AdminRemindersPanel onError={vi.fn()} onToast={onToast} />);
-
-    await waitFor(() => expect(socketHandlers.has("reminder:due")).toBe(true));
-    const reminderCalls = mockedApi.adminReminders.mock.calls.length;
-    const occurrenceCalls = mockedApi.adminReminderOccurrences.mock.calls.length;
-
-    await act(async () => {
-      socketHandlers.get("reminder:due")?.({
-        occurrenceId: 55,
-        reminderId: 1,
-        userId: 7,
-        title: "Checklist",
+    mockedApi.createMyReminder.mockResolvedValue({
+      reminder: {
+        id: 2,
+        userId: 1,
+        title: "Novo lembrete",
         description: "",
-        scheduledFor: new Date().toISOString(),
-        retryCount: 1
-      });
-    });
-
-    expect(onToast).toHaveBeenCalledWith("Lembrete reenviado para usuario #7: Checklist");
-    expect(mockedApi.adminReminders).toHaveBeenCalledTimes(reminderCalls);
-    expect(mockedApi.adminReminderOccurrences).toHaveBeenCalledTimes(occurrenceCalls);
-  });
-
-  it("remove ocorrencia da lista filtrada quando o status deixa de atender o filtro", async () => {
-    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
-
-    await waitFor(() => expect(socketHandlers.has("reminder:updated")).toBe(true));
-    fireEvent.click(screen.getByRole("button", { name: "Pendentes" }));
-    const occurrencesPanel = screen.getByText("Ocorrencias recentes").closest("article");
-    expect(occurrencesPanel).not.toBeNull();
-    await waitFor(() =>
-      expect(within(occurrencesPanel!).getByText("Checklist")).toBeInTheDocument()
-    );
-
-    await act(async () => {
-      socketHandlers.get("reminder:updated")?.({
-        occurrenceId: 10,
-        reminderId: 1,
-        userId: 7,
-        status: "completed",
-        retryCount: 1,
-        completedAt: new Date().toISOString()
-      });
-    });
-
-    await waitFor(() =>
-      expect(within(occurrencesPanel!).queryByText("Checklist")).not.toBeInTheDocument()
-    );
-  });
-
-  it("mostra aviso quando o scheduler de lembretes esta desativado", async () => {
-    mockedApi.adminReminderHealth.mockResolvedValueOnce({
-      health: {
-        schedulerEnabled: false,
-        totalReminders: 1,
-        activeReminders: 1,
-        pendingOccurrences: 1,
-        completedToday: 0,
-        expiredToday: 0,
-        deliveriesToday: 0,
-        retriesToday: 0
+        startDate: "2026-03-14",
+        timeOfDay: "10:00",
+        timezone: "America/Bahia",
+        repeatType: "none",
+        weekdays: [],
+        checklistItems: [],
+        noteKind: "note",
+        pinned: false,
+        tag: "",
+        color: "slate",
+        isActive: true,
+        lastScheduledFor: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
     });
+    mockedApi.updateMyReminder.mockResolvedValue({
+      reminder: {
+        id: 1,
+        userId: 1,
+        title: "Checklist atualizada",
+        description: "- [x] Validar alarmes\n- [x] Checar comunicacao",
+        startDate: "2026-03-13",
+        timeOfDay: "08:00",
+        timezone: "America/Bahia",
+        repeatType: "none",
+        weekdays: [],
+        checklistItems: [
+          { checked: true, label: "Validar alarmes" },
+          { checked: true, label: "Checar comunicacao" }
+        ],
+        noteKind: "checklist",
+        pinned: true,
+        tag: "",
+        color: "emerald",
+        isActive: true,
+        lastScheduledFor: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    });
+    mockedApi.deleteMyReminder.mockResolvedValue(undefined);
+    mockedApi.createMyOperationsBoardMessage.mockResolvedValue({
+      message: {
+        id: 1,
+        title: "x",
+        body: "x",
+        status: "active",
+        authorUserId: 1,
+        authorName: "Admin",
+        authorLogin: "admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        resolvedAt: null
+      }
+    });
+  });
 
+  it("carrega o quadro admin como lembretes pessoais", async () => {
     render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
 
-    expect(await screen.findByText("Scheduler de lembretes desativado")).toBeInTheDocument();
-    expect(
-      screen.getByText((content) => content.includes("ENABLE_REMINDER_SCHEDULER"))
-    ).toBeInTheDocument();
+    await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalledWith(""));
+    await waitFor(() =>
+      expect(within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ })).toBeInTheDocument()
+    );
+  });
+
+  it("cria lembrete pessoal no painel admin", async () => {
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
+    await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Novo lembrete admin" }));
+    fireEvent.change(screen.getByPlaceholderText("Titulo da nota"), {
+      target: { value: "Novo lembrete" }
+    });
+    const formPanel = screen.getByText("Nova nota operacional").closest("article");
+    expect(formPanel).not.toBeNull();
+    fireEvent.change(formPanel!.querySelector('input[type="date"]') as HTMLInputElement, {
+      target: { value: "2026-03-14" }
+    });
+    fireEvent.change(formPanel!.querySelector('input[type="time"]') as HTMLInputElement, {
+      target: { value: "10:00" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Criar nota" }));
+
+    await waitFor(() => expect(mockedApi.createMyReminder).toHaveBeenCalled());
+    expect(mockedApi.createMyReminder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Novo lembrete"
+      })
+    );
+    await waitFor(() =>
+      expect(within(getReminderBoardPanel()).getByText("Novo lembrete")).toBeInTheDocument()
+    );
+  });
+
+  it("permite fixar e arquivar direto no quadro admin", async () => {
+    const onToast = vi.fn();
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={onToast} />);
+    await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        within(getReminderBoardPanel()).getByText(
+          (_content, element) => element?.tagName === "P" && element.textContent === "Checklist"
+        )
+      ).toBeInTheDocument()
+    );
+
+    const reminderCard = getReminderCardByTitle("Checklist");
+
+    fireEvent.click(within(reminderCard!).getByRole("button", { name: "Fixar" }));
+    await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
+    expect(onToast).toHaveBeenCalledWith("Nota fixada");
+
+    fireEvent.click(within(reminderCard!).getByRole("button", { name: "Arquivar" }));
+    await waitFor(() => expect(mockedApi.deleteMyReminder).toHaveBeenCalledWith(1));
+  });
+
+  it("permite marcar checklist e enviar ao mural pelo quadro admin", async () => {
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
+    await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        within(getReminderBoardPanel()).getByText(
+          (_content, element) => element?.tagName === "P" && element.textContent === "Checklist"
+        )
+      ).toBeInTheDocument()
+    );
+
+    await waitFor(() =>
+      expect(
+        within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ })
+      ).toBeInTheDocument()
+    );
+
+    fireEvent.click(within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ }));
+    await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
+
+    const reminderCard = getReminderCardByTitle("Checklist atualizada");
+    fireEvent.click(within(reminderCard!).getByRole("button", { name: "No mural" }));
+    await waitFor(() => expect(mockedApi.createMyOperationsBoardMessage).toHaveBeenCalled());
   });
 });

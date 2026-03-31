@@ -5,18 +5,20 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "node --watch --import tsx src/index.ts",
-    "build": "npm run build --workspace @noctification/apr-core && tsc -p tsconfig.build.json",
+    "build": "npm run build --workspace @noctification/apr-core && npm run build --workspace @noctification/poste-kml-core && tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "migrate": "node --import tsx src/scripts/migrate.ts",
     "generate-vapid": "web-push generate-vapid-keys",
     "bootstrap-admin": "node --import tsx src/scripts/bootstrap-admin.ts",
     "audit-logins": "node --import tsx src/scripts/audit-logins.ts",
-    "test": "npm run build --workspace @noctification/apr-core && vitest run --pool=threads",
+    "test": "npm run build --workspace @noctification/apr-core && npm run build --workspace @noctification/poste-kml-core && vitest run --pool=threads",
     "lint": "eslint .",
-    "typecheck": "npm run build --workspace @noctification/apr-core && tsc --noEmit"
+    "typecheck": "npm run build --workspace @noctification/apr-core && npm run build --workspace @noctification/poste-kml-core && tsc --noEmit"
   },
   "dependencies": {
     "@noctification/apr-core": "file:../../packages/apr-core",
+    "@noctification/poste-kml-core": "file:../../packages/poste-kml-core",
+    "adm-zip": "^0.5.16",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.8.1",
     "cookie": "^1.1.1",
@@ -31,6 +33,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.11",
     "@types/cookie": "^0.6.0",

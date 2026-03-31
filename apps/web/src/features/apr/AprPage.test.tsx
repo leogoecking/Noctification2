@@ -201,12 +201,96 @@ describe("AprPage", () => {
     await waitFor(() => expect(mockedAprApi.getMonthSummary).toHaveBeenCalledWith("2026-03", "manual"));
 
     expect(screen.getByText("Controle de APR")).toBeInTheDocument();
-    expect(screen.getAllByText("APR-001")).toHaveLength(2);
+    expect(screen.getAllByText("APR-001").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Tabela manual")).toBeInTheDocument();
     expect(screen.getByText("Audit / divergencias")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.getByText("Comparativo por colaborador")).toBeInTheDocument();
+    expect(screen.getByText("APRs divergentes")).toBeInTheDocument();
+    expect(screen.getAllByText("Felipe").length).toBeGreaterThan(0);
     expect(mockedAprApi.listSubjects).toHaveBeenCalledTimes(1);
     expect(mockedAprApi.listCollaborators).toHaveBeenCalledTimes(1);
+  });
+
+  it("monta o grafico da matrix com colaboradores vindos de divergencias", async () => {
+    mockedAprApi.getAudit.mockResolvedValue(divergentAudit);
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(mockedAprApi.getAudit).toHaveBeenCalled());
+
+    const matrixSection = screen.getByText("APR por colaborador").closest("article");
+    expect(matrixSection).not.toBeNull();
+
+    const scoped = within(matrixSection as HTMLElement);
+    fireEvent.click(scoped.getByRole("button", { name: /RENAN/i }));
+    expect(scoped.getAllByText("RENAN").length).toBeGreaterThan(0);
+    expect(scoped.getAllByText("Divergente").length).toBeGreaterThan(0);
+    expect(scoped.getAllByText("Sistema").length).toBeGreaterThan(0);
+    expect(scoped.getAllByText("Manual").length).toBeGreaterThan(0);
+    expect(scoped.getByText("Detalhe por ID comparando presença em cada origem.")).toBeInTheDocument();
+    expect(scoped.getAllByText(/Presente|Ausente/).length).toBeGreaterThan(0);
+  });
+
+  it("marca colaborador como conferido quando o apr está conferido", async () => {
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(mockedAprApi.getAudit).toHaveBeenCalled());
+
+    const matrixSection = screen.getByText("APR por colaborador").closest("article");
+    expect(matrixSection).not.toBeNull();
+
+    const scoped = within(matrixSection as HTMLElement);
+    fireEvent.click(scoped.getByRole("button", { name: /Felipe/i }));
+    expect(scoped.getAllByText("Felipe").length).toBeGreaterThan(0);
+    expect(scoped.getAllByText("Consistente").length).toBeGreaterThan(0);
+  });
+
+  it("agrupa colaborador novo mesmo com variacao de caixa no nome", async () => {
+    mockedAprApi.getAudit.mockResolvedValue({
+      ...divergentAudit,
+      details: [
+        {
+          externalId: "400001",
+          status: "Só no sistema" as const,
+          changed: [],
+          system: {
+            ...baseRows.rows[0],
+            sourceType: "system" as const,
+            externalId: "400001",
+            subject: "PODA",
+            collaborator: "renan"
+          },
+          manual: null
+        },
+        {
+          externalId: "400002",
+          status: "Só no manual" as const,
+          changed: [],
+          system: null,
+          manual: {
+            ...baseRows.rows[0],
+            externalId: "400002",
+            subject: "MAPEAMENTO",
+            collaborator: "RENAN"
+          }
+        }
+      ]
+    });
+
+    render(<AprPage onError={vi.fn()} onToast={vi.fn()} />);
+
+    await waitFor(() => expect(mockedAprApi.getAudit).toHaveBeenCalled());
+
+    const matrixSection = screen.getByText("APR por colaborador").closest("article");
+    expect(matrixSection).not.toBeNull();
+
+    const scoped = within(matrixSection as HTMLElement);
+    const collaboratorButtons = scoped.getAllByRole("button", { name: /renan/i });
+    expect(collaboratorButtons).toHaveLength(1);
+
+    fireEvent.click(collaboratorButtons[0]);
+    expect(scoped.getByText("2 ID(s) unicos")).toBeInTheDocument();
   });
 
   it("envia criação manual e recarrega a referência", async () => {
@@ -456,17 +540,20 @@ describe("AprPage", () => {
 
     await waitFor(() => expect(screen.getByText("6 divergencias entre sistema e manual.")).toBeInTheDocument());
 
+    const auditArticle = screen.getByText("Audit / divergencias").closest("article");
+    expect(auditArticle).not.toBeNull();
+
     expect(screen.queryByText("APR-000")).not.toBeInTheDocument();
     expect(screen.getByText("Pagina 1 de 2 | Total 6")).toBeInTheDocument();
-    expect(screen.getByText("APR-100")).toBeInTheDocument();
-    expect(screen.getByText("APR-104")).toBeInTheDocument();
-    expect(screen.queryByText("APR-105")).not.toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).getByText("APR-100")).toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).getByText("APR-104")).toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).queryByText("APR-105")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Proxima pagina divergencias" }));
 
     expect(screen.getByText("Pagina 2 de 2 | Total 6")).toBeInTheDocument();
-    expect(screen.getByText("APR-105")).toBeInTheDocument();
-    expect(screen.queryByText("APR-100")).not.toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).getByText("APR-105")).toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).queryByText("APR-100")).not.toBeInTheDocument();
   });
 
   it("filtra rapidamente as divergencias por texto", async () => {
@@ -496,8 +583,8 @@ describe("AprPage", () => {
       target: { value: "235270" }
     });
 
-    expect(screen.getByText("235270")).toBeInTheDocument();
-    expect(screen.queryByText("235269")).not.toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).getByText("235270")).toBeInTheDocument();
+    expect(within(auditArticle as HTMLElement).queryByText("235269")).not.toBeInTheDocument();
     expect(within(auditArticle as HTMLElement).getByText("Pagina 1 de 1 | Total 1")).toBeInTheDocument();
   });
 });

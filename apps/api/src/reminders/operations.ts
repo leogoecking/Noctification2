@@ -20,7 +20,12 @@ export const generateDueOccurrences = (db: Database.Database, now: Date) => {
           timezone,
           repeat_type AS repeatType,
           weekdays_json AS weekdaysJson,
+          checklist_json AS checklistJson,
           is_active AS isActive,
+          note_kind AS noteKind,
+          is_pinned AS isPinned,
+          tag,
+          color,
           last_scheduled_for AS lastScheduledFor,
           created_at AS createdAt,
           updated_at AS updatedAt

@@ -1,20 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { api, ApiError } from "../../../lib/api";
 import type {
   AuthUser,
   TaskItem,
   TaskPriority,
   TaskRepeatType,
-  TaskStatus
 } from "../../../types";
 import {
   buildTaskSlaInfo,
   compareTasksByOperationalOrder,
-  matchesTaskQueueFilter,
   TASK_BOARD_COLUMNS,
-  TASK_QUEUE_LABELS,
   TASK_STATUS_LABELS,
-  type TaskQueueFilter,
   toApiDueAt,
   toDateTimeLocalValue
 } from "../../../components/tasks/taskUi";
@@ -29,9 +25,6 @@ interface TaskUserPanelProps {
   onError: (message: string) => void;
   onToast: (message: string) => void;
 }
-
-type UserTaskFilterStatus = "" | TaskStatus;
-type UserTaskFilterPriority = "" | TaskPriority;
 
 type TaskFormState = {
   id: number;
@@ -55,47 +48,10 @@ const EMPTY_FORM: TaskFormState = {
   assignToMe: true
 };
 
-const USER_TASK_FILTERS_STORAGE_KEY = "tasks:user:filters";
-
-const loadStoredUserTaskFilters = (): {
-  statusFilter: UserTaskFilterStatus;
-  priorityFilter: UserTaskFilterPriority;
-  queueFilter: TaskQueueFilter;
-} => {
-  if (typeof window === "undefined") {
-    return { statusFilter: "", priorityFilter: "", queueFilter: "all" };
-  }
-
-  const rawValue = window.localStorage.getItem(USER_TASK_FILTERS_STORAGE_KEY);
-  if (!rawValue) {
-    return { statusFilter: "", priorityFilter: "", queueFilter: "all" };
-  }
-
-  try {
-    const parsed = JSON.parse(rawValue) as {
-      statusFilter?: UserTaskFilterStatus;
-      priorityFilter?: UserTaskFilterPriority;
-      queueFilter?: TaskQueueFilter;
-    };
-
-    return {
-      statusFilter: parsed.statusFilter ?? "",
-      priorityFilter: parsed.priorityFilter ?? "",
-      queueFilter: parsed.queueFilter ?? "all"
-    };
-  } catch {
-    return { statusFilter: "", priorityFilter: "", queueFilter: "all" };
-  }
-};
-
 export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) => {
-  const initialFilters = loadStoredUserTaskFilters();
   const [composerOpen, setComposerOpen] = useState(false);
   const [form, setForm] = useState<TaskFormState>(EMPTY_FORM);
-  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<UserTaskFilterStatus>(initialFilters.statusFilter);
-  const [priorityFilter, setPriorityFilter] = useState<UserTaskFilterPriority>(initialFilters.priorityFilter);
-  const [queueFilter, setQueueFilter] = useState<TaskQueueFilter>(initialFilters.queueFilter);
+  const [searchFilter, setSearchFilter] = useState("");
 
   const openCreateTask = useCallback(() => {
     setForm(EMPTY_FORM);
@@ -103,19 +59,13 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
   }, []);
 
   const buildQuery = useCallback(() => {
-    const params = new URLSearchParams();
-
-    if (statusFilter) {
-      params.set("status", statusFilter);
+    const normalizedSearch = searchFilter.trim();
+    if (!normalizedSearch) {
+      return "";
     }
 
-    if (priorityFilter) {
-      params.set("priority", priorityFilter);
-    }
-
-    const query = params.toString();
-    return query ? `?${query}` : "";
-  }, [priorityFilter, statusFilter]);
+    return `?${new URLSearchParams({ search: normalizedSearch }).toString()}`;
+  }, [searchFilter]);
 
   const {
     commentBody,
@@ -148,41 +98,16 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
     detailErrorMessage: "Falha ao carregar detalhe da tarefa"
   });
 
-  const queueOptions = useMemo(
-    () =>
-      (["all", "due_today", "overdue", "blocked", "stale"] as TaskQueueFilter[]).map((queue) => ({
-        value: queue,
-        label: TASK_QUEUE_LABELS[queue],
-        count: tasks.filter((task) => matchesTaskQueueFilter(task, queue)).length
-      })),
-    [tasks]
-  );
-
-  const displayedTasks = useMemo(
-    () => tasks.filter((task) => matchesTaskQueueFilter(task, queueFilter)),
-    [queueFilter, tasks]
-  );
-
-  const taskStats = useMemo(
-    () => ({
-      total: displayedTasks.length,
-      open: displayedTasks.filter((task) => task.status !== "done" && task.status !== "cancelled").length,
-      done: displayedTasks.filter((task) => task.status === "done").length,
-      critical: displayedTasks.filter((task) => task.priority === "critical" && task.status !== "done").length
-    }),
-    [displayedTasks]
-  );
-
   const boardColumns = useMemo(
     () =>
-      TASK_BOARD_COLUMNS.map((status) => ({
+      TASK_BOARD_COLUMNS.filter((status) => status !== "blocked" && status !== "cancelled").map((status) => ({
         status,
         label: TASK_STATUS_LABELS[status],
-        tasks: displayedTasks
+        tasks: tasks
           .filter((task) => task.status === status)
           .sort((left, right) => compareTasksByOperationalOrder(left, right))
       })),
-    [displayedTasks]
+    [tasks]
   );
 
   const startEditing = useCallback((task: TaskItem) => {
@@ -268,113 +193,25 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
     }
   }, [form, onError, reloadAndSelect, resetForm, user.id]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(
-      USER_TASK_FILTERS_STORAGE_KEY,
-      JSON.stringify({
-        statusFilter,
-        priorityFilter,
-        queueFilter
-      })
-    );
-  }, [priorityFilter, queueFilter, statusFilter]);
-
   return (
-    <section className="space-y-4">
-      <header className="rounded-2xl border border-slate-700 bg-panel p-4">
-        <h3 className="font-display text-lg text-textMain">Tarefas</h3>
-        <p className="text-sm text-textMuted">Acompanhamento da sua fila operacional</p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-2 px-1 text-xs">
-        <span className="rounded-full bg-panelAlt px-3 py-1.5 text-textMain">{taskStats.total} tarefas</span>
-        <span className="rounded-full bg-accent/10 px-3 py-1.5 text-accent">{taskStats.open} abertas</span>
-        <span className="rounded-full bg-success/20 px-3 py-1.5 text-success">{taskStats.done} concluidas</span>
-        {taskStats.critical > 0 && (
-          <span className="rounded-full bg-danger/20 px-3 py-1.5 text-danger">{taskStats.critical} criticas</span>
-        )}
-      </div>
-
+    <section className="space-y-6">
       <div className="space-y-4">
           <TaskBoard
             boardColumns={boardColumns}
-            emptyMessage="Nenhuma tarefa encontrada para os filtros atuais."
+            emptyMessage="Nenhuma tarefa encontrada para a busca atual."
             filters={
-              <div className="flex flex-1 flex-col gap-2">
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr),auto]">
-                  <select
-                    className="input min-w-36"
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as UserTaskFilterStatus)}
-                  >
-                    <option value="">Todos os status</option>
-                    <option value="new">Nova</option>
-                    <option value="assumed">Assumida</option>
-                    <option value="in_progress">Em andamento</option>
-                    <option value="blocked">Bloqueada</option>
-                    <option value="waiting_external">Aguardando externo</option>
-                    <option value="done">Concluida</option>
-                    <option value="cancelled">Cancelada</option>
-                  </select>
-                  <button
-                    className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
-                    onClick={() => setMoreFiltersOpen((current) => !current)}
-                    type="button"
-                  >
-                    {moreFiltersOpen ? "Menos filtros" : "Mais filtros"}
-                  </button>
-                </div>
-                {moreFiltersOpen && (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <select
-                      className="input min-w-36"
-                      value={priorityFilter}
-                      onChange={(event) => setPriorityFilter(event.target.value as UserTaskFilterPriority)}
-                    >
-                      <option value="">Todas as prioridades</option>
-                      <option value="low">Baixa</option>
-                      <option value="normal">Normal</option>
-                      <option value="high">Alta</option>
-                      <option value="critical">Critica</option>
-                    </select>
-                    <button
-                      className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
-                      onClick={() => {
-                        setStatusFilter("");
-                        setPriorityFilter("");
-                        setQueueFilter("all");
-                      }}
-                      type="button"
-                    >
-                      Limpar filtros
-                    </button>
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {queueOptions.map((queue) => (
-                    <button
-                      key={queue.value}
-                      aria-pressed={queueFilter === queue.value}
-                      className={`rounded-full px-3 py-1.5 text-xs ${
-                        queueFilter === queue.value
-                          ? "bg-accent/10 text-accent"
-                          : "border border-slate-600 text-textMain"
-                      }`}
-                      onClick={() => setQueueFilter(queue.value)}
-                      type="button"
-                    >
-                      {queue.label} ({queue.count})
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-1">
+                <input
+                  className="input min-w-36"
+                  placeholder="titulo, descricao ou status"
+                  value={searchFilter}
+                  onChange={(event) => setSearchFilter(event.target.value)}
+                />
               </div>
             }
-            headerDescription="Kanban com filas rapidas e leitura de SLA"
-            headerTitle="Minhas tarefas"
+            headerDescription="Kanban principal da operacao com busca direta e SLA"
+            headerEyebrow="Board"
+            headerTitle="Kanban"
             loading={loading}
             metaRowRenderer={(task) => (
               <>
@@ -389,27 +226,36 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
               </>
             )}
             selectedTaskId={selectedTask?.id ?? null}
-            selectedTask={selectedTask}
             onBoardCardKeyDown={onBoardCardKeyDown}
-            onCancelTask={cancelTask}
-            onCompleteTask={completeTask}
             onOpenTask={openTaskFromBoard}
-            primaryAction={{ label: "Novo", onClick: openCreateTask }}
             onRefresh={() => void refreshTaskViews()}
+            onCompleteTask={(taskId) => void completeTask(taskId)}
             onUpdateStatus={(taskId, status) => updateTaskStatus(taskId, status, TASK_STATUS_LABELS[status])}
+            showHeaderMetaBadge={false}
           />
+      </div>
+
+      <div className="fixed bottom-8 right-8 z-20">
+        <button
+          aria-label="Nova tarefa"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-glow transition hover:scale-[1.02]"
+          onClick={openCreateTask}
+          type="button"
+        >
+          <span aria-hidden="true" className="text-2xl leading-none">+</span>
+        </button>
       </div>
 
       {(composerOpen || form.id > 0) && (
         <div
           aria-label="Overlay do formulario da tarefa"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-textMain/70 p-3 sm:p-6"
           onClick={resetForm}
         >
           <div
             aria-label="Formulario da tarefa"
             aria-modal="true"
-            className="w-full max-w-2xl rounded-2xl border border-slate-700 bg-panel p-4 shadow-2xl"
+            className="w-full max-w-2xl rounded-[1.25rem] bg-panel p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
@@ -424,7 +270,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
                 </div>
                 <button
                   aria-label="Fechar formulario da tarefa"
-                  className="rounded-full border border-slate-600 px-3 py-1 text-xs text-textMain"
+                  className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain"
                   onClick={resetForm}
                   type="button"
                 >
@@ -488,7 +334,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
 
               <div className="flex flex-wrap justify-end gap-2">
                 <button
-                  className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-textMain"
+                  className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
                   onClick={resetForm}
                   type="button"
                 >
@@ -514,10 +360,8 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
         onCancelTask={cancelTask}
         onClose={() => setSelectedTask(null)}
         onCommentBodyChange={setCommentBody}
-        onCompleteTask={completeTask}
         onStartEditing={startEditing}
         onSubmitComment={() => void submitComment()}
-        onUpdateStatus={(taskId, status) => updateTaskStatus(taskId, status, TASK_STATUS_LABELS[status])}
       />
     </section>
   );

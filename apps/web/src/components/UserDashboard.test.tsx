@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserDashboard } from "./UserDashboard";
 import { api } from "../lib/api";
-import type { NotificationItem } from "../types";
+import type { NotificationItem, OperationsBoardMessageItem } from "../types";
 
 vi.mock("../lib/socket", () => ({
   connectSocket: () => ({
@@ -16,9 +16,16 @@ vi.mock("../lib/socket", () => ({
 vi.mock("../lib/api", () => ({
   api: {
     myNotifications: vi.fn(),
+    myReminders: vi.fn(),
+    myReminderOccurrences: vi.fn(),
     markRead: vi.fn(),
     markAllRead: vi.fn(),
-    respondNotification: vi.fn()
+    respondNotification: vi.fn(),
+    myOperationsBoard: vi.fn(),
+    myOperationsBoardMessage: vi.fn(),
+    createMyOperationsBoardMessage: vi.fn(),
+    updateMyOperationsBoardMessage: vi.fn(),
+    createMyOperationsBoardComment: vi.fn()
   },
   ApiError: class ApiError extends Error {
     status: number;
@@ -49,9 +56,82 @@ const buildNotification = (id: number, isVisualized: boolean): NotificationItem 
   isVisualized
 });
 
+const buildBoardMessage = (overrides: Partial<OperationsBoardMessageItem> = {}): OperationsBoardMessageItem => ({
+  id: 1,
+  title: "Turno da madrugada",
+  body: "Monitorar o enlace principal",
+  status: "active",
+  authorUserId: 2,
+  authorName: "Usuario",
+  authorLogin: "user",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  resolvedAt: null,
+  ...overrides
+});
+
 describe("UserDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedApi.myOperationsBoard.mockResolvedValue({
+      messages: [buildBoardMessage()]
+    });
+    mockedApi.myReminders.mockResolvedValue({
+      reminders: [
+        {
+          id: 1,
+          userId: 2,
+          title: "Checklist de turno",
+          description: "Revisar painel principal",
+          startDate: "2026-03-29",
+          timeOfDay: "08:00",
+          timezone: "America/Bahia",
+          repeatType: "daily",
+          weekdays: [],
+          isActive: true,
+          lastScheduledFor: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ]
+    });
+    mockedApi.myReminderOccurrences.mockResolvedValue({
+      occurrences: [
+        {
+          id: 1,
+          reminderId: 1,
+          userId: 2,
+          scheduledFor: new Date().toISOString(),
+          triggeredAt: null,
+          status: "pending",
+          retryCount: 0,
+          nextRetryAt: null,
+          completedAt: null,
+          expiredAt: null,
+          triggerSource: "scheduler",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          title: "Checklist de turno",
+          description: "Revisar painel principal"
+        }
+      ]
+    });
+    mockedApi.myOperationsBoardMessage.mockResolvedValue({
+      message: buildBoardMessage(),
+      timeline: [
+        {
+          id: 10,
+          messageId: 1,
+          actorUserId: 2,
+          actorName: "Usuario",
+          actorLogin: "user",
+          eventType: "created",
+          body: null,
+          metadata: null,
+          createdAt: new Date().toISOString()
+        }
+      ]
+    });
   });
 
   it("mostra somente 10 itens no dropdown e CTA para pagina completa", async () => {
@@ -67,6 +147,8 @@ describe("UserDashboard", () => {
         isNotificationsPage={false}
         onOpenAllNotifications={onOpenAllNotifications}
         onBackToDashboard={vi.fn()}
+        onOpenTasks={vi.fn()}
+        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
@@ -98,6 +180,8 @@ describe("UserDashboard", () => {
         isNotificationsPage
         onOpenAllNotifications={vi.fn()}
         onBackToDashboard={vi.fn()}
+        onOpenTasks={vi.fn()}
+        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
@@ -128,6 +212,8 @@ describe("UserDashboard", () => {
         isNotificationsPage
         onOpenAllNotifications={vi.fn()}
         onBackToDashboard={vi.fn()}
+        onOpenTasks={vi.fn()}
+        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
@@ -138,5 +224,83 @@ describe("UserDashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: /Notificacao 7/i }));
 
     expect(screen.getByText("Tarefa vinculada #22")).toBeInTheDocument();
+  });
+
+  it("carrega o mural operacional e abre o detalhe do recado", async () => {
+    mockedApi.myNotifications.mockResolvedValue({
+      notifications: [buildNotification(1, false)]
+    });
+
+    render(
+      <UserDashboard
+        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+        isNotificationsPage={false}
+        onOpenAllNotifications={vi.fn()}
+        onBackToDashboard={vi.fn()}
+        onOpenTasks={vi.fn()}
+        onOpenReminders={vi.fn()}
+        onError={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=8"));
+    expect(mockedApi.myReminders).toHaveBeenCalledWith("?active=true");
+    expect(mockedApi.myReminderOccurrences).toHaveBeenCalledWith("?status=pending");
+    expect(screen.getByTestId("operations-board-rail")).toBeInTheDocument();
+    expect(screen.getByText("Turno da madrugada")).toBeInTheDocument();
+    expect(screen.getByText("Agenda e lembretes")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Turno da madrugada/i }));
+
+    await waitFor(() => expect(mockedApi.myOperationsBoardMessage).toHaveBeenCalledWith(1));
+    expect(await screen.findByText("Comentario rapido")).toBeInTheDocument();
+  });
+
+  it("reseta o filtro ao voltar da central completa para o painel", async () => {
+    mockedApi.myNotifications
+      .mockResolvedValueOnce({
+        notifications: [buildNotification(1, false)]
+      })
+      .mockResolvedValueOnce({
+        notifications: [buildNotification(1, false)]
+      })
+      .mockResolvedValueOnce({
+        notifications: [buildNotification(1, false), buildNotification(2, false)]
+      });
+
+    const view = render(
+      <UserDashboard
+        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+        isNotificationsPage
+        onOpenAllNotifications={vi.fn()}
+        onBackToDashboard={vi.fn()}
+        onOpenTasks={vi.fn()}
+        onOpenReminders={vi.fn()}
+        onError={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.myNotifications).toHaveBeenCalledWith(""));
+
+    fireEvent.click(screen.getByRole("button", { name: "Nao lidas" }));
+
+    await waitFor(() => expect(mockedApi.myNotifications).toHaveBeenCalledWith("?status=unread"));
+
+    view.rerender(
+      <UserDashboard
+        user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+        isNotificationsPage={false}
+        onOpenAllNotifications={vi.fn()}
+        onBackToDashboard={vi.fn()}
+        onOpenTasks={vi.fn()}
+        onOpenReminders={vi.fn()}
+        onError={vi.fn()}
+        onToast={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(mockedApi.myNotifications).toHaveBeenLastCalledWith(""));
   });
 });
