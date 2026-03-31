@@ -279,7 +279,14 @@ export const createOperationsBoardMeRouter = (
       typeof req.body?.title === "string" ? req.body.title.trim() : existing.title;
     const nextBody =
       typeof req.body?.body === "string" ? req.body.body.trim() : existing.body;
-    const nextStatus = parseStatus(req.body?.status) ?? existing.status;
+    const rawStatus = req.body?.status;
+    const parsedStatus = parseStatus(rawStatus);
+    if (rawStatus !== undefined && parsedStatus === undefined) {
+      res.status(400).json({ error: "status invalido" });
+      return;
+    }
+
+    const nextStatus = parsedStatus ?? existing.status;
 
     if (!nextTitle || !nextBody) {
       res.status(400).json({ error: "title e body nao podem ficar vazios" });

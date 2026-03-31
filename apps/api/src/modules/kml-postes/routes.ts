@@ -28,6 +28,20 @@ const getSingleFile = (files: Files, key: string): File | null => {
   return raw ?? null;
 };
 
+const removeUploadedTempFile = async (upload: File | null) => {
+  if (!upload?.filepath) {
+    return;
+  }
+
+  try {
+    await fs.unlink(upload.filepath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error("Falha ao remover upload temporario de KML/KMZ", error);
+    }
+  }
+};
+
 const parseMultipart = async (
   req: import("express").Request
 ): Promise<{ fields: Fields; files: Files }> => {
@@ -117,9 +131,11 @@ export const createKmlPosteRouter = (db: Database.Database, config: AppConfig) =
   router.use(authenticate(db, config));
 
   router.post("/standardize", async (req, res) => {
+    let upload: File | null = null;
+
     try {
       const { fields, files } = await parseMultipart(req);
-      const upload = getSingleFile(files, "file");
+      upload = getSingleFile(files, "file");
 
       if (!upload) {
         res.status(400).json({ error: "Arquivo obrigatorio" });
@@ -205,6 +221,8 @@ export const createKmlPosteRouter = (db: Database.Database, config: AppConfig) =
     } catch (error) {
       console.error(error);
       res.status(400).json({ error: "Falha ao padronizar arquivo KML/KMZ" });
+    } finally {
+      await removeUploadedTempFile(upload);
     }
   });
 

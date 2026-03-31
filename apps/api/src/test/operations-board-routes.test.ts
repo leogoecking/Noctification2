@@ -159,4 +159,46 @@ describe("operations board routes", () => {
     expect(detailBody.timeline[1]?.actorLogin).toBe("user2");
     expect(detailBody.timeline[1]?.body).toMatch(/03:10/);
   });
+
+  it("rejeita status invalido ao atualizar recado do mural", () => {
+    const createHandler = getRouteHandler(meRouter, "/operations-board", "post");
+    const updateHandler = getRouteHandler(meRouter, "/operations-board/:id", "patch");
+
+    const createRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Turno da madrugada",
+          body: "Monitorar o enlace principal e repassar qualquer oscilacao."
+        }
+      },
+      createRes
+    );
+
+    expect(createRes.statusCode).toBe(201);
+    const messageId = (createRes.body as { message: { id: number } }).message.id;
+
+    const updateRes = createMockResponse();
+    updateHandler(
+      {
+        authUser: regularUser,
+        params: {
+          id: String(messageId)
+        },
+        body: {
+          status: "resovled"
+        }
+      },
+      updateRes
+    );
+
+    expect(updateRes.statusCode).toBe(400);
+    expect(updateRes.body).toEqual({ error: "status invalido" });
+
+    const persisted = db
+      .prepare("SELECT status FROM operations_board_messages WHERE id = ?")
+      .get(messageId) as { status: string };
+    expect(persisted.status).toBe("active");
+  });
 });
