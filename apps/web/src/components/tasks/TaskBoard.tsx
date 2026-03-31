@@ -4,7 +4,6 @@ import {
   TASK_PRIORITY_BADGES,
   TASK_PRIORITY_LABELS,
   TASK_STATUS_BADGES,
-  TASK_STATUS_LABELS,
   formatTaskDateTime
 } from "./taskUi";
 

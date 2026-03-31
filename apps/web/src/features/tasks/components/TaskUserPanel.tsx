@@ -360,10 +360,8 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
         onCancelTask={cancelTask}
         onClose={() => setSelectedTask(null)}
         onCommentBodyChange={setCommentBody}
-        onCompleteTask={completeTask}
         onStartEditing={startEditing}
         onSubmitComment={() => void submitComment()}
-        onUpdateStatus={(taskId, status) => updateTaskStatus(taskId, status, TASK_STATUS_LABELS[status])}
       />
     </section>
   );

@@ -133,7 +133,6 @@ export const AdminDashboard = ({
     loadingUsers,
     loadingOnlineUsers,
     loadingAudit,
-    loadingHistory,
     loadingHistoryAll,
     auditPagination,
     setAuditPagination,

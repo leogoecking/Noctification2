@@ -216,14 +216,6 @@ export const UserDashboard = ({
     [pendingOccurrences]
   );
   const dropdownItems = useMemo(() => items.slice(0, 10), [items]);
-  const dashboardItems = useMemo(
-    () =>
-      items
-        .filter((item) => !item.isVisualized || item.operationalStatus !== "recebida")
-        .slice(0, 6),
-    [items]
-  );
-
   const updateItemState = (
     notificationId: number,
     patch: Partial<

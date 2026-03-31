@@ -22,11 +22,6 @@ interface TaskDetailSheetProps {
   commentPlaceholder: string;
   onClose: () => void;
   onStartEditing: (task: TaskItem) => void;
-  onUpdateStatus: (
-    taskId: number,
-    status: "new" | "assumed" | "in_progress" | "blocked" | "waiting_external"
-  ) => void;
-  onCompleteTask: (taskId: number) => void;
   onCancelTask: (taskId: number) => void;
   onCommentBodyChange: (value: string) => void;
   onSubmitComment: () => void;
@@ -42,8 +37,6 @@ export const TaskDetailSheet = ({
   commentPlaceholder,
   onClose,
   onStartEditing,
-  onUpdateStatus,
-  onCompleteTask,
   onCancelTask,
   onCommentBodyChange,
   onSubmitComment

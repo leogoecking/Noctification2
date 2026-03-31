@@ -815,10 +815,8 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
         onCancelTask={cancelTask}
         onClose={() => setSelectedTask(null)}
         onCommentBodyChange={setCommentBody}
-        onCompleteTask={completeTask}
         onStartEditing={startEditing}
         onSubmitComment={() => void submitComment()}
-        onUpdateStatus={(taskId, status) => updateTaskStatus(taskId, status, TASK_STATUS_LABELS[status])}
       />
 
     </section>
