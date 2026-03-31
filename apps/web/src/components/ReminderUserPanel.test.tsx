@@ -143,7 +143,9 @@ describe("ReminderUserPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar nota" }));
 
     await waitFor(() => expect(mockedApi.createMyReminder).toHaveBeenCalled());
-    expect(within(getReminderBoardPanel()).getByText("Alongar")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(getReminderBoardPanel()).getByText("Alongar")).toBeInTheDocument()
+    );
 
     fireEvent.click(within(getReminderBoardPanel()).getAllByRole("button", { name: "Editar" })[0]);
     fireEvent.change(screen.getByPlaceholderText("Titulo da nota"), {
@@ -155,7 +157,9 @@ describe("ReminderUserPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar nota" }));
 
     await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
-    expect(within(getReminderBoardPanel()).getByText("Tomar agua atualizada")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(getReminderBoardPanel()).getByText("Tomar agua atualizada")).toBeInTheDocument()
+    );
 
     expect(mockedApi.myReminders).toHaveBeenCalledTimes(reminderCalls);
     expect(mockedApi.myReminderOccurrences).toHaveBeenCalledTimes(occurrenceCalls);
@@ -253,7 +257,9 @@ describe("ReminderUserPanel", () => {
     await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
 
     const boardPanel = getReminderBoardPanel();
-    expect(within(boardPanel).getByText("Checklist de abertura")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(boardPanel).getByText("Checklist de abertura")).toBeInTheDocument()
+    );
     expect(within(boardPanel).getByText("1/2 itens concluídos")).toBeInTheDocument();
     expect(within(boardPanel).getByText("Validar alarmes")).toBeInTheDocument();
     expect(within(boardPanel).getByText("Checar comunicacao")).toBeInTheDocument();
@@ -316,7 +322,12 @@ describe("ReminderUserPanel", () => {
     render(<ReminderUserPanel onError={vi.fn()} onToast={vi.fn()} />);
     await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
 
-    fireEvent.click(within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ }));
+    const boardPanel = getReminderBoardPanel();
+    await waitFor(() =>
+      expect(within(boardPanel).getByText("Checklist de abertura")).toBeInTheDocument()
+    );
+
+    fireEvent.click(within(boardPanel).getByRole("button", { name: /Checar comunicacao/ }));
 
     await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
     expect(mockedApi.updateMyReminder).toHaveBeenCalledWith(

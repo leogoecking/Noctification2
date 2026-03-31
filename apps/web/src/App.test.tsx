@@ -167,7 +167,7 @@ describe("App routing", () => {
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockedApi.myTasks).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("heading", { level: 1, name: "Tarefas" })).toBeInTheDocument();
-    expect(screen.getByText("Acompanhamento da sua fila operacional")).toBeInTheDocument();
+    expect(screen.getByText("Kanban principal da operacao com busca direta e SLA")).toBeInTheDocument();
   });
 
   it("redireciona admin de /apr para dashboard quando o modulo nao esta ativo", async () => {

@@ -168,13 +168,22 @@ describe("AdminRemindersPanel", () => {
         title: "Novo lembrete"
       })
     );
-    expect(within(getReminderCardByTitle("Novo lembrete")).getByText("Novo lembrete")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(getReminderBoardPanel()).getByText("Novo lembrete")).toBeInTheDocument()
+    );
   });
 
   it("permite fixar e arquivar direto no quadro admin", async () => {
     const onToast = vi.fn();
     render(<AdminRemindersPanel onError={vi.fn()} onToast={onToast} />);
     await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        within(getReminderBoardPanel()).getByText(
+          (_content, element) => element?.tagName === "P" && element.textContent === "Checklist"
+        )
+      ).toBeInTheDocument()
+    );
 
     const reminderCard = getReminderCardByTitle("Checklist");
 
@@ -189,6 +198,19 @@ describe("AdminRemindersPanel", () => {
   it("permite marcar checklist e enviar ao mural pelo quadro admin", async () => {
     render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
     await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        within(getReminderBoardPanel()).getByText(
+          (_content, element) => element?.tagName === "P" && element.textContent === "Checklist"
+        )
+      ).toBeInTheDocument()
+    );
+
+    await waitFor(() =>
+      expect(
+        within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ })
+      ).toBeInTheDocument()
+    );
 
     fireEvent.click(within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ }));
     await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
