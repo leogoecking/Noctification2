@@ -53,18 +53,6 @@ export const TaskDetailSheet = ({
   }
 
   const taskSla = buildTaskSlaInfo(selectedTask);
-  const primaryStatusAction =
-    selectedTask.status === "new"
-      ? { label: "Assumir", status: "assumed" as const }
-      : selectedTask.status === "assumed"
-        ? { label: "Iniciar execucao", status: "in_progress" as const }
-        : selectedTask.status === "in_progress"
-          ? { label: "Marcar bloqueada", status: "blocked" as const }
-          : selectedTask.status === "blocked"
-            ? { label: "Aguardar externo", status: "waiting_external" as const }
-            : selectedTask.status === "waiting_external"
-              ? { label: "Retomar execucao", status: "in_progress" as const }
-              : null;
 
   return (
     <div
@@ -136,7 +124,7 @@ export const TaskDetailSheet = ({
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Acao principal</p>
                 <p className="mt-1 text-sm text-textMuted">
-                  O board concentra mudancas de status. No detalhe ficam as decisoes principais e contexto.
+                  O kanban concentra mudancas de status. No detalhe ficam apenas as acoes de manutencao.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -145,30 +133,14 @@ export const TaskDetailSheet = ({
                   onClick={() => onStartEditing(selectedTask)}
                   type="button"
                 >
-                  Editar
-                </button>
-                {primaryStatusAction && (
-                  <button
-                    className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
-                    onClick={() => onUpdateStatus(selectedTask.id, primaryStatusAction.status)}
-                    type="button"
-                  >
-                    {primaryStatusAction.label}
-                  </button>
-                )}
-                <button
-                  className="btn-success"
-                  onClick={() => onCompleteTask(selectedTask.id)}
-                  type="button"
-                >
-                  Concluir
+                  Editar tarefa
                 </button>
                 <button
                   className="rounded-xl border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-danger"
                   onClick={() => onCancelTask(selectedTask.id)}
                   type="button"
                 >
-                  Cancelar tarefa
+                  Excluir
                 </button>
               </div>
             </div>

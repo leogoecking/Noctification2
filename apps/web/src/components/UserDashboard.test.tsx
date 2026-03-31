@@ -244,7 +244,7 @@ describe("UserDashboard", () => {
       />
     );
 
-    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=6"));
+    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=8"));
     expect(mockedApi.myReminders).toHaveBeenCalledWith("?active=true");
     expect(mockedApi.myReminderOccurrences).toHaveBeenCalledWith("?status=pending");
     expect(screen.getByTestId("operations-board-rail")).toBeInTheDocument();

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { TaskStatus } from "../../../types";
 import {
   isTaskTerminal,
   parseLimit,
@@ -24,6 +25,29 @@ export const TASK_ORDER_BY = `
     t.created_at DESC,
     t.id DESC
 `;
+
+const TASK_STATUS_SEARCH_TERMS: Record<TaskStatus, string[]> = {
+  new: ["new", "nova"],
+  assumed: ["assumed", "assumida"],
+  in_progress: ["in_progress", "in progress", "em andamento", "em_andamento", "andamento"],
+  blocked: ["blocked", "bloqueada", "bloqueado"],
+  waiting_external: ["waiting_external", "waiting external", "aguardando externo", "externo"],
+  done: ["done", "concluida", "concluido", "finalizada", "finalizado"],
+  cancelled: ["cancelled", "cancelada", "cancelado"]
+};
+
+const findTaskStatusesBySearch = (search: string): TaskStatus[] => {
+  const normalizedSearch = search.trim().toLowerCase();
+  if (!normalizedSearch) {
+    return [];
+  }
+
+  return (Object.entries(TASK_STATUS_SEARCH_TERMS) as Array<[TaskStatus, string[]]>)
+    .filter(([, terms]) =>
+      terms.some((term) => term.includes(normalizedSearch) || normalizedSearch.includes(term))
+    )
+    .map(([status]) => status);
+};
 
 export const parseTaskIdParam = (value: string): number | null => {
   const taskId = Number(value);
@@ -143,6 +167,7 @@ export const buildTaskListParams = (
 
   if (search) {
     const normalizedSearch = `%${search.trim().toLowerCase()}%`;
+    const matchedStatuses = findTaskStatusesBySearch(search);
     const searchConditions = [
       "LOWER(t.title) LIKE ?",
       "LOWER(COALESCE(t.description, '')) LIKE ?"
@@ -153,6 +178,11 @@ export const buildTaskListParams = (
       searchConditions.push("LOWER(COALESCE(assignee.name, '')) LIKE ?");
       searchConditions.push("LOWER(COALESCE(assignee.login, '')) LIKE ?");
       values.push(normalizedSearch, normalizedSearch);
+    }
+
+    if (matchedStatuses.length > 0) {
+      searchConditions.push(`t.status IN (${matchedStatuses.map(() => "?").join(", ")})`);
+      values.push(...matchedStatuses);
     }
 
     conditions.push(`(${searchConditions.join(" OR ")})`);

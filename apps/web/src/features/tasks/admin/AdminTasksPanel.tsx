@@ -7,13 +7,7 @@ import type {
   TaskPriority,
   UserItem
 } from "../../../types";
-import {
-  buildTaskSlaInfo,
-  matchesTaskQueueFilter,
-  TASK_QUEUE_LABELS,
-  TASK_STATUS_LABELS,
-  type TaskQueueFilter
-} from "../../../components/tasks/taskUi";
+import { buildTaskSlaInfo, TASK_STATUS_LABELS } from "../../../components/tasks/taskUi";
 import { TaskBoard } from "../../../components/tasks/TaskBoard";
 import { TaskDetailSheet } from "../../../components/tasks/TaskDetailSheet";
 import { TaskRecurrenceField } from "../../../components/tasks/TaskRecurrenceField";
@@ -23,12 +17,8 @@ import {
   buildAdminTaskBoardColumns,
   buildAdminTaskFormState,
   buildAdminTaskPayload,
-  buildAdminTaskQuery,
-  buildAdminTaskStats,
   type AdminTaskMetricsWindow,
   EMPTY_TASK_ADMIN_FORM,
-  type AdminTaskFilterPriority,
-  type AdminTaskFilterStatus,
   type TaskAdminFormState
 } from "./adminTasksPanelModel";
 
@@ -37,65 +27,7 @@ interface AdminTasksPanelProps {
   onToast: (message: string) => void;
 }
 
-const ADMIN_TASK_FILTERS_STORAGE_KEY = "tasks:admin:filters";
-
-const loadStoredAdminTaskFilters = (): {
-  statusFilter: AdminTaskFilterStatus;
-  priorityFilter: AdminTaskFilterPriority;
-  assigneeFilter: string;
-  queueFilter: TaskQueueFilter;
-  searchFilter: string;
-} => {
-  if (typeof window === "undefined") {
-    return {
-      statusFilter: "",
-      priorityFilter: "",
-      assigneeFilter: "",
-      queueFilter: "all",
-      searchFilter: ""
-    };
-  }
-
-  const rawValue = window.localStorage.getItem(ADMIN_TASK_FILTERS_STORAGE_KEY);
-  if (!rawValue) {
-    return {
-      statusFilter: "",
-      priorityFilter: "",
-      assigneeFilter: "",
-      queueFilter: "all",
-      searchFilter: ""
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(rawValue) as {
-      statusFilter?: AdminTaskFilterStatus;
-      priorityFilter?: AdminTaskFilterPriority;
-      assigneeFilter?: string;
-      queueFilter?: TaskQueueFilter;
-      searchFilter?: string;
-    };
-
-    return {
-      statusFilter: parsed.statusFilter ?? "",
-      priorityFilter: parsed.priorityFilter ?? "",
-      assigneeFilter: parsed.assigneeFilter ?? "",
-      queueFilter: parsed.queueFilter ?? "all",
-      searchFilter: parsed.searchFilter ?? ""
-    };
-  } catch {
-    return {
-      statusFilter: "",
-      priorityFilter: "",
-      assigneeFilter: "",
-      queueFilter: "all",
-      searchFilter: ""
-    };
-  }
-};
-
 export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
-  const initialFilters = loadStoredAdminTaskFilters();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [automationHealth, setAutomationHealth] = useState<TaskAutomationHealthItem | null>(null);
   const [metrics, setMetrics] = useState<TaskMetricsSummaryItem | null>(null);
@@ -106,14 +38,9 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   const [bulkAssigneeUserId, setBulkAssigneeUserId] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
-  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [metricsWindow, setMetricsWindow] = useState<AdminTaskMetricsWindow>("7d");
   const [capacityView, setCapacityView] = useState<"assignee" | "department">("assignee");
-  const [statusFilter, setStatusFilter] = useState<AdminTaskFilterStatus>(initialFilters.statusFilter);
-  const [priorityFilter, setPriorityFilter] = useState<AdminTaskFilterPriority>(initialFilters.priorityFilter);
-  const [assigneeFilter, setAssigneeFilter] = useState(initialFilters.assigneeFilter);
-  const [queueFilter, setQueueFilter] = useState<TaskQueueFilter>(initialFilters.queueFilter);
-  const [searchFilter, setSearchFilter] = useState(initialFilters.searchFilter);
+  const [searchFilter, setSearchFilter] = useState("");
 
   const openCreateTask = useCallback(() => {
     setForm(EMPTY_TASK_ADMIN_FORM);
@@ -121,13 +48,13 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   }, []);
 
   const buildQuery = useCallback(() => {
-    return buildAdminTaskQuery({
-      statusFilter,
-      priorityFilter,
-      assigneeFilter,
-      searchFilter
-    });
-  }, [assigneeFilter, priorityFilter, searchFilter, statusFilter]);
+    const normalizedSearch = searchFilter.trim();
+    if (!normalizedSearch) {
+      return "";
+    }
+
+    return `?${new URLSearchParams({ search: normalizedSearch }).toString()}`;
+  }, [searchFilter]);
 
   const buildMetricsQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -137,11 +64,9 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
         params.set(key, value);
       }
     }
-
-    params.set("queue", queueFilter);
     params.set("window", metricsWindow);
     return `?${params.toString()}`;
-  }, [buildQuery, metricsWindow, queueFilter]);
+  }, [buildQuery, metricsWindow]);
 
   const {
     commentBody,
@@ -199,27 +124,11 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
     }, [])
   });
 
-  const queueOptions = useMemo(
-    () =>
-      (["all", "attention", "due_today", "overdue", "blocked", "stale", "unassigned"] as TaskQueueFilter[]).map((queue) => ({
-        value: queue,
-        label: TASK_QUEUE_LABELS[queue],
-        count: tasks.filter((task) => matchesTaskQueueFilter(task, queue)).length
-      })),
-    [tasks]
-  );
-
-  const displayedTasks = useMemo(
-    () => tasks.filter((task) => matchesTaskQueueFilter(task, queueFilter)),
-    [queueFilter, tasks]
-  );
-
-  const taskStats = useMemo(() => buildAdminTaskStats(displayedTasks), [displayedTasks]);
   const capacityItems = metrics?.capacityByAssignee ?? [];
   const departmentCapacityItems = metrics?.capacityByDepartment ?? [];
   const productivityMetrics = metrics?.productivity ?? null;
 
-  const boardColumns = useMemo(() => buildAdminTaskBoardColumns(displayedTasks), [displayedTasks]);
+  const boardColumns = useMemo(() => buildAdminTaskBoardColumns(tasks), [tasks]);
   const selectedTaskCount = selectedTaskIds.length;
   const hasSelectedTasks = selectedTaskCount > 0;
 
@@ -288,25 +197,8 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   }, [form, onError, reloadAndSelect, resetForm]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(
-      ADMIN_TASK_FILTERS_STORAGE_KEY,
-      JSON.stringify({
-        statusFilter,
-        priorityFilter,
-        assigneeFilter,
-        queueFilter,
-        searchFilter
-      })
-    );
-  }, [assigneeFilter, priorityFilter, queueFilter, searchFilter, statusFilter]);
-
-  useEffect(() => {
-    setSelectedTaskIds((current) => current.filter((taskId) => displayedTasks.some((task) => task.id === taskId)));
-  }, [displayedTasks]);
+    setSelectedTaskIds((current) => current.filter((taskId) => tasks.some((task) => task.id === taskId)));
+  }, [tasks]);
 
   const toggleBulkTask = useCallback((taskId: number) => {
     setSelectedTaskIds((current) =>
@@ -315,10 +207,8 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
   }, []);
 
   const toggleSelectAllDisplayed = useCallback(() => {
-    setSelectedTaskIds((current) =>
-      current.length === displayedTasks.length ? [] : displayedTasks.map((task) => task.id)
-    );
-  }, [displayedTasks]);
+    setSelectedTaskIds((current) => (current.length === tasks.length ? [] : tasks.map((task) => task.id)));
+  }, [tasks]);
 
   const clearBulkSelection = useCallback(() => {
     setSelectedTaskIds([]);
@@ -375,63 +265,12 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
 
   return (
     <section className="space-y-6">
-      <header className="rounded-[1.5rem] bg-panel p-4 shadow-glow">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="hidden min-w-[18rem] items-center gap-2 rounded-xl bg-panelAlt px-3 py-2 text-sm text-textMuted md:flex">
-              <span className="text-xs uppercase tracking-[0.18em]">Search</span>
-              <span className="truncate">Search operational logs...</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="font-display text-xl font-extrabold tracking-tight text-textMain">Noctification</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-textMuted">Task Admin</p>
-            </div>
-            <span className="rounded-full bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
-              Admin
-            </span>
-            <button className="btn-primary" onClick={openCreateTask} type="button">
-              Nova tarefa
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <header className="rounded-[1.5rem] bg-panelAlt/80 p-6 shadow-glow">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
-          Operations board
-        </p>
-        <h3 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-textMain">
-          Tarefas
-        </h3>
-        <p className="mt-2 text-sm text-textMuted">Operacao, atribuicao e acompanhamento de tarefas</p>
-      </header>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-[1.25rem] bg-panel p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Total</p>
-          <p className="mt-3 text-4xl font-black tracking-tight text-textMain">{taskStats.total}</p>
-        </article>
-        <article className="rounded-[1.25rem] bg-panel p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Abertas</p>
-          <p className="mt-3 text-4xl font-black tracking-tight text-accent">{taskStats.open}</p>
-        </article>
-        <article className="rounded-[1.25rem] bg-panel p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Concluidas</p>
-          <p className="mt-3 text-4xl font-black tracking-tight text-success">{taskStats.done}</p>
-        </article>
-        <article className="rounded-[1.25rem] bg-panel p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Sem responsavel</p>
-          <p className="mt-3 text-4xl font-black tracking-tight text-warning">{taskStats.unassigned}</p>
-        </article>
-      </div>
-
-      <article className="rounded-[1.25rem] bg-panel p-5">
+      {hasSelectedTasks && (
+      <article className="sticky top-4 z-10 rounded-[1.25rem] border border-outlineSoft bg-panel p-4 shadow-glow">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Bulk actions</p>
-            <h4 className="mt-1 font-display text-base text-textMain">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Selecao em lote</p>
+            <h4 className="mt-1 font-display text-sm text-textMain">
               {selectedTaskCount} tarefa(s) selecionada(s)
             </h4>
           </div>
@@ -441,7 +280,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
               onClick={toggleSelectAllDisplayed}
               type="button"
             >
-              {selectedTaskCount === displayedTasks.length && displayedTasks.length > 0
+              {selectedTaskCount === tasks.length && tasks.length > 0
                 ? "Limpar exibidas"
                 : "Selecionar exibidas"}
             </button>
@@ -470,14 +309,6 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             type="button"
           >
             Em andamento em lote
-          </button>
-          <button
-            className="rounded-lg border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-danger disabled:opacity-50"
-            disabled={!hasSelectedTasks || bulkSaving}
-            onClick={() => void runBulkStatusUpdate("blocked")}
-            type="button"
-          >
-            Bloquear em lote
           </button>
           <button
             className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
@@ -527,135 +358,25 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           </button>
         </div>
       </article>
-
-      <section className="rounded-[1.25rem] bg-panelAlt/80 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Status:</span>
-            <span className="text-xs font-semibold text-textMain">
-              {statusFilter ? TASK_STATUS_LABELS[statusFilter] : "Todos"}
-            </span>
-          </div>
-          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Busca:</span>
-            <input
-              className="min-w-40 bg-transparent text-xs font-semibold text-textMain outline-none"
-              placeholder="titulo, descricao ou responsavel"
-              value={searchFilter}
-              onChange={(event) => setSearchFilter(event.target.value)}
-            />
-          </div>
-          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Fila:</span>
-            <span className="text-xs font-semibold text-textMain">{TASK_QUEUE_LABELS[queueFilter]}</span>
-          </div>
-          <div className="flex items-center space-x-2 rounded-lg border border-outlineSoft/60 bg-panel px-3 py-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-textMuted">Responsavel:</span>
-            <span className="text-xs font-semibold text-textMain">
-              {assigneeFilter ? users.find((user) => String(user.id) === assigneeFilter)?.name ?? "Selecionado" : "Todos"}
-            </span>
-          </div>
-          <button
-            className="rounded-lg px-3 py-1.5 text-xs font-bold text-textMain transition hover:bg-panel"
-            onClick={() => setMoreFiltersOpen((current) => !current)}
-            type="button"
-          >
-            Mais filtros
-          </button>
-          <div className="ml-auto text-xs text-textMuted">Kanban administrativo com SLA e bulk actions</div>
-        </div>
-      </section>
+      )}
 
       <div className="space-y-4">
           <TaskBoard
             boardColumns={boardColumns}
-            emptyMessage="Nenhuma tarefa encontrada para os filtros atuais."
+            emptyMessage="Nenhuma tarefa encontrada para a busca atual."
             filters={
-              <div className="flex flex-1 flex-col gap-2">
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr),minmax(0,1fr),auto]">
-                  <select
-                    className="input min-w-36"
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as AdminTaskFilterStatus)}
-                  >
-                    <option value="">Todos os status</option>
-                    <option value="new">Nova</option>
-                    <option value="assumed">Assumida</option>
-                    <option value="in_progress">Em andamento</option>
-                    <option value="blocked">Bloqueada</option>
-                    <option value="waiting_external">Aguardando externo</option>
-                    <option value="done">Concluida</option>
-                    <option value="cancelled">Cancelada</option>
-                  </select>
-                  <select
-                    className="input min-w-36"
-                    value={assigneeFilter}
-                    onChange={(event) => setAssigneeFilter(event.target.value)}
-                  >
-                    <option value="">Todos os responsaveis</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
-                    onClick={() => setMoreFiltersOpen((current) => !current)}
-                    type="button"
-                  >
-                    {moreFiltersOpen ? "Menos filtros" : "Mais filtros"}
-                  </button>
-                </div>
-                {moreFiltersOpen && (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <select
-                      className="input min-w-36"
-                      value={priorityFilter}
-                      onChange={(event) => setPriorityFilter(event.target.value as AdminTaskFilterPriority)}
-                    >
-                      <option value="">Todas as prioridades</option>
-                      <option value="low">Baixa</option>
-                      <option value="normal">Normal</option>
-                      <option value="high">Alta</option>
-                      <option value="critical">Critica</option>
-                    </select>
-                    <button
-                      className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain"
-                      onClick={() => {
-                        setStatusFilter("");
-                        setPriorityFilter("");
-                        setAssigneeFilter("");
-                        setSearchFilter("");
-                        setQueueFilter("all");
-                      }}
-                      type="button"
-                    >
-                      Limpar filtros
-                    </button>
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {queueOptions.map((queue) => (
-                    <button
-                      key={queue.value}
-                      aria-pressed={queueFilter === queue.value}
-                      className={`rounded-full px-3 py-1.5 text-xs ${
-                        queueFilter === queue.value
-                          ? "bg-accent/10 text-accent"
-                          : "border border-outlineSoft bg-panel text-textMain"
-                      }`}
-                      onClick={() => setQueueFilter(queue.value)}
-                      type="button"
-                    >
-                      {queue.label} ({queue.count})
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-1">
+                <input
+                  className="input min-w-36"
+                  placeholder="titulo, descricao, responsavel ou status"
+                  value={searchFilter}
+                  onChange={(event) => setSearchFilter(event.target.value)}
+                />
               </div>
             }
-            headerDescription="Kanban com filas operacionais e leitura de SLA"
-            headerTitle="Fila de tarefas"
+            headerDescription="Kanban principal da operacao com busca direta e SLA"
+            headerEyebrow="Board"
+            headerTitle="Kanban"
             loading={loading}
             metaRowRenderer={(task) => (
               <>
@@ -670,14 +391,12 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
               </>
             )}
             selectedTaskId={selectedTask?.id ?? null}
-            selectedTask={selectedTask}
             onBoardCardKeyDown={onBoardCardKeyDown}
-            onCancelTask={cancelTask}
-            onCompleteTask={completeTask}
             onOpenTask={openTaskFromBoard}
-            primaryAction={{ label: "Novo", onClick: openCreateTask }}
             onRefresh={() => void refreshTaskViews()}
+            onCompleteTask={(taskId) => void completeTask(taskId)}
             onUpdateStatus={(taskId, status) => updateTaskStatus(taskId, status, TASK_STATUS_LABELS[status])}
+            showHeaderMetaBadge={false}
             bulkSelection={{
               selectedTaskIds,
               onToggleTask: toggleBulkTask
@@ -685,9 +404,14 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           />
       </div>
 
-      <div className="fixed bottom-8 right-8 z-20 hidden lg:block">
-        <button className="btn-primary shadow-glow" onClick={openCreateTask} type="button">
-          Quick Task
+      <div className="fixed bottom-8 right-8 z-20">
+        <button
+          aria-label="Nova tarefa"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-glow transition hover:scale-[1.02]"
+          onClick={openCreateTask}
+          type="button"
+        >
+          <span aria-hidden="true" className="text-2xl leading-none">+</span>
         </button>
       </div>
 
@@ -707,7 +431,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-accent">Kanban administrativo</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-accent">Formulario</p>
                   <h4 className="mt-1 font-display text-lg text-textMain">
                     {form.id > 0 ? "Editar tarefa" : "Nova tarefa administrativa"}
                   </h4>
@@ -806,17 +530,45 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           type="button"
         >
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Visao gerencial</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Indicadores secundarios</p>
             <h4 className="mt-1 font-display text-base text-textMain">Produtividade, capacidade e automacao</h4>
-            <p className="text-sm text-textMuted">Secao secundaria para analise da equipe e da fila.</p>
+            <p className="text-sm text-textMuted">Analise complementar fora da operacao principal do kanban.</p>
           </div>
               <span className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain">
-                {analyticsOpen ? "Ocultar indicadores" : "Abrir indicadores"}
+                Abrir indicadores
               </span>
         </button>
 
         {analyticsOpen && (
-          <div className="mt-4 space-y-4">
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
+            <div
+              aria-label="Indicadores da fila"
+              aria-modal="true"
+              className="max-h-[85vh] w-full max-w-6xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-glow"
+              role="dialog"
+            >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+                  Indicadores secundarios
+                </p>
+                <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
+                  Produtividade, capacidade e automacao
+                </h3>
+                <p className="mt-2 text-sm text-textMuted">
+                  Analise complementar fora da operacao principal do kanban.
+                </p>
+              </div>
+              <button
+                className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-xs text-textMain"
+                onClick={() => setAnalyticsOpen(false)}
+                type="button"
+              >
+                Fechar
+              </button>
+            </div>
+
+          <div className="space-y-4">
             <article className="rounded-[1.25rem] bg-panelAlt/80 p-4">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -852,7 +604,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                   {metricsUnavailable ? "Metricas indisponiveis no momento." : "Carregando metricas..."}
                 </p>
               ) : (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
                   <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Entrega</p>
                   <p className="mt-2 text-2xl font-semibold text-textMain">{productivityMetrics.completedInWindow}</p>
@@ -898,19 +650,6 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                       {productivityMetrics.avgStartLagHours === null
                         ? "-"
                         : `${productivityMetrics.avgStartLagHours.toFixed(1)}h`}
-                    </span>
-                  </div>
-                </div>
-                <div className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
-                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Risco atual</p>
-                  <p className="mt-2 text-2xl font-semibold text-textMain">{productivityMetrics.overdueOpen}</p>
-                  <p className="mt-1 text-sm text-textMuted">tarefas abertas atrasadas no filtro atual</p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full bg-danger/20 px-2.5 py-1 text-danger">
-                      {productivityMetrics.overdueOpen} atrasadas
-                    </span>
-                    <span className="rounded-full bg-warning/20 px-2.5 py-1 text-warning">
-                      {productivityMetrics.blockedOpen} bloqueadas
                     </span>
                   </div>
                 </div>
@@ -976,9 +715,6 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                         <span className="rounded-full bg-danger/20 px-2.5 py-1 text-danger">
                           {item.critical} criticas
                         </span>
-                        <span className="rounded-full bg-warning/20 px-2.5 py-1 text-warning">
-                          {item.blocked} bloqueadas
-                        </span>
                         <span className="rounded-full bg-success/20 px-2.5 py-1 text-success">
                           {item.completedOnTime} no prazo
                         </span>
@@ -1003,9 +739,6 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                         <div className="mt-3 flex flex-wrap gap-2 text-xs">
                           <span className="rounded-full bg-danger/20 px-2.5 py-1 text-danger">
                             {item.overdue} atrasadas
-                          </span>
-                          <span className="rounded-full bg-warning/20 px-2.5 py-1 text-warning">
-                            {item.blocked} bloqueadas
                           </span>
                           <span className="rounded-full bg-danger/20 px-2.5 py-1 text-danger">
                             {item.critical} criticas
@@ -1065,6 +798,8 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                 </div>
               </article>
             )}
+          </div>
+          </div>
           </div>
         )}
       </article>

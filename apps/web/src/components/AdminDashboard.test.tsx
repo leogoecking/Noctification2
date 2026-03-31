@@ -982,4 +982,16 @@ describe("AdminDashboard", () => {
 
     expect(onNavigate).toHaveBeenCalledWith("/");
   });
+
+  it("oculta a busca global quando entra na aba de tarefas", async () => {
+    renderAdminDashboard();
+
+    await waitFor(() => expect(mockedApi.adminUsers).toHaveBeenCalled());
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Tarefas" }));
+    });
+
+    expect(screen.queryByLabelText("Busca global do admin")).not.toBeInTheDocument();
+  });
 });

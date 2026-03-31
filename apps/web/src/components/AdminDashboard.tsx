@@ -175,10 +175,13 @@ export const AdminDashboard = ({
     resetHistoryFilters,
   } = useAdminDashboardData({ onError, onToast });
 
+  const isAprPage = currentPath === "/apr";
+  const isKmlPostePage = currentPath === "/kml-postes";
   const normalizedSearch = deferredSearchQuery.trim().toLowerCase();
+  const globalSearchEnabled = menu !== "tasks" && !isAprPage && !isKmlPostePage;
 
   useEffect(() => {
-    if (normalizedSearch.length < 2) {
+    if (!globalSearchEnabled || normalizedSearch.length < 2) {
       setTaskSearchResults([]);
       setLoadingTaskSearch(false);
       return;
@@ -211,11 +214,11 @@ export const AdminDashboard = ({
     return () => {
       controller.abort();
     };
-  }, [normalizedSearch]);
+  }, [globalSearchEnabled, normalizedSearch]);
 
   const matchedUsers = useMemo<UserItem[]>(
     () =>
-      normalizedSearch.length < 2
+      !globalSearchEnabled || normalizedSearch.length < 2
         ? []
         : users
             .filter(
@@ -226,7 +229,7 @@ export const AdminDashboard = ({
                 user.jobTitle.toLowerCase().includes(normalizedSearch)
             )
             .slice(0, 6),
-    [normalizedSearch, users]
+    [globalSearchEnabled, normalizedSearch, users]
   );
 
   const searchableNotifications = useMemo<NotificationHistoryItem[]>(() => {
@@ -239,7 +242,7 @@ export const AdminDashboard = ({
 
   const matchedNotifications = useMemo<NotificationHistoryItem[]>(
     () =>
-      normalizedSearch.length < 2
+      !globalSearchEnabled || normalizedSearch.length < 2
         ? []
         : searchableNotifications
             .filter(
@@ -255,12 +258,12 @@ export const AdminDashboard = ({
                 )
             )
             .slice(0, 6),
-    [normalizedSearch, searchableNotifications]
+    [globalSearchEnabled, normalizedSearch, searchableNotifications]
   );
 
   const matchedAudit = useMemo<AuditEventItem[]>(
     () =>
-      normalizedSearch.length < 2
+      !globalSearchEnabled || normalizedSearch.length < 2
         ? []
         : auditEvents
             .filter(
@@ -272,10 +275,10 @@ export const AdminDashboard = ({
                 JSON.stringify(event.metadata ?? {}).toLowerCase().includes(normalizedSearch)
             )
             .slice(0, 6),
-    [auditEvents, normalizedSearch]
+    [auditEvents, globalSearchEnabled, normalizedSearch]
   );
 
-  const isSearching = normalizedSearch.length >= 2;
+  const isSearching = globalSearchEnabled && normalizedSearch.length >= 2;
 
   const loadSystemHealth = useCallback(async () => {
     setLoadingHealth(true);
@@ -298,8 +301,6 @@ export const AdminDashboard = ({
     void loadSystemHealth();
   }, [loadSystemHealth]);
 
-  const isAprPage = currentPath === "/apr";
-  const isKmlPostePage = currentPath === "/kml-postes";
   const headerCopy = getAdminHeaderCopy(menu, isSearching, isAprPage, isKmlPostePage);
   const handleSidebarSelect = useCallback(
     (nextMenu: typeof menu) => {
@@ -370,19 +371,20 @@ export const AdminDashboard = ({
                 <p className="mt-1 max-w-3xl text-sm text-textMuted">{headerCopy.subtitle}</p>
               </div>
 
-              <div className="flex min-w-[18rem] flex-1 items-center gap-3 lg:max-w-2xl">
-                <label className="mx-auto flex w-full max-w-xl items-center gap-3 rounded-xl bg-panelAlt px-3 py-2 text-sm text-textMuted">
-                  <span className="text-xs uppercase tracking-[0.18em]">Search</span>
-                  <input
-                    aria-label="Busca global do admin"
-                    className="min-w-0 flex-1 bg-transparent text-sm text-textMain outline-none placeholder:text-textMuted"
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Buscar tarefas, usuarios, notificacoes e auditoria"
-                    type="search"
-                    value={searchQuery}
-                  />
-                </label>
-
+              <div className="flex min-w-[18rem] flex-1 items-center justify-end gap-3 lg:max-w-2xl">
+                {globalSearchEnabled ? (
+                  <label className="mx-auto flex w-full max-w-xl items-center gap-3 rounded-xl bg-panelAlt px-3 py-2 text-sm text-textMuted">
+                    <span className="text-xs uppercase tracking-[0.18em]">Search</span>
+                    <input
+                      aria-label="Busca global do admin"
+                      className="min-w-0 flex-1 bg-transparent text-sm text-textMain outline-none placeholder:text-textMuted"
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Buscar tarefas, usuarios, notificacoes e auditoria"
+                      type="search"
+                      value={searchQuery}
+                    />
+                  </label>
+                ) : null}
                 <AdminOnlineUsersTrigger
                   onlineUsers={onlineUsers}
                   onlineSummary={onlineSummary}

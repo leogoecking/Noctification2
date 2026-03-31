@@ -9,12 +9,7 @@ import {
 import type { AuthUser, NotificationItem, NotificationOperationalStatus, NotificationResponseStatus } from "../types";
 import type { ReminderItem, ReminderOccurrenceItem } from "../types";
 import { UserNotificationBell } from "./user-notifications/UserNotificationBell";
-import {
-  UserCriticalNotificationModal,
-  UserNotificationCenter,
-  UserNotificationFilterBar,
-  UserNotificationSummary
-} from "./user-notifications/UserNotificationViews";
+import { UserCriticalNotificationModal, UserNotificationCenter, UserNotificationFilterBar } from "./user-notifications/UserNotificationViews";
 import { OperationsBoardRail } from "./OperationsBoardRail";
 import {
   OPERATIONAL_STATUS_LABELS,
@@ -476,19 +471,17 @@ export const UserDashboard = ({
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-4 lg:col-span-8">
-          <article className="rounded-[1.25rem] bg-panel p-5">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
-                  Live notification stream
-                </p>
-                <h3 className="mt-1 font-display text-xl text-textMain">
-                  {isNotificationsPage ? "Central completa" : "Estado das notificacoes"}
-                </h3>
+          {isNotificationsPage ? (
+            <article className="rounded-[1.25rem] bg-panel p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+                    Live notification stream
+                  </p>
+                  <h3 className="mt-1 font-display text-xl text-textMain">Central completa</h3>
+                </div>
               </div>
-            </div>
 
-            {isNotificationsPage && (
               <div className="mb-4 rounded-[1rem] bg-panelAlt p-3">
                 <div className="mb-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
@@ -498,9 +491,7 @@ export const UserDashboard = ({
                 </div>
                 <UserNotificationFilterBar filter={filter} onChange={setFilter} />
               </div>
-            )}
 
-            {isNotificationsPage ? (
               <UserNotificationCenter
                 items={items}
                 loading={loading}
@@ -513,24 +504,18 @@ export const UserDashboard = ({
                   void respondNotification(notificationId, status, responseMessage)
                 }
               />
-            ) : (
-              <UserNotificationSummary
-                dashboardItems={dashboardItems}
-                loading={loading}
-                onOpenAllNotifications={onOpenAllNotifications}
-              />
-            )}
-          </article>
+            </article>
+          ) : (
+            <OperationsBoardRail
+              currentUserName={user.name}
+              onError={onError}
+              onToast={onToast}
+              subtitle="Avisos de turno e alinhamentos compartilhados com toda a operacao"
+            />
+          )}
         </div>
 
         <aside className="space-y-4 lg:col-span-4">
-          <OperationsBoardRail
-            currentUserName={user.name}
-            onError={onError}
-            onToast={onToast}
-            subtitle="Avisos de turno e alinhamentos compartilhados com toda a operacao"
-          />
-
           <article className="rounded-[1.25rem] bg-panel p-5">
             <div className="flex items-center justify-between">
               <div>

@@ -512,4 +512,92 @@ describe("task routes", () => {
     expect((listRes.body as { tasks: Array<{ assigneeLogin: string | null }> }).tasks).toHaveLength(1);
     expect((listRes.body as { tasks: Array<{ assigneeLogin: string | null }> }).tasks[0]?.assigneeLogin).toBe("user2");
   });
+
+  it("permite ao admin buscar tarefas por status usando rotulo e valor interno", () => {
+    const createHandler = getRouteHandler(adminRouter, "/tasks", "post");
+    const listHandler = getRouteHandler(adminRouter, "/tasks", "get");
+    const updateHandler = getRouteHandler(adminRouter, "/tasks/:id", "patch");
+    const completeHandler = getRouteHandler(adminRouter, "/tasks/:id/complete", "post");
+
+    const firstCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Tarefa aguardando terceiro",
+          description: "Dependencia externa"
+        }
+      },
+      firstCreateRes
+    );
+    expect(firstCreateRes.statusCode).toBe(201);
+    const waitingTaskId = (firstCreateRes.body as { task: { id: number } }).task.id;
+
+    const waitingUpdateRes = createMockResponse();
+    updateHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(waitingTaskId) },
+        body: { status: "waiting_external" }
+      },
+      waitingUpdateRes
+    );
+    expect(waitingUpdateRes.statusCode).toBe(200);
+
+    const secondCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Tarefa encerrada",
+          description: "Fluxo concluido"
+        }
+      },
+      secondCreateRes
+    );
+    expect(secondCreateRes.statusCode).toBe(201);
+    const doneTaskId = (secondCreateRes.body as { task: { id: number } }).task.id;
+
+    const completeRes = createMockResponse();
+    completeHandler(
+      {
+        authUser: adminUser,
+        params: { id: String(doneTaskId) }
+      },
+      completeRes
+    );
+    expect(completeRes.statusCode).toBe(200);
+
+    const byLabelRes = createMockResponse();
+    listHandler(
+      {
+        authUser: adminUser,
+        query: {
+          search: "concluida"
+        }
+      },
+      byLabelRes
+    );
+
+    expect(byLabelRes.statusCode).toBe(200);
+    expect((byLabelRes.body as { tasks: Array<{ id: number; status: string }> }).tasks).toHaveLength(1);
+    expect((byLabelRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.id).toBe(doneTaskId);
+    expect((byLabelRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.status).toBe("done");
+
+    const byValueRes = createMockResponse();
+    listHandler(
+      {
+        authUser: adminUser,
+        query: {
+          search: "waiting_external"
+        }
+      },
+      byValueRes
+    );
+
+    expect(byValueRes.statusCode).toBe(200);
+    expect((byValueRes.body as { tasks: Array<{ id: number; status: string }> }).tasks).toHaveLength(1);
+    expect((byValueRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.id).toBe(waitingTaskId);
+    expect((byValueRes.body as { tasks: Array<{ id: number; status: string }> }).tasks[0]?.status).toBe("waiting_external");
+  });
 });

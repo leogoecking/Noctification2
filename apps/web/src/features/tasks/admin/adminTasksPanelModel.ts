@@ -1,4 +1,4 @@
-import type { TaskItem, TaskPriority, TaskRepeatType, TaskStatus } from "../../../types";
+import type { TaskItem, TaskPriority, TaskRepeatType } from "../../../types";
 import {
   compareTasksByOperationalOrder,
   TASK_BOARD_COLUMNS,
@@ -7,8 +7,6 @@ import {
   toDateTimeLocalValue
 } from "../../../components/tasks/taskUi";
 
-export type AdminTaskFilterStatus = "" | TaskStatus;
-export type AdminTaskFilterPriority = "" | TaskPriority;
 export type AdminTaskMetricsWindow = "7d" | "30d";
 
 export type TaskAdminFormState = {
@@ -33,44 +31,8 @@ export const EMPTY_TASK_ADMIN_FORM: TaskAdminFormState = {
   assigneeUserId: ""
 };
 
-export const buildAdminTaskQuery = (filters: {
-  statusFilter: AdminTaskFilterStatus;
-  priorityFilter: AdminTaskFilterPriority;
-  assigneeFilter: string;
-  searchFilter: string;
-}): string => {
-  const params = new URLSearchParams();
-
-  if (filters.statusFilter) {
-    params.set("status", filters.statusFilter);
-  }
-
-  if (filters.priorityFilter) {
-    params.set("priority", filters.priorityFilter);
-  }
-
-  if (filters.assigneeFilter) {
-    params.set("assignee_user_id", filters.assigneeFilter);
-  }
-
-  const normalizedSearch = filters.searchFilter.trim();
-  if (normalizedSearch) {
-    params.set("search", normalizedSearch);
-  }
-
-  const query = params.toString();
-  return query ? `?${query}` : "";
-};
-
-export const buildAdminTaskStats = (tasks: TaskItem[]) => ({
-  total: tasks.length,
-  open: tasks.filter((task) => task.status !== "done" && task.status !== "cancelled").length,
-  done: tasks.filter((task) => task.status === "done").length,
-  unassigned: tasks.filter((task) => task.assigneeUserId === null).length
-});
-
 export const buildAdminTaskBoardColumns = (tasks: TaskItem[], now = new Date()) =>
-  TASK_BOARD_COLUMNS.map((status) => ({
+  TASK_BOARD_COLUMNS.filter((status) => status !== "blocked" && status !== "cancelled").map((status) => ({
     status,
     label: TASK_STATUS_LABELS[status],
     tasks: tasks.filter((task) => task.status === status).sort((left, right) => compareTasksByOperationalOrder(left, right, now))
