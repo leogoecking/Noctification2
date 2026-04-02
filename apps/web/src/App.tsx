@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "./lib/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { AdminDashboard } from "./components/AdminDashboard";
+import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useNotificationSocket } from "./hooks/useNotificationSocket";
+import { useSessionBootstrap } from "./hooks/useSessionBootstrap";
+import { useThemePreference } from "./hooks/useThemePreference";
+import { useToastQueue } from "./hooks/useToastQueue";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
 import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "./lib/featureFlags";
@@ -11,88 +15,22 @@ import {
   AppHeader,
   AppToastStack,
   getPageTitle,
-  normalizePath,
   UserWorkspace,
   type AppPath
 } from "./components/app/appShell";
 
-interface Toast {
-  id: number;
-  message: string;
-  tone: "ok" | "error";
-}
-
 export default function App() {
   const aprModuleEnabled = isAprModuleEnabled();
   const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [loadingSession, setLoadingSession] = useState(true);
   const [submittingAuth, setSubmittingAuth] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [currentPath, setCurrentPath] = useState<AppPath>(normalizePath(window.location.pathname));
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const savedTheme = window.localStorage.getItem("noctification-theme");
-    if (savedTheme === "dark") {
-      return true;
-    }
-    if (savedTheme === "light") {
-      return false;
-    }
-    return typeof window.matchMedia === "function"
-      ? window.matchMedia("(prefers-color-scheme: dark)").matches
-      : false;
-  });
-
-  const navigate = useCallback((path: AppPath, replace = false) => {
-    if (replace) {
-      window.history.replaceState({}, "", path);
-    } else {
-      window.history.pushState({}, "", path);
-    }
-
-    setCurrentPath(path);
-  }, []);
-
-  useEffect(() => {
-    const onPopState = () => {
-      setCurrentPath(normalizePath(window.location.pathname));
-    };
-
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
-
-  const pushToast = useCallback((message: string, tone: Toast["tone"] = "ok") => {
-    const id = Date.now() + Math.floor(Math.random() * 1000);
-    setToasts((prev) => [...prev, { id, message, tone }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((item) => item.id !== id));
-    }, 3500);
-  }, []);
-
-  const loadSession = useCallback(async () => {
-    try {
-      const response = await api.me();
-      setCurrentUser(response.user);
-    } catch {
-      setCurrentUser(null);
-    } finally {
-      setLoadingSession(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadSession();
-  }, [loadSession]);
+  const { currentPath, navigate } = useAppNavigation();
+  const { currentUser, setCurrentUser, loadingSession } = useSessionBootstrap();
+  const { darkMode, toggleDarkMode } = useThemePreference();
+  const { toasts, pushToast } = useToastQueue();
 
   useEffect(() => {
     primeReminderAudio();
   }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-    window.localStorage.setItem("noctification-theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
 
   useEffect(() => {
     if (loadingSession) {
@@ -175,7 +113,7 @@ export default function App() {
         setSubmittingAuth(false);
       }
     },
-    [navigate, pushToast]
+    [navigate, pushToast, setCurrentUser]
   );
 
   const register = useCallback(
@@ -194,7 +132,7 @@ export default function App() {
         setSubmittingAuth(false);
       }
     },
-    [navigate, pushToast]
+    [navigate, pushToast, setCurrentUser]
   );
 
   const logout = useCallback(async () => {
@@ -207,7 +145,7 @@ export default function App() {
       const message = error instanceof ApiError ? error.message : "Falha ao sair";
       pushToast(message, "error");
     }
-  }, [navigate, pushToast]);
+  }, [navigate, pushToast, setCurrentUser]);
 
   const handleErrorToast = useCallback(
     (message: string) => {
@@ -245,7 +183,7 @@ export default function App() {
           darkMode={darkMode}
           onLogout={() => void logout()}
           onNavigate={navigate}
-          onToggleDarkMode={() => setDarkMode((current) => !current)}
+          onToggleDarkMode={toggleDarkMode}
         />
 
         {loadingSession && <p className="text-sm text-textMuted">Carregando sessao...</p>}

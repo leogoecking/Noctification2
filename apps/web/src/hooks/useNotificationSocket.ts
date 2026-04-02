@@ -41,6 +41,10 @@ export const useNotificationSocket = ({
     socket.on("notification:reminder", onNotificationReminder);
     socket.on("connect_error", onConnectError);
 
+    if (socket.connected) {
+      onConnect();
+    }
+
     return () => {
       socket.off("connect", onConnect);
       socket.off("notification:new", onNotificationNew);

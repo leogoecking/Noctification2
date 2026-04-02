@@ -1,32 +1,42 @@
 # Monitoramento
 
-## Metricas uteis
+## Sinais prioritarios para producao
 
-- Quantidade de uploads KML/KMZ por dia.
-- Taxa de sucesso vs falha do endpoint `/api/v1/kml-postes/standardize`.
-- Tempo medio de processamento por arquivo.
-- Contagem de placemarks renomeados, ignorados e pulados por execucao.
+- Tempo de carregamento e quantidade de requisições disparadas pela tela APR.
+- Taxa de erro por endpoint APR e tasks.
+- Frequência de reconexão e falhas de socket no admin.
+- Tempo de resposta das rotas de tarefas com métricas e filtros.
 
-## Logs
+## Logs uteis
 
-- Logar falhas de parse XML e de leitura de KMZ com nome do arquivo e modo utilizado.
-- Logar erros de validacao de upload sem registrar conteudo sensivel do arquivo.
+- Logs estruturados por fluxo APR:
+  - `selectedMonth`
+  - origem do refresh
+  - duração das chamadas
+- Logs por mutação de tarefas:
+  - ação
+  - ator
+  - taskId
+  - duração
+- Logs nas rotas legacy quando forem modularizadas para comparar antes/depois.
 
-## Alertas
+## Alertas recomendados
 
-- Alerta para pico de falhas 4xx/5xx no endpoint KML/KMZ.
-- Alerta para crescimento anormal do tempo de processamento.
+- Aumento anormal de falhas em endpoints APR.
+- Crescimento de latência nas rotas de tarefas.
+- Frequência alta de `connect_error` no admin realtime.
+- Duplicidade anormal de chamadas APR por navegação.
 
-## Tracing
+## Health checks uteis
 
-- Medir etapas: upload recebido, parse KML/KMZ, padronizacao, serializacao, resposta.
+- Endpoint de health já existe na API; complementar com:
+  - status do scheduler relevante;
+  - contagem resumida de falhas de automação;
+  - disponibilidade dos módulos opcionais APR/KML.
 
-## Health checks
+## Tracing e metricas
 
-- Manter `GET /api/v1/kml-postes/health` habilitado quando a feature estiver ativa.
-
-## Sinais de producao
-
-- Prefixos frequentemente rejeitados ou vazios.
-- Percentual alto de `skippedNames` em arquivos operacionais.
-- Arquivos `.kmz` sem `doc.kml` ou sem KML interno valido.
+- Contador de chamadas por tela APR.
+- Duração de queries mais caras do módulo tasks.
+- Duração das rotas `reminders-me` e `operations-board-me`.
+- Taxa de render/reload inicial das telas administrativas maiores.

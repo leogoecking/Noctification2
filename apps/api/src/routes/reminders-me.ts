@@ -10,13 +10,15 @@ import {
 } from "../reminders/service";
 import {
   archiveStaleUserReminders,
+  createUserReminder,
   completeUserReminderOccurrence,
   deleteUserReminder,
-  fetchReminderById,
+  fetchOwnedReminderForUpdate,
   listUserReminderOccurrences,
   listUserReminders,
   parseOccurrenceListParams,
-  toggleUserReminder
+  toggleUserReminder,
+  updateOwnedReminder
 } from "../reminders/me-route-helpers";
 import {
   parseReminderCreateInput,
@@ -26,8 +28,6 @@ import {
   toNullableString,
   validateReminderFields
 } from "../reminders/route-helpers";
-import type { ReminderRow } from "../reminders/types";
-
 export const createReminderMeRouter = (
   db: Database.Database,
   io: Server,
@@ -98,75 +98,22 @@ export const createReminderMeRouter = (
       return;
     }
 
-    const result = db
-      .prepare(
-        `
-          INSERT INTO reminders (
-            user_id,
-            title,
-            description,
-            start_date,
-            time_of_day,
-            timezone,
-            repeat_type,
-            weekdays_json,
-            checklist_json,
-            is_active,
-            note_kind,
-            is_pinned,
-            tag,
-            color,
-            created_at,
-            updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
-        `
-      )
-      .run(
-        req.authUser.id,
-        resolved.title,
-        resolved.description,
-        resolved.startDate,
-        resolved.timeOfDay,
-        resolved.timezone,
-        resolved.repeatType,
-        resolved.weekdaysJson,
-        resolved.checklistJson,
-        resolved.noteKind,
-        resolved.isPinned ? 1 : 0,
-        resolved.tag,
-        resolved.color,
-        timestamp,
-        timestamp
-      );
-
-    const created = db
-      .prepare(
-        `
-          SELECT
-            id,
-            user_id AS userId,
-            title,
-            description,
-            start_date AS startDate,
-            time_of_day AS timeOfDay,
-            timezone,
-            repeat_type AS repeatType,
-            weekdays_json AS weekdaysJson,
-            checklist_json AS checklistJson,
-            is_active AS isActive,
-            note_kind AS noteKind,
-            is_pinned AS isPinned,
-            tag,
-            color,
-            last_scheduled_for AS lastScheduledFor,
-            created_at AS createdAt,
-            updated_at AS updatedAt
-          FROM reminders
-          WHERE id = ?
-            AND deleted_at IS NULL
-        `
-      )
-      .get(Number(result.lastInsertRowid)) as ReminderRow;
+    const created = createUserReminder(db, {
+      userId: req.authUser.id,
+      title: resolved.title,
+      description: resolved.description,
+      startDate: resolved.startDate,
+      timeOfDay: resolved.timeOfDay,
+      timezone: resolved.timezone,
+      repeatType: resolved.repeatType,
+      weekdaysJson: resolved.weekdaysJson,
+      checklistJson: resolved.checklistJson,
+      noteKind: resolved.noteKind,
+      isPinned: resolved.isPinned,
+      tag: resolved.tag,
+      color: resolved.color,
+      createdAt: timestamp
+    });
 
     logReminderEvent(db, {
       reminderId: created.id,
@@ -212,43 +159,10 @@ export const createReminderMeRouter = (
       return;
     }
 
-    const current = db
-      .prepare(
-        `
-          SELECT
-            title,
-            description,
-            start_date AS startDate,
-            time_of_day AS timeOfDay,
-            timezone,
-            repeat_type AS repeatType,
-            weekdays_json AS weekdaysJson,
-            checklist_json AS checklistJson,
-            note_kind AS noteKind,
-            is_pinned AS isPinned,
-            tag,
-            color,
-            last_scheduled_for AS lastScheduledFor
-          FROM reminders
-          WHERE id = ? AND user_id = ?
-            AND deleted_at IS NULL
-        `
-      )
-      .get(reminderId, req.authUser.id) as {
-      title: string;
-      description: string;
-      startDate: string;
-      timeOfDay: string;
-      timezone: string;
-      repeatType: string;
-      weekdaysJson: string;
-      checklistJson: string;
-      noteKind: "note" | "checklist" | "alarm";
-      isPinned: number;
-      tag: string;
-      color: "slate" | "sky" | "amber" | "emerald" | "rose";
-      lastScheduledFor: string | null;
-    };
+    const current = fetchOwnedReminderForUpdate(db, {
+      reminderId,
+      userId: req.authUser.id
+    });
 
     const resolved = resolveReminderUpdate(current, input, config.reminderTimezone);
 
@@ -271,48 +185,24 @@ export const createReminderMeRouter = (
       return;
     }
 
-    db.prepare(
-      `
-        UPDATE reminders
-        SET
-          title = ?,
-          description = ?,
-          start_date = ?,
-          time_of_day = ?,
-          timezone = ?,
-          repeat_type = ?,
-          weekdays_json = ?,
-          checklist_json = ?,
-          note_kind = ?,
-          is_pinned = ?,
-          tag = ?,
-          color = ?,
-          last_scheduled_for = ?,
-          updated_at = ?
-        WHERE id = ?
-          AND user_id = ?
-          AND deleted_at IS NULL
-      `
-    ).run(
-      resolved.title,
-      resolved.description,
-      resolved.startDate,
-      resolved.timeOfDay,
-      resolved.timezone,
-      resolved.repeatType,
-      resolved.weekdaysJson,
-      resolved.checklistJson,
-      resolved.noteKind,
-      resolved.isPinned ? 1 : 0,
-      resolved.tag,
-      resolved.color,
-      resolved.lastScheduledFor,
-      nowIso(),
+    const updated = updateOwnedReminder(db, {
       reminderId,
-      req.authUser.id
-    );
-
-    const updated = fetchReminderById(db, reminderId);
+      userId: req.authUser.id,
+      title: resolved.title,
+      description: resolved.description,
+      startDate: resolved.startDate,
+      timeOfDay: resolved.timeOfDay,
+      timezone: resolved.timezone,
+      repeatType: resolved.repeatType,
+      weekdaysJson: resolved.weekdaysJson,
+      checklistJson: resolved.checklistJson,
+      noteKind: resolved.noteKind,
+      isPinned: resolved.isPinned,
+      tag: resolved.tag,
+      color: resolved.color,
+      lastScheduledFor: resolved.lastScheduledFor,
+      updatedAt: nowIso()
+    });
 
     logReminderEvent(db, {
       reminderId,

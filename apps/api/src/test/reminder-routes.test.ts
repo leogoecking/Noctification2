@@ -327,6 +327,26 @@ describe("reminder routes", () => {
     expect(invalidCreateRes.statusCode).toBe(400);
     expect((invalidCreateRes.body as ErrorResponseBody).error).toMatch(/title deve ter no maximo/i);
 
+    const invalidTimeCreateRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Horario invalido",
+          description: "",
+          startDate: "2026-03-13",
+          timeOfDay: "99:99",
+          timezone: "America/Bahia",
+          repeatType: "none",
+          weekdays: []
+        }
+      },
+      invalidTimeCreateRes
+    );
+
+    expect(invalidTimeCreateRes.statusCode).toBe(400);
+    expect((invalidTimeCreateRes.body as ErrorResponseBody).error).toMatch(/timeOfDay deve/i);
+
     const reminderResult = db
       .prepare(
         `
@@ -350,6 +370,19 @@ describe("reminder routes", () => {
 
     expect(invalidUpdateRes.statusCode).toBe(400);
     expect((invalidUpdateRes.body as ErrorResponseBody).error).toMatch(/weekdays e obrigatorio/i);
+
+    const invalidTimeUpdateRes = createMockResponse();
+    updateHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(Number(reminderResult.lastInsertRowid)) },
+        body: { timeOfDay: "24:00" }
+      },
+      invalidTimeUpdateRes
+    );
+
+    expect(invalidTimeUpdateRes.statusCode).toBe(400);
+    expect((invalidTimeUpdateRes.body as ErrorResponseBody).error).toMatch(/timeOfDay deve/i);
 
     const invalidTimezoneCreateRes = createMockResponse();
     createHandler(

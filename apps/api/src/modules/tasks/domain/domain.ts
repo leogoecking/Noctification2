@@ -1,5 +1,8 @@
 import type { TaskPriority, TaskRepeatType, TaskStatus } from "../../../types";
 
+export type TaskQueueFilter = "all" | "attention" | "due_today" | "overdue" | "blocked" | "stale" | "unassigned";
+export type MetricsWindow = "7d" | "30d";
+
 export const TASK_PRIORITIES: TaskPriority[] = ["low", "normal", "high", "critical"];
 export const TASK_STATUSES: TaskStatus[] = [
   "new",
@@ -49,7 +52,7 @@ export const parsePage = (value: unknown, fallback = 1): number => {
 
 export const parseTaskQueueFilter = (
   value: unknown
-): "all" | "attention" | "due_today" | "overdue" | "blocked" | "stale" | "unassigned" | null => {
+): TaskQueueFilter | null => {
   if (
     value === "all" ||
     value === "attention" ||
@@ -65,7 +68,7 @@ export const parseTaskQueueFilter = (
   return null;
 };
 
-export const parseTaskMetricsWindow = (value: unknown): "7d" | "30d" | null => {
+export const parseTaskMetricsWindow = (value: unknown): MetricsWindow | null => {
   if (value === "7d" || value === "30d") {
     return value;
   }

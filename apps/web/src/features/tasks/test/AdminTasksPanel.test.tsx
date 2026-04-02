@@ -2,7 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminTasksPanel } from "../admin/AdminTasksPanel";
 import { api } from "../../../lib/api";
-import { buildTaskCommentItem, buildTaskItem, buildUserItem } from "../../../test/fixtures";
+import { buildUserItem } from "../../../test/fixtures";
+import {
+  buildAdminTask,
+  buildAdminTaskComment,
+  buildBoardDataTransfer,
+  buildMetricsSummary
+} from "../../../test/adminTasksPanelFixtures";
 
 vi.mock("../../../lib/api", () => ({
   api: {
@@ -27,78 +33,6 @@ vi.mock("../../../lib/api", () => ({
 }));
 
 const mockedApi = vi.mocked(api);
-
-const buildMetricsSummary = () => ({
-  productivity: {
-    windowDays: 7,
-    createdInWindow: 3,
-    completedInWindow: 2,
-    completedOnTime: 1,
-    completedLate: 1,
-    overdueOpen: 1,
-    blockedOpen: 1,
-    completionRate: 2 / 3,
-    onTimeRate: 0.5,
-    avgCycleHours: 4,
-    avgStartLagHours: 1
-  },
-  capacityByAssignee: [
-    {
-      assigneeKey: "2",
-      assigneeLabel: "Operador",
-      open: 1,
-      critical: 1,
-      overdue: 1,
-      blocked: 0,
-      done: 1,
-      completedOnTime: 1,
-      completedLate: 0,
-      avgCycleHours: 3
-    },
-    {
-      assigneeKey: "unassigned",
-      assigneeLabel: "Sem responsavel",
-      open: 1,
-      critical: 0,
-      overdue: 0,
-      blocked: 1,
-      done: 0,
-      completedOnTime: 0,
-      completedLate: 0,
-      avgCycleHours: null
-    }
-  ],
-  capacityByDepartment: [
-    {
-      departmentKey: "Suporte",
-      departmentLabel: "Suporte",
-      open: 1,
-      overdue: 1,
-      blocked: 0,
-      critical: 1,
-      members: 1
-    }
-  ]
-});
-
-const buildAdminTask = (overrides: Partial<ReturnType<typeof buildTaskItem>> = {}) =>
-  buildTaskItem({
-    creatorUserId: 1,
-    creatorName: "Admin",
-    creatorLogin: "admin",
-    assigneeUserId: 2,
-    assigneeName: "Operador",
-    assigneeLogin: "operador",
-    ...overrides
-  });
-
-const buildAdminTaskComment = (overrides: Partial<ReturnType<typeof buildTaskCommentItem>> = {}) =>
-  buildTaskCommentItem({
-    authorUserId: 1,
-    authorName: "Admin",
-    authorLogin: "admin",
-    ...overrides
-  });
 
 const renderAdminTasksPanel = () =>
   render(<AdminTasksPanel onError={vi.fn()} onToast={vi.fn()} />);
@@ -685,17 +619,7 @@ describe("AdminTasksPanel", () => {
 
     const card = screen.getByRole("button", { name: "Abrir tarefa Drag admin" });
     const targetColumn = screen.getByLabelText("Coluna Em andamento");
-    const dataTransfer = {
-      effectAllowed: "",
-      dropEffect: "",
-      data: new Map<string, string>(),
-      setData(type: string, value: string) {
-        this.data.set(type, value);
-      },
-      getData(type: string) {
-        return this.data.get(type) ?? "";
-      }
-    };
+    const dataTransfer = buildBoardDataTransfer();
 
     fireEvent.dragStart(card, { dataTransfer });
     fireEvent.dragOver(targetColumn, { dataTransfer });
@@ -749,17 +673,7 @@ describe("AdminTasksPanel", () => {
 
     const card = screen.getByRole("button", { name: "Abrir tarefa Drag para concluir" });
     const targetColumn = screen.getByLabelText("Coluna Concluida");
-    const dataTransfer = {
-      effectAllowed: "",
-      dropEffect: "",
-      data: new Map<string, string>(),
-      setData(type: string, value: string) {
-        this.data.set(type, value);
-      },
-      getData(type: string) {
-        return this.data.get(type) ?? "";
-      }
-    };
+    const dataTransfer = buildBoardDataTransfer();
 
     fireEvent.dragStart(card, { dataTransfer });
     fireEvent.dragOver(targetColumn, { dataTransfer });

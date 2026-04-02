@@ -4,13 +4,19 @@ import { useNotificationSocket } from "./useNotificationSocket";
 import { subscribeNotificationEvents } from "../lib/notificationEvents";
 
 const socketHandlers = new Map<string, (payload?: unknown) => void>();
-const { socketEmit, mockedReleaseSocket } = vi.hoisted(() => ({
+const { socketEmit, mockedReleaseSocket, mockSocketState } = vi.hoisted(() => ({
   socketEmit: vi.fn(),
-  mockedReleaseSocket: vi.fn()
+  mockedReleaseSocket: vi.fn(),
+  mockSocketState: {
+    connected: false
+  }
 }));
 
 vi.mock("../lib/socket", () => ({
   acquireSocket: () => ({
+    get connected() {
+      return mockSocketState.connected;
+    },
     on: vi.fn((event: string, handler: (payload?: unknown) => void) => {
       socketHandlers.set(event, handler);
     }),
@@ -38,6 +44,7 @@ describe("useNotificationSocket", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     socketHandlers.clear();
+    mockSocketState.connected = false;
   });
 
   it("distribui notificacao nova globalmente", async () => {
@@ -71,5 +78,13 @@ describe("useNotificationSocket", () => {
     expect(onError).not.toHaveBeenCalled();
 
     unsubscribe();
+  });
+
+  it("se inscreve imediatamente quando o socket compartilhado ja esta conectado", async () => {
+    mockSocketState.connected = true;
+
+    render(<TestHarness enabled onError={vi.fn()} />);
+
+    await waitFor(() => expect(socketEmit).toHaveBeenCalledWith("notifications:subscribe", expect.any(Function)));
   });
 });

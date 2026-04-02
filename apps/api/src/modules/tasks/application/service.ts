@@ -210,6 +210,14 @@ export const activeUserExists = (db: Database.Database, userId: number): boolean
   return Boolean(row);
 };
 
+export const getActiveTaskAssigneeValidationError = (
+  db: Database.Database,
+  nextAssigneeUserId: number | null
+): string | null =>
+  nextAssigneeUserId !== null && !activeUserExists(db, nextAssigneeUserId)
+    ? "assignee_user_id deve referenciar um usuario ativo"
+    : null;
+
 export const fetchTaskById = (db: Database.Database, taskId: number): TaskRow | undefined =>
   db.prepare(`${taskSelectSql} WHERE t.id = ?`).get(taskId) as TaskRow | undefined;
 

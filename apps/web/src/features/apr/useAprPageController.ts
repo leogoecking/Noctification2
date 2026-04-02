@@ -3,8 +3,6 @@ import { ApiError } from "../../lib/api";
 import { aprApi } from "./api";
 import {
   AUDIT_ROWS_PER_PAGE,
-  DEFAULT_AUDIT,
-  DEFAULT_HISTORY,
   EMPTY_MANUAL_FORM,
   MANUAL_ROWS_PER_PAGE,
   buildDivergentAuditRows,
@@ -21,6 +19,8 @@ import {
   sortMonthsDesc,
   type AprManualFormState
 } from "./aprPageModel";
+import { useAprCatalogData } from "./useAprCatalogData";
+import { useAprMonthData } from "./useAprMonthData";
 import type {
   AprAuditResponse,
   AprCollaboratorSuggestion,
@@ -98,14 +98,6 @@ export const useAprPageController = ({
   const [months, setMonths] = useState<AprMonthItem[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthRef);
   const [historySource, setHistorySource] = useState<AprSourceType>("manual");
-  const [summary, setSummary] = useState<AprMonthSummary | null>(null);
-  const [manualRows, setManualRows] = useState<AprRow[]>([]);
-  const [subjectSuggestions, setSubjectSuggestions] = useState<AprSubjectSuggestion[]>([]);
-  const [collaboratorSuggestions, setCollaboratorSuggestions] = useState<AprCollaboratorSuggestion[]>(
-    []
-  );
-  const [audit, setAudit] = useState<AprAuditResponse>(DEFAULT_AUDIT);
-  const [history, setHistory] = useState<AprHistoryResponse>(DEFAULT_HISTORY);
   const [manualForm, setManualForm] = useState<AprManualFormState>(EMPTY_MANUAL_FORM);
   const [manualPage, setManualPage] = useState(1);
   const [auditPage, setAuditPage] = useState(1);
@@ -116,11 +108,12 @@ export const useAprPageController = ({
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<AprImportResult | null>(null);
   const [loadingMonths, setLoadingMonths] = useState(true);
-  const [loadingMonthData, setLoadingMonthData] = useState(false);
   const [savingManual, setSavingManual] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const orderedMonths = useMemo(() => sortMonthsDesc(months), [months]);
+  const hasSelectedMonthInCatalog = months.some((item) => item.monthRef === selectedMonth);
+  const canLoadSelectedMonth = !loadingMonths && (months.length === 0 || hasSelectedMonthInCatalog);
 
   const loadMonths = useCallback(async () => {
     setLoadingMonths(true);
@@ -128,64 +121,35 @@ export const useAprPageController = ({
     try {
       const response = await aprApi.listMonths();
       setMonths(response.months);
-
-      if (response.months.length > 0) {
-        const monthExists = response.months.some((item) => item.monthRef === selectedMonth);
-        if (!monthExists) {
-          setSelectedMonth(sortMonthsDesc(response.months)[0].monthRef);
+      setSelectedMonth((current) => {
+        if (response.months.length === 0) {
+          return current;
         }
-      }
+
+        return response.months.some((item) => item.monthRef === current)
+          ? current
+          : sortMonthsDesc(response.months)[0].monthRef;
+      });
     } catch (error) {
       onError(error instanceof ApiError ? error.message : "Falha ao carregar meses APR");
     } finally {
       setLoadingMonths(false);
     }
-  }, [onError, selectedMonth]);
+  }, [onError]);
 
-  const loadSelectedMonth = useCallback(async () => {
-    if (!selectedMonth) {
-      return;
-    }
-
-    setLoadingMonthData(true);
-
-    try {
-      const [
-        summaryResponse,
-        rowsResponse,
-        auditResponse,
-        historyResponse,
-        subjectsResponse,
-        collaboratorsResponse
-      ] = await Promise.all([
-        aprApi.getMonthSummary(selectedMonth, historySource),
-        aprApi.getRows(selectedMonth, "manual"),
-        aprApi.getAudit(selectedMonth, "all"),
-        aprApi.getHistory(selectedMonth, historySource),
-        aprApi.listSubjects(),
-        aprApi.listCollaborators()
-      ]);
-
-      setSummary(summaryResponse);
-      setManualRows(rowsResponse.rows);
-      setAudit(auditResponse);
-      setHistory(historyResponse);
-      setSubjectSuggestions(subjectsResponse.subjects);
-      setCollaboratorSuggestions(collaboratorsResponse.collaborators);
-    } catch (error) {
-      onError(error instanceof ApiError ? error.message : "Falha ao carregar dados APR");
-    } finally {
-      setLoadingMonthData(false);
-    }
-  }, [historySource, onError, selectedMonth]);
+  const { subjectSuggestions, collaboratorSuggestions, loadCatalogData } = useAprCatalogData({
+    onError
+  });
+  const { summary, manualRows, audit, history, loadingMonthData, loadMonthData } = useAprMonthData({
+    selectedMonth,
+    historySource,
+    enabled: canLoadSelectedMonth,
+    onError
+  });
 
   useEffect(() => {
     void loadMonths();
   }, [loadMonths]);
-
-  useEffect(() => {
-    void loadSelectedMonth();
-  }, [loadSelectedMonth]);
 
   const resetManualForm = useCallback(() => {
     setManualForm(EMPTY_MANUAL_FORM);
@@ -203,15 +167,15 @@ export const useAprPageController = ({
 
   const refreshAfterMutation = useCallback(
     async (monthRef?: string) => {
-      await loadMonths();
+      await Promise.all([loadMonths(), loadCatalogData()]);
       if (monthRef && monthRef !== selectedMonth) {
         setSelectedMonth(monthRef);
         return;
       }
 
-      await loadSelectedMonth();
+      await loadMonthData();
     },
-    [loadMonths, loadSelectedMonth, selectedMonth]
+    [loadCatalogData, loadMonthData, loadMonths, selectedMonth]
   );
 
   const saveManual = useCallback(async () => {

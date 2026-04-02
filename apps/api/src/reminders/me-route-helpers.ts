@@ -112,6 +112,176 @@ export const fetchReminderById = (db: Database.Database, reminderId: number): Re
     )
     .get(reminderId) as ReminderRow;
 
+export const createUserReminder = (
+  db: Database.Database,
+  params: {
+    userId: number;
+    title: string;
+    description: string;
+    startDate: string;
+    timeOfDay: string;
+    timezone: string;
+    repeatType: string;
+    weekdaysJson: string;
+    checklistJson: string;
+    noteKind: "note" | "checklist" | "alarm";
+    isPinned: boolean;
+    tag: string;
+    color: "slate" | "sky" | "amber" | "emerald" | "rose";
+    createdAt: string;
+  }
+) => {
+  const result = db
+    .prepare(
+      `
+        INSERT INTO reminders (
+          user_id,
+          title,
+          description,
+          start_date,
+          time_of_day,
+          timezone,
+          repeat_type,
+          weekdays_json,
+          checklist_json,
+          is_active,
+          note_kind,
+          is_pinned,
+          tag,
+          color,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+      `
+    )
+    .run(
+      params.userId,
+      params.title,
+      params.description,
+      params.startDate,
+      params.timeOfDay,
+      params.timezone,
+      params.repeatType,
+      params.weekdaysJson,
+      params.checklistJson,
+      params.noteKind,
+      params.isPinned ? 1 : 0,
+      params.tag,
+      params.color,
+      params.createdAt,
+      params.createdAt
+    );
+
+  return fetchReminderById(db, Number(result.lastInsertRowid));
+};
+
+export const fetchOwnedReminderForUpdate = (
+  db: Database.Database,
+  params: { reminderId: number; userId: number }
+) =>
+  db
+    .prepare(
+      `
+        SELECT
+          title,
+          description,
+          start_date AS startDate,
+          time_of_day AS timeOfDay,
+          timezone,
+          repeat_type AS repeatType,
+          weekdays_json AS weekdaysJson,
+          checklist_json AS checklistJson,
+          note_kind AS noteKind,
+          is_pinned AS isPinned,
+          tag,
+          color,
+          last_scheduled_for AS lastScheduledFor
+        FROM reminders
+        WHERE id = ? AND user_id = ?
+          AND deleted_at IS NULL
+      `
+    )
+    .get(params.reminderId, params.userId) as {
+    title: string;
+    description: string;
+    startDate: string;
+    timeOfDay: string;
+    timezone: string;
+    repeatType: string;
+    weekdaysJson: string;
+    checklistJson: string;
+    noteKind: "note" | "checklist" | "alarm";
+    isPinned: number;
+    tag: string;
+    color: "slate" | "sky" | "amber" | "emerald" | "rose";
+    lastScheduledFor: string | null;
+  };
+
+export const updateOwnedReminder = (
+  db: Database.Database,
+  params: {
+    reminderId: number;
+    userId: number;
+    title: string;
+    description: string;
+    startDate: string;
+    timeOfDay: string;
+    timezone: string;
+    repeatType: string;
+    weekdaysJson: string;
+    checklistJson: string;
+    noteKind: "note" | "checklist" | "alarm";
+    isPinned: boolean;
+    tag: string;
+    color: "slate" | "sky" | "amber" | "emerald" | "rose";
+    lastScheduledFor: string | null;
+    updatedAt: string;
+  }
+) => {
+  db.prepare(
+    `
+      UPDATE reminders
+      SET
+        title = ?,
+        description = ?,
+        start_date = ?,
+        time_of_day = ?,
+        timezone = ?,
+        repeat_type = ?,
+        weekdays_json = ?,
+        checklist_json = ?,
+        note_kind = ?,
+        is_pinned = ?,
+        tag = ?,
+        color = ?,
+        last_scheduled_for = ?,
+        updated_at = ?
+      WHERE id = ?
+        AND user_id = ?
+        AND deleted_at IS NULL
+    `
+  ).run(
+    params.title,
+    params.description,
+    params.startDate,
+    params.timeOfDay,
+    params.timezone,
+    params.repeatType,
+    params.weekdaysJson,
+    params.checklistJson,
+    params.noteKind,
+    params.isPinned ? 1 : 0,
+    params.tag,
+    params.color,
+    params.lastScheduledFor,
+    params.updatedAt,
+    params.reminderId,
+    params.userId
+  );
+
+  return fetchReminderById(db, params.reminderId);
+};
+
 export const listUserReminderOccurrences = (
   db: Database.Database,
   userId: number,

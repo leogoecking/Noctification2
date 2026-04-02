@@ -4,15 +4,15 @@ import type {
   TaskAutomationHealthItem,
   TaskItem,
   TaskMetricsSummaryItem,
-  TaskPriority,
   UserItem
 } from "../../../types";
 import { buildTaskSlaInfo, TASK_STATUS_LABELS } from "../../../components/tasks/taskUi";
 import { TaskBoard } from "../../../components/tasks/TaskBoard";
 import { TaskDetailSheet } from "../../../components/tasks/TaskDetailSheet";
-import { TaskRecurrenceField } from "../../../components/tasks/TaskRecurrenceField";
 import { useTaskPanelActions } from "../../../components/tasks/useTaskPanelActions";
 import { useTaskPanelData } from "../../../components/tasks/useTaskPanelData";
+import { AdminTaskBulkToolbar } from "./AdminTaskBulkToolbar";
+import { AdminTaskComposerDialog } from "./AdminTaskComposerDialog";
 import {
   buildAdminTaskBoardColumns,
   buildAdminTaskFormState,
@@ -265,100 +265,25 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
 
   return (
     <section className="space-y-6">
-      {hasSelectedTasks && (
-      <article className="sticky top-4 z-10 rounded-[1.25rem] border border-outlineSoft bg-panel p-4 shadow-glow">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Selecao em lote</p>
-            <h4 className="mt-1 font-display text-sm text-textMain">
-              {selectedTaskCount} tarefa(s) selecionada(s)
-            </h4>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
-              onClick={toggleSelectAllDisplayed}
-              type="button"
-            >
-              {selectedTaskCount === tasks.length && tasks.length > 0
-                ? "Limpar exibidas"
-                : "Selecionar exibidas"}
-            </button>
-            <button
-              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
-              onClick={clearBulkSelection}
-              type="button"
-            >
-              Limpar selecao
-            </button>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            className="rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 text-sm text-sky-300 disabled:opacity-50"
-            disabled={!hasSelectedTasks || bulkSaving}
-            onClick={() => void runBulkStatusUpdate("assumed")}
-            type="button"
-          >
-            Assumir em lote
-          </button>
-          <button
-            className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning disabled:opacity-50"
-            disabled={!hasSelectedTasks || bulkSaving}
-            onClick={() => void runBulkStatusUpdate("in_progress")}
-            type="button"
-          >
-            Em andamento em lote
-          </button>
-          <button
-            className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
-            disabled={!hasSelectedTasks || bulkSaving}
-            onClick={() => void runBulkStatusUpdate("waiting_external")}
-            type="button"
-          >
-            Aguardar externo em lote
-          </button>
-          <button
-            className="rounded-lg bg-success px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            disabled={!hasSelectedTasks || bulkSaving}
-            onClick={() => void runBulkAction((taskId) => api.completeAdminTask(taskId), "Tarefas concluidas em lote")}
-            type="button"
-          >
-            Concluir em lote
-          </button>
-          <button
-            className="rounded-lg border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-danger disabled:opacity-50"
-            disabled={!hasSelectedTasks || bulkSaving}
-            onClick={() => void runBulkAction((taskId) => api.cancelAdminTask(taskId), "Tarefas canceladas em lote")}
-            type="button"
-          >
-            Cancelar em lote
-          </button>
-          <select
-            aria-label="Responsavel em lote"
-            className="input min-w-44"
-            disabled={!hasSelectedTasks || bulkSaving}
-            value={bulkAssigneeUserId}
-            onChange={(event) => setBulkAssigneeUserId(event.target.value)}
-          >
-            <option value="">Sem responsavel</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
-          <button
-            className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain disabled:opacity-50"
-            disabled={!hasSelectedTasks || bulkSaving}
-            onClick={() => void runBulkAssigneeUpdate()}
-            type="button"
-          >
-            Aplicar responsavel
-          </button>
-        </div>
-      </article>
-      )}
+      <AdminTaskBulkToolbar
+        visible={hasSelectedTasks}
+        selectedTaskCount={selectedTaskCount}
+        displayedTaskCount={tasks.length}
+        bulkSaving={bulkSaving}
+        users={users}
+        bulkAssigneeUserId={bulkAssigneeUserId}
+        setBulkAssigneeUserId={setBulkAssigneeUserId}
+        onToggleSelectAllDisplayed={toggleSelectAllDisplayed}
+        onClearBulkSelection={clearBulkSelection}
+        onRunBulkStatusUpdate={(status) => void runBulkStatusUpdate(status)}
+        onRunBulkComplete={() =>
+          void runBulkAction((taskId) => api.completeAdminTask(taskId), "Tarefas concluidas em lote")
+        }
+        onRunBulkCancel={() =>
+          void runBulkAction((taskId) => api.cancelAdminTask(taskId), "Tarefas canceladas em lote")
+        }
+        onRunBulkAssigneeUpdate={() => void runBulkAssigneeUpdate()}
+      />
 
       <div className="space-y-4">
           <TaskBoard
@@ -415,112 +340,14 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
         </button>
       </div>
 
-      {(composerOpen || form.id > 0) && (
-        <div
-          aria-label="Overlay do formulario administrativo da tarefa"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-textMain/70 p-3 sm:p-6"
-          onClick={resetForm}
-        >
-          <div
-            aria-label="Formulario administrativo da tarefa"
-            aria-modal="true"
-            className="w-full max-w-3xl rounded-[1.25rem] bg-panel p-5 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-          >
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-accent">Formulario</p>
-                  <h4 className="mt-1 font-display text-lg text-textMain">
-                    {form.id > 0 ? "Editar tarefa" : "Nova tarefa administrativa"}
-                  </h4>
-                  <p className="text-sm text-textMuted">Criacao e ajuste de tarefa sem sair da fila.</p>
-                </div>
-                <button
-                  aria-label="Fechar formulario administrativo da tarefa"
-                  className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain"
-                  onClick={resetForm}
-                  type="button"
-                >
-                  Fechar
-                </button>
-              </div>
-
-              <input
-                className="input"
-                placeholder="Titulo da tarefa"
-                value={form.title}
-                onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-              />
-              <textarea
-                className="input min-h-24"
-                placeholder="Descricao opcional"
-                value={form.description}
-                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-              />
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <select
-                  className="input"
-                  aria-label="Prioridade da tarefa admin"
-                  value={form.priority}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, priority: event.target.value as TaskPriority }))
-                  }
-                >
-                  <option value="low">Baixa</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">Alta</option>
-                  <option value="critical">Critica</option>
-                </select>
-                <input
-                  className="input"
-                  aria-label="Prazo da tarefa admin"
-                  type="datetime-local"
-                  value={form.dueAt}
-                  onChange={(event) => setForm((prev) => ({ ...prev, dueAt: event.target.value }))}
-                />
-                <select
-                  className="input"
-                  aria-label="Responsavel da tarefa"
-                  value={form.assigneeUserId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, assigneeUserId: event.target.value }))}
-                >
-                  <option value="">Sem responsavel</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.login})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <TaskRecurrenceField
-                recurrenceAriaLabel="Recorrencia da tarefa admin"
-                repeatType={form.repeatType}
-                weekdayAriaLabelPrefix="Dia da recorrencia admin"
-                weekdays={form.weekdays}
-                onRepeatTypeChange={(repeatType) => setForm((prev) => ({ ...prev, repeatType }))}
-                onWeekdaysChange={(weekdays) => setForm((prev) => ({ ...prev, weekdays }))}
-              />
-
-              <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain"
-                  onClick={resetForm}
-                  type="button"
-                >
-                  {form.id > 0 ? "Cancelar edicao" : "Cancelar"}
-                </button>
-                <button className="btn-primary" onClick={saveTask} type="button">
-                  {form.id > 0 ? "Salvar tarefa" : "Criar tarefa"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <AdminTaskComposerDialog
+        open={composerOpen || form.id > 0}
+        form={form}
+        setForm={setForm}
+        users={users}
+        onClose={resetForm}
+        onSave={() => void saveTask()}
+      />
 
       <article className="rounded-[1.25rem] bg-panel p-5">
         <button

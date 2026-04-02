@@ -8,8 +8,6 @@ import { buildTaskAutomationHealth, listTaskAutomationLogs } from "../applicatio
 import { buildTaskMetricsSummary } from "../application/metrics";
 import {
   parseLimit,
-  parseTaskMetricsWindow,
-  parseTaskQueueFilter,
   toNullableString,
   validateTaskCommentBody
 } from "../domain/domain";
@@ -29,9 +27,10 @@ import {
   validateTaskEditableForRoute,
   validateTaskTerminalTransitionForRoute
 } from "./route-helpers";
+import { getAuthenticatedAdminUser, parseTaskMetricsRequest } from "./admin-route-helpers";
 import {
-  activeUserExists,
   fetchTaskById,
+  getActiveTaskAssigneeValidationError,
   normalizeTaskRow,
   type TaskRow
 } from "../application/service";
@@ -56,28 +55,9 @@ export const createTaskAdminRouterWithIo = (
   });
 
   router.get("/tasks/metrics", (req, res) => {
-    const params = buildTaskListParams(req.query as Record<string, unknown>, {
-      defaultLimit: 100,
-      maxLimit: 500,
-      includeAssigneeSearch: true
-    });
-
+    const params = parseTaskMetricsRequest(req.query as Record<string, unknown>);
     if ("error" in params) {
       res.status(400).json({ error: params.error });
-      return;
-    }
-
-    const queueFilterRaw = req.query.queue ?? "all";
-    const queueFilter = parseTaskQueueFilter(queueFilterRaw);
-    if (!queueFilter) {
-      res.status(400).json({ error: "queue invalida" });
-      return;
-    }
-
-    const metricsWindowRaw = req.query.window ?? "7d";
-    const metricsWindow = parseTaskMetricsWindow(metricsWindowRaw);
-    if (!metricsWindow) {
-      res.status(400).json({ error: "window invalida" });
       return;
     }
 
@@ -85,8 +65,8 @@ export const createTaskAdminRouterWithIo = (
       metrics: buildTaskMetricsSummary(db, {
         conditions: params.conditions,
         values: params.values,
-        queueFilter,
-        metricsWindow
+        queueFilter: params.queueFilter,
+        metricsWindow: params.metricsWindow
       })
     });
   });
@@ -157,11 +137,11 @@ export const createTaskAdminRouterWithIo = (
   });
 
   router.post("/tasks/:id/comments", (req, res) => {
-    if (!req.authUser) {
+    const authUser = getAuthenticatedAdminUser(req);
+    if (!authUser) {
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
-    const authUser = req.authUser;
 
     const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
     if ("error" in routeTask) {
@@ -186,18 +166,16 @@ export const createTaskAdminRouterWithIo = (
   });
 
   router.post("/tasks", (req, res) => {
-    if (!req.authUser) {
+    const authUser = getAuthenticatedAdminUser(req);
+    if (!authUser) {
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
-    const authUser = req.authUser;
 
     const parsedCreate = prepareTaskCreateInput(req.body as Record<string, unknown>, {
       actorUserId: authUser.id,
       validateAssignee: ({ nextAssigneeUserId }) =>
-        nextAssigneeUserId !== null && !activeUserExists(db, nextAssigneeUserId)
-          ? "assignee_user_id deve referenciar um usuario ativo"
-          : null
+        getActiveTaskAssigneeValidationError(db, nextAssigneeUserId)
     });
 
     if (parsedCreate.error) {
@@ -216,9 +194,7 @@ export const createTaskAdminRouterWithIo = (
         auditEventType: "admin.task.create",
         notificationTrigger: "admin.task.create",
         validateAssignee: ({ nextAssigneeUserId }) =>
-          nextAssigneeUserId !== null && !activeUserExists(db, nextAssigneeUserId)
-            ? "assignee_user_id deve referenciar um usuario ativo"
-            : null
+          getActiveTaskAssigneeValidationError(db, nextAssigneeUserId)
       }
     });
 
@@ -229,11 +205,11 @@ export const createTaskAdminRouterWithIo = (
   });
 
   router.patch("/tasks/:id", (req, res) => {
-    if (!req.authUser) {
+    const authUser = getAuthenticatedAdminUser(req);
+    if (!authUser) {
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
-    const authUser = req.authUser;
 
     const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
     if ("error" in routeTask) {
@@ -261,9 +237,7 @@ export const createTaskAdminRouterWithIo = (
         auditEventType: "admin.task.update",
         notificationTrigger: "admin.task.update",
         validateAssignee: ({ nextAssigneeUserId }) =>
-          nextAssigneeUserId !== null && !activeUserExists(db, nextAssigneeUserId)
-            ? "assignee_user_id deve referenciar um usuario ativo"
-            : null
+          getActiveTaskAssigneeValidationError(db, nextAssigneeUserId)
       }
     });
 
@@ -280,11 +254,11 @@ export const createTaskAdminRouterWithIo = (
   });
 
   router.post("/tasks/:id/complete", (req, res) => {
-    if (!req.authUser) {
+    const authUser = getAuthenticatedAdminUser(req);
+    if (!authUser) {
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
-    const authUser = req.authUser;
 
     const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
     if ("error" in routeTask) {
@@ -318,11 +292,11 @@ export const createTaskAdminRouterWithIo = (
   });
 
   router.post("/tasks/:id/cancel", (req, res) => {
-    if (!req.authUser) {
+    const authUser = getAuthenticatedAdminUser(req);
+    if (!authUser) {
       res.status(401).json({ error: "Nao autenticado" });
       return;
     }
-    const authUser = req.authUser;
 
     const routeTask = getTaskForRoute(req.params.id, (taskId) => fetchTaskById(db, taskId));
     if ("error" in routeTask) {

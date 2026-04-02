@@ -1,32 +1,201 @@
 [
   {
-    "id": "ACH-KML-001",
-    "tipo": "melhoria",
+    "id": "BUG-005",
+    "tipo": "bug_reproduzivel",
     "status": "confirmado",
-    "descricao": "Feature KML/KMZ ausente no backend, frontend e pacote compartilhado."
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/web/hooks + apps/web/lib/socket",
+    "arquivo": "apps/web/src/hooks/useNotificationSocket.ts",
+    "linha": 44,
+    "componente": "Notification Socket Subscription",
+    "sintoma": "O frontend pode deixar de se inscrever nos eventos de notificacao quando o hook monta depois de o socket compartilhado ja estar conectado",
+    "evidencia": [
+      "Leitura direta de useNotificationSocket.ts e socket.ts",
+      "O hook emitia notifications:subscribe apenas no evento connect",
+      "O socket e compartilhado globalmente por acquireSocket",
+      "Teste reproduziu a falha com socket conectado e nenhuma emissao de subscribe"
+    ]
   },
   {
-    "id": "ACH-KML-002",
-    "tipo": "risco_potencial",
+    "id": "REF-001",
+    "tipo": "divida_tecnica",
     "status": "confirmado",
-    "descricao": "Aplicar o patch literalmente removeria integracoes atuais do app.ts."
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "escopo": "apps/web",
+    "arquivo": "apps/web/src/App.tsx",
+    "linha": 1,
+    "componente": "App Shell / Navegacao",
+    "sintoma": "Estado global, autenticacao, roteamento manual e side effects concentram-se em poucos arquivos",
+    "evidencia": [
+      "Leitura direta de App.tsx e appShell.tsx",
+      "Hotspot por tamanho e centralidade",
+      "Acoplamento entre sessao, tema, toasts e navegacao"
+    ]
   },
   {
-    "id": "ACH-KML-003",
-    "tipo": "erro_de_configuracao",
+    "id": "REF-002",
+    "tipo": "divida_tecnica",
     "status": "confirmado",
-    "descricao": "Dependencias novas do modulo nao estavam instaladas."
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "escopo": "apps/web",
+    "arquivo": "apps/web/src/components/AdminDashboard.tsx",
+    "linha": 1,
+    "componente": "Admin Dashboard",
+    "sintoma": "Dashboard administrativo concentra multiplos subdominios e orquestracao pesada",
+    "evidencia": [
+      "Leitura direta de AdminDashboard.tsx",
+      "Dependencia ampla de useAdminDashboardData",
+      "Busca global, realtime, tarefas, APR e KML no mesmo componente"
+    ]
   },
   {
-    "id": "ACH-KML-004",
+    "id": "REF-003",
+    "tipo": "divida_tecnica",
+    "status": "confirmado",
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "escopo": "apps/web/features/tasks",
+    "arquivo": "apps/web/src/features/tasks/admin/AdminTasksPanel.tsx",
+    "linha": 1,
+    "componente": "Admin Tasks Panel",
+    "sintoma": "Componente muito extenso com estado local e casos de uso misturados",
+    "evidencia": [
+      "824 linhas",
+      "Leitura direta do componente",
+      "Operacoes em lote, detalhe, formulario e filtros no mesmo arquivo"
+    ]
+  },
+  {
+    "id": "REF-004",
+    "tipo": "integracao_quebrada",
+    "status": "confirmado",
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "escopo": "apps/web/features/apr",
+    "arquivo": "apps/web/src/features/apr/useAprPageController.ts",
+    "linha": 145,
+    "componente": "APR Frontend Controller",
+    "sintoma": "Orquestracao de carregamento gera duplicidade de chamadas e warnings de testes",
+    "evidencia": [
+      "npm test falhou em apps/web/src/features/apr/AprPage.test.tsx",
+      "Warning de act(...) no AprPage",
+      "Chamadas a listSubjects/listCollaborators dentro de loadSelectedMonth"
+    ]
+  },
+  {
+    "id": "REF-005",
     "tipo": "problema_de_qualidade",
     "status": "confirmado",
-    "descricao": "Mocks de testes web nao contemplavam a nova flag KML."
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/api/routes",
+    "arquivo": "apps/api/src/routes/reminders-me.ts",
+    "linha": 1,
+    "componente": "Reminder Me Routes",
+    "sintoma": "Rota HTTP acumula parsing, validacao, SQL e auditoria",
+    "evidencia": [
+      "Leitura direta do arquivo",
+      "406 linhas",
+      "SQL bruto e regras de negocio lado a lado"
+    ]
   },
   {
-    "id": "ACH-KML-005",
-    "tipo": "risco_potencial",
+    "id": "REF-006",
+    "tipo": "problema_de_qualidade",
     "status": "confirmado",
-    "descricao": "Prefixos terminados em hifen poderiam gerar nomes com duplo hifen."
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/api/routes",
+    "arquivo": "apps/api/src/routes/operations-board-me.ts",
+    "linha": 1,
+    "componente": "Operations Board Routes",
+    "sintoma": "Rota HTTP mistura consulta, mutacao, auditoria e modelagem",
+    "evidencia": [
+      "Leitura direta do arquivo",
+      "399 linhas",
+      "SQL e normalizacao dentro da camada de rota"
+    ]
+  },
+  {
+    "id": "REF-007",
+    "tipo": "divida_tecnica",
+    "status": "confirmado",
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "escopo": "apps/api/modules/tasks",
+    "arquivo": "apps/api/src/modules/tasks/application/metrics.ts",
+    "linha": 1,
+    "componente": "Task Metrics / Task Service",
+    "sintoma": "Dominio de tarefas tem regras de SLA, agregacao e acesso a dados excessivamente proximos",
+    "evidencia": [
+      "Leitura direta de metrics.ts e service.ts",
+      "Regras derivadas densas e acopladas ao SQLite",
+      "Rotas administrativas dependem diretamente da camada de aplicacao heterogenea"
+    ]
+  },
+  {
+    "id": "REF-008",
+    "tipo": "divida_tecnica",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "medio",
+    "escopo": "apps/api/modules/apr + apps/web/features/apr",
+    "arquivo": "apps/api/src/modules/apr/service.ts",
+    "linha": 1,
+    "componente": "APR Domain",
+    "sintoma": "Servico e UI APR cresceram em torno de grandes blocos de orquestracao",
+    "evidencia": [
+      "Leitura direta de service.ts, useAprPageController.ts e AprPageSections.tsx",
+      "489 linhas no service backend",
+      "741 linhas em AprPageSections.tsx"
+    ]
+  },
+  {
+    "id": "REF-009",
+    "tipo": "problema_de_qualidade",
+    "status": "confirmado",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/web/tests",
+    "arquivo": "apps/web/src/features/tasks/test/AdminTasksPanel.test.tsx",
+    "linha": 1,
+    "componente": "Web Test Harness",
+    "sintoma": "Arquivos de teste grandes dificultam leitura, fixtures e manutencao",
+    "evidencia": [
+      "Arquivos acima de 800 linhas",
+      "Leitura da suite web e falha real em APR",
+      "Cobertura extensa em arquivos pouco modulares"
+    ]
+  },
+  {
+    "id": "BUG-004",
+    "tipo": "bug_reproduzivel",
+    "status": "confirmado",
+    "severidade": "alta",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "escopo": "apps/api/reminders",
+    "arquivo": "apps/api/src/reminders/service.ts",
+    "linha": 90,
+    "componente": "Reminder Time Validation",
+    "sintoma": "A API aceita horarios invalidos como 24:00 e 99:99 e o scheduler converte esses valores em outro instante valido",
+    "evidencia": [
+      "Leitura direta de isValidTimeOfDay, validateReminderFields e computeNextScheduledFor",
+      "Reproducao local em node: regex /^\\\\d{2}:\\\\d{2}$/ aceita 24:00 e 99:99",
+      "Reproducao local em node: Date.UTC(2026, 2, 13, 99, 99, 0, 0) resulta em 2026-03-17T04:39:00.000Z"
+    ]
   }
 ]

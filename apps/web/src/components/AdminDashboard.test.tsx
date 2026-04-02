@@ -4,10 +4,20 @@ import { AdminDashboard } from "./AdminDashboard";
 import { api } from "../lib/api";
 import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "../lib/featureFlags";
 import {
+  buildAdminAuditResponse,
+  buildAdminDashboardUsersResponse,
+  buildAdminNotificationsResponse,
+  buildAdminOnlineUsersResponse,
+  buildAdminTaskHealthResponse,
+  buildAdminTasksResponse,
+  buildCreatedUserResponse,
+  buildOperationsBoardDetailResponse,
+  buildOperationsBoardResponse,
+  buildUpdatedUserResponse
+} from "../test/adminDashboardFixtures";
+import {
   buildTaskItem,
-  buildNotificationHistoryItem,
-  buildOnlineUserItem,
-  buildUserItem
+  buildNotificationHistoryItem
 } from "../test/fixtures";
 
 const socketHandlers = new Map<string, (payload?: unknown) => void>();
@@ -75,151 +85,17 @@ describe("AdminDashboard", () => {
     mockedIsKmlPosteModuleEnabled.mockReturnValue(false);
     socketHandlers.clear();
     mockedApi.sendNotification.mockResolvedValue({ notification: buildNotificationHistoryItem() });
-    mockedApi.createUser.mockResolvedValue({
-      user: {
-        id: 3,
-        name: "Novo Usuario",
-        login: "novo.usuario",
-        department: "Campo",
-        jobTitle: "Tecnico",
-        role: "user",
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    });
-    mockedApi.updateUser.mockResolvedValue({
-      user: {
-        id: 2,
-        name: "Operador Atualizado",
-        login: "operador",
-        department: "NOC",
-        jobTitle: "Especialista",
-        role: "user",
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    });
+    mockedApi.createUser.mockResolvedValue(buildCreatedUserResponse());
+    mockedApi.updateUser.mockResolvedValue(buildUpdatedUserResponse());
     mockedApi.toggleUserStatus.mockResolvedValue(undefined);
-    mockedApi.adminUsers.mockResolvedValue({
-      users: [
-        {
-          id: 1,
-          name: "Admin",
-          login: "admin",
-          department: "NOC",
-          jobTitle: "Coordenador",
-          role: "admin",
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        buildUserItem({
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        })
-      ]
-    });
-    mockedApi.adminNotifications.mockResolvedValue({
-      notifications: [],
-      pagination: {
-        page: 1,
-        limit: 100,
-        total: 0,
-        totalPages: 1
-      }
-    });
-    mockedApi.adminTasks.mockResolvedValue({
-      tasks: [],
-      pagination: {
-        page: 1,
-        limit: 8,
-        total: 0,
-        totalPages: 1
-      }
-    });
-    mockedApi.adminTaskHealth.mockResolvedValue({
-      health: {
-        schedulerEnabled: true,
-        dueSoonWindowMinutes: 120,
-        staleWindowHours: 24,
-        activeTasks: 10,
-        dueSoonEligible: 2,
-        overdueEligible: 1,
-        staleEligible: 1,
-        blockedEligible: 1,
-        recurringEligible: 0,
-        dueSoonSentToday: 2,
-        overdueSentToday: 1,
-        staleSentToday: 0,
-        blockedSentToday: 1,
-        recurringCreatedToday: 0
-      }
-    });
-    mockedApi.adminOnlineUsers.mockResolvedValue({
-      users: [
-        buildOnlineUserItem()
-      ],
-      count: 1
-    });
-    mockedApi.adminAudit.mockResolvedValue({
-      events: [
-        {
-          id: 10,
-          event_type: "admin.notification.send",
-          target_type: "notification",
-          target_id: 55,
-          created_at: new Date().toISOString(),
-          actor: {
-            id: 1,
-            name: "Admin",
-            login: "admin"
-          },
-          metadata: {
-            recipientCount: 1,
-            priority: "high"
-          }
-        }
-      ],
-      pagination: {
-        page: 1,
-        limit: 20,
-        total: 1,
-        totalPages: 1
-      }
-    });
-    mockedApi.myOperationsBoard.mockResolvedValue({
-      messages: [
-        {
-          id: 1,
-          title: "Troca de turno",
-          body: "Equipe da madrugada assumiu o monitoramento.",
-          status: "active",
-          authorUserId: 1,
-          authorName: "Admin",
-          authorLogin: "admin",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          resolvedAt: null
-        }
-      ]
-    });
-    mockedApi.myOperationsBoardMessage.mockResolvedValue({
-      message: {
-        id: 1,
-        title: "Troca de turno",
-        body: "Equipe da madrugada assumiu o monitoramento.",
-        status: "active",
-        authorUserId: 1,
-        authorName: "Admin",
-        authorLogin: "admin",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        resolvedAt: null
-      },
-      timeline: []
-    });
+    mockedApi.adminUsers.mockResolvedValue(buildAdminDashboardUsersResponse());
+    mockedApi.adminNotifications.mockResolvedValue(buildAdminNotificationsResponse());
+    mockedApi.adminTasks.mockResolvedValue(buildAdminTasksResponse());
+    mockedApi.adminTaskHealth.mockResolvedValue(buildAdminTaskHealthResponse());
+    mockedApi.adminOnlineUsers.mockResolvedValue(buildAdminOnlineUsersResponse());
+    mockedApi.adminAudit.mockResolvedValue(buildAdminAuditResponse());
+    mockedApi.myOperationsBoard.mockResolvedValue(buildOperationsBoardResponse());
+    mockedApi.myOperationsBoardMessage.mockResolvedValue(buildOperationsBoardDetailResponse());
   });
 
   it("oculta o item APR da sidebar administrativa quando o modulo esta desabilitado", async () => {

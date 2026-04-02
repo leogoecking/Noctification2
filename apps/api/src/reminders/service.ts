@@ -87,7 +87,17 @@ export const parseReminderChecklistItems = (value: unknown): ReminderChecklistIt
 export const stringifyReminderChecklistItems = (items: ReminderChecklistItem[]): string =>
   JSON.stringify(items);
 
-export const isValidTimeOfDay = (value: string): boolean => /^\d{2}:\d{2}$/.test(value);
+export const isValidTimeOfDay = (value: string): boolean => {
+  const match = /^(?<hour>\d{2}):(?<minute>\d{2})$/.exec(value);
+  if (!match?.groups) {
+    return false;
+  }
+
+  const hour = Number.parseInt(match.groups.hour, 10);
+  const minute = Number.parseInt(match.groups.minute, 10);
+
+  return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+};
 
 const safeParseWeekdaysJson = (value: string): number[] => {
   try {
