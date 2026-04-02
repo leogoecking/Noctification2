@@ -90,24 +90,24 @@ export const TaskDetailSheet = ({
 
           <div className="rounded-2xl bg-panelAlt/70 p-4">
             <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,120px),1fr]">
-              <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Responsavel</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Responsavel</dt>
               <dd className="text-sm text-textMain">{selectedTask.assigneeName || "Nao atribuido"}</dd>
-              <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Criada por</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Criada por</dt>
               <dd className="text-sm text-textMain">{selectedTask.creatorName || "-"}</dd>
-              <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Prazo</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Prazo</dt>
               <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.dueAt)}</dd>
-              <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">SLA</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">SLA</dt>
               <dd className="text-sm text-textMain">
                 <span className={`rounded-full px-2.5 py-1 text-[11px] ${taskSla.badgeClassName}`}>
                   {taskSla.label}
                 </span>
                 <span className="ml-2 text-textMuted">{taskSla.detail}</span>
               </dd>
-              <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Recorrencia</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Recorrencia</dt>
               <dd className="text-sm text-textMain">
                 {buildTaskRecurrenceSummary(selectedTask.repeatType, selectedTask.repeatWeekdays)}
               </dd>
-              <dt className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Atualizada em</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Atualizada em</dt>
               <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.updatedAt)}</dd>
             </dl>
           </div>
@@ -175,7 +175,7 @@ export const TaskDetailSheet = ({
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-textMain">{buildTaskTimelineSummary(item)}</p>
                       <span
-                        className={`rounded-full px-2 py-1 text-[10px] ${
+                        className={`rounded-full px-2 py-1 text-xs ${
                           item.kind === "comment"
                             ? "bg-accent/10 text-accent"
                             : isTaskTimelineAutomatic(item)

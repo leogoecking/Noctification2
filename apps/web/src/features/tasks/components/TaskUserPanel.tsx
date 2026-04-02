@@ -216,7 +216,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
             metaRowRenderer={(task) => (
               <>
                 <span
-                  className={`rounded-full px-2 py-1 text-[10px] ${buildTaskSlaInfo(task).badgeClassName}`}
+                  className={`rounded-full px-2 py-1 text-xs ${buildTaskSlaInfo(task).badgeClassName}`}
                   title={buildTaskSlaInfo(task).detail}
                 >
                   {buildTaskSlaInfo(task).label}

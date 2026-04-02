@@ -21,7 +21,15 @@ const config: Config = {
         surfaceHighest: "rgb(var(--color-surface-highest) / <alpha-value>)"
       },
       boxShadow: {
+        xs:   "0 1px 3px rgba(0,0,0,0.07)",
+        sm:   "0 4px 12px rgba(0,0,0,0.08)",
+        md:   "0 8px 24px rgba(0,0,0,0.10)",
         glow: "0 8px 32px rgba(19, 27, 46, 0.06)"
+      },
+      borderRadius: {
+        sm: "0.5rem",
+        md: "0.875rem",
+        lg: "1.5rem",
       },
       fontFamily: {
         display: ["Inter", "Segoe UI", "sans-serif"]

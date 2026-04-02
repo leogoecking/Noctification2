@@ -80,7 +80,7 @@ export const renderTaskLinkChip = (sourceTaskId: number | null | undefined) => {
   }
 
   return (
-    <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] text-accent">
+    <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs text-accent">
       Tarefa #{sourceTaskId}
     </span>
   );

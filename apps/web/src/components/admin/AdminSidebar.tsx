@@ -30,7 +30,7 @@ const menuButtonClass = (active: boolean): string => {
 };
 
 const sidebarSectionTitleClass =
-  "px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-textMuted/80";
+  "px-3 text-xs font-bold uppercase tracking-[0.22em] text-textMuted/80";
 
 const getSidebarDesktopStateClass = (isExpanded: boolean): string =>
   isExpanded
@@ -237,7 +237,7 @@ export const AdminSidebar = ({
           <div>
             <p className={`font-bold text-textMain ${getSidebarTextClass(isExpanded)}`}>Operations</p>
             <p
-              className={`text-[10px] uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(
+              className={`text-xs uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(
                 isExpanded
               )}`}
             >
@@ -344,7 +344,7 @@ export const AdminSidebar = ({
       <div className="mt-6 rounded-2xl bg-panel p-4">
         {isExpanded ? (
           <>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Workspace</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">Workspace</p>
             <p className="mt-2 text-sm font-semibold text-textMain">Administracao</p>
             <p className="text-xs uppercase tracking-[0.16em] text-textMuted">Console interno</p>
           </>

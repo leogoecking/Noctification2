@@ -122,7 +122,7 @@ export const UserNotificationCenter = ({
               {renderTaskLinkChip(item.sourceTaskId)}
               {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                className={`rounded-full px-2 py-0.5 text-xs ${
                   item.priority === "critical"
                     ? "bg-danger/20 text-danger"
                     : item.priority === "high"
@@ -150,21 +150,21 @@ export const UserNotificationCenter = ({
           <p className="whitespace-pre-wrap text-sm text-textMain">{selected.message}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl bg-panelAlt/70 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Recebida</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Recebida</p>
               <p className="mt-1 text-sm text-textMain">{formatNotificationDate(selected.deliveredAt)}</p>
             </div>
             <div className="rounded-xl bg-panelAlt/70 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Estado atual</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Estado atual</p>
               <p className="mt-1 text-sm text-textMain">
                 {OPERATIONAL_STATUS_LABELS[selected.operationalStatus]}
               </p>
             </div>
             <div className="rounded-xl bg-panelAlt/70 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Visualizada em</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Visualizada em</p>
               <p className="mt-1 text-sm text-textMain">{formatNotificationDate(selected.visualizedAt)}</p>
             </div>
             <div className="rounded-xl bg-panelAlt/70 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Mensagem atual</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Mensagem atual</p>
               <p className="mt-1 text-sm text-textMain">
                 {selected.responseMessage || "Sem retorno registrado"}
               </p>

@@ -263,7 +263,7 @@ export const UserDashboard = ({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-textMuted">
                 Operations overview
               </p>
               <h2 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
@@ -354,7 +354,7 @@ export const UserDashboard = ({
         <article className="rounded-[1.25rem] bg-panel p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
                 Live notification stream
               </p>
               <h3 className="mt-1 font-display text-xl text-textMain">Central completa</h3>
@@ -363,7 +363,7 @@ export const UserDashboard = ({
 
           <div className="mb-4 rounded-[1rem] bg-panelAlt p-3">
             <div className="mb-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
                 Filtros
               </p>
               <h3 className="mt-1 text-sm font-semibold text-textMain">Central completa</h3>

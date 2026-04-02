@@ -101,7 +101,7 @@ export const ReminderComposer = ({
         <article className="max-h-[92vh] overflow-y-auto p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Novo lembrete</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">Novo lembrete</p>
               <h4 className="mt-1 font-display text-base text-textMain">
                 {form.id ? "Editar nota operacional" : "Nova nota operacional"}
               </h4>

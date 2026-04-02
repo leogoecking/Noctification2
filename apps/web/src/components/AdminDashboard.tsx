@@ -239,10 +239,10 @@ export const AdminDashboard = ({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
+                  <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-accent">
                     {headerCopy.chip}
                   </span>
-                  <span className="rounded-full bg-panelAlt px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+                  <span className="rounded-full bg-panelAlt px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
                     Admin
                   </span>
                 </div>

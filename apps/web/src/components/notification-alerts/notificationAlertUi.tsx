@@ -161,7 +161,7 @@ export const NotificationAlertCard = ({
           {alert.notification.priority}
         </span>
         {alert.audioBlocked && (
-          <span className="rounded-full bg-warning/20 px-2 py-1 text-[10px] text-warning">
+          <span className="rounded-full bg-warning/20 px-2 py-1 text-xs text-warning">
             Som bloqueado
           </span>
         )}

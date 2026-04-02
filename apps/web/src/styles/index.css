@@ -71,11 +71,17 @@ body {
 
 .btn-primary {
   border-radius: 0.75rem;
-  border: 1px solid rgba(24, 138, 206, 0.15);
-  background: linear-gradient(135deg, #000000 0%, #188ace 100%);
+  border: 1px solid rgba(var(--color-accent), 0.25);
+  background: rgb(var(--color-accent));
   color: #ffffff;
   font-weight: 700;
   padding: 0.6rem 0.95rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: rgb(var(--color-accent-warm));
+  border-color: rgba(var(--color-accent-warm), 0.35);
 }
 
 .btn-accent {

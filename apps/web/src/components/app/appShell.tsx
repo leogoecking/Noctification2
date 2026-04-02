@@ -172,7 +172,7 @@ export const AppHeader = ({
     <header className="sticky top-0 z-30 mb-6 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-outlineSoft/50 bg-canvas/90 px-2 py-3 backdrop-blur">
       <div className="flex items-center gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-textMuted">Plataforma interna</p>
+          <p className="text-xs uppercase tracking-[0.22em] text-textMuted">Plataforma interna</p>
           <h1 className="font-display text-2xl font-extrabold text-textMain">{pageTitle}</h1>
         </div>
       </div>
@@ -310,7 +310,7 @@ const USER_NAV_ITEMS: Array<{ title: string; items: UserNavItem[] }> = [
 ];
 
 const sidebarSectionTitleClass =
-  "px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-textMuted/80";
+  "px-3 text-xs font-bold uppercase tracking-[0.22em] text-textMuted/80";
 
 const getSidebarDesktopStateClass = (isExpanded: boolean): string =>
   isExpanded
@@ -417,7 +417,7 @@ export const UserWorkspace = ({
           <div className="mb-2 flex items-center gap-3">
             <div>
               <p className={`font-bold text-textMain ${getSidebarTextClass(isExpanded)}`}>Operations</p>
-              <p className={`text-[10px] uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(isExpanded)}`}>
+              <p className={`text-xs uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(isExpanded)}`}>
                 Precision Orchestrator
               </p>
             </div>
@@ -457,7 +457,7 @@ export const UserWorkspace = ({
         <div className="mt-6 rounded-2xl bg-panel p-4">
           {isExpanded ? (
             <>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
                 Workspace
               </p>
               <p className="mt-2 text-sm font-semibold text-textMain">{currentUser.name}</p>

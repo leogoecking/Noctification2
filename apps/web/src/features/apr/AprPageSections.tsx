@@ -661,12 +661,12 @@ export const AprCollaboratorComparisonSection = ({
     <article className="relative overflow-hidden rounded-[1.25rem] bg-panel p-5">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">APR por colaborador</h3>
-        <span className="rounded-md bg-panelAlt px-2 py-1 text-[10px] text-textMuted">Dados reais</span>
+        <span className="rounded-md bg-panelAlt px-2 py-1 text-xs text-textMuted">Dados reais</span>
       </div>
       <div className="mt-4 rounded-[1.1rem] bg-panelAlt p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">Comparativo por colaborador</h4>
-          <span className="text-[10px] text-textMuted">Sistema x manual</span>
+          <span className="text-xs text-textMuted">Sistema x manual</span>
         </div>
 
         {collaboratorRiskBars.length === 0 ? (
@@ -675,7 +675,7 @@ export const AprCollaboratorComparisonSection = ({
           <div className="space-y-5">
             <section className="grid gap-3">
               <article className="rounded-xl bg-panel p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-textMuted">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-textMuted">
                   APRs divergentes
                 </p>
                 <p className="mt-2 font-display text-2xl font-black text-danger">{totalDivergentAprs}</p>
@@ -704,14 +704,14 @@ export const AprCollaboratorComparisonSection = ({
                         <p className="truncate text-sm font-semibold text-textMain">{item.collaborator}</p>
                         <p className="text-xs text-textMuted">{item.uniqueIds} ID(s) unicos</p>
                       </div>
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-textMuted">
+                      <span className="text-xs uppercase tracking-[0.16em] text-textMuted">
                         {item.divergentIds} divergencia(s)
                       </span>
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
-                        <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-textMuted">
+                        <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-textMuted">
                           <span>Sistema</span>
                           <span>{item.systemCount}</span>
                         </div>
@@ -720,7 +720,7 @@ export const AprCollaboratorComparisonSection = ({
                         </div>
                       </div>
                       <div>
-                        <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-textMuted">
+                        <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-textMuted">
                           <span>Manual</span>
                           <span>{item.manualCount}</span>
                         </div>
@@ -741,7 +741,7 @@ export const AprCollaboratorComparisonSection = ({
                     <h5 className="text-sm font-semibold text-textMain">{selectedBar.collaborator}</h5>
                     <p className="text-xs text-textMuted">Detalhe por ID comparando presença em cada origem.</p>
                   </div>
-                  <p className="text-[10px] uppercase tracking-[0.16em] text-textMuted">
+                  <p className="text-xs uppercase tracking-[0.16em] text-textMuted">
                     {selectedBar.divergentIds} divergencia(s) neste colaborador
                   </p>
                 </div>
@@ -771,7 +771,7 @@ export const AprCollaboratorComparisonSection = ({
                           <td className="py-3 pr-4 text-textMuted">{detail.subject}</td>
                           <td className="py-3 pr-4">
                             <span
-                              className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                              className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${
                                 detail.systemPresent ? "bg-accent/15 text-accent" : "bg-panelAlt text-textMuted"
                               }`}
                             >
@@ -780,7 +780,7 @@ export const AprCollaboratorComparisonSection = ({
                           </td>
                           <td className="py-3 pr-4">
                             <span
-                              className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                              className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${
                                 detail.manualPresent ? "bg-warning/15 text-warning" : "bg-panelAlt text-textMuted"
                               }`}
                             >

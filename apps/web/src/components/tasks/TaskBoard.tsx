@@ -116,7 +116,7 @@ export const TaskBoard = ({
     <article className="rounded-[1.5rem] bg-panel p-5 shadow-glow">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">{headerEyebrow}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">{headerEyebrow}</p>
           <h4 className="mt-1 font-display text-xl font-extrabold tracking-tight text-textMain">
             {headerTitle}
           </h4>
@@ -230,7 +230,7 @@ export const TaskBoard = ({
                       <p className="min-w-0 flex-1 break-words text-sm font-medium text-textMain">{task.title}</p>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-1 text-[10px] ${TASK_PRIORITY_BADGES[task.priority]}`}
+                      className={`shrink-0 rounded-full px-2 py-1 text-xs ${TASK_PRIORITY_BADGES[task.priority]}`}
                     >
                       {TASK_PRIORITY_LABELS[task.priority]}
                     </span>

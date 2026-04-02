@@ -306,7 +306,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             metaRowRenderer={(task) => (
               <>
                 <span
-                  className={`rounded-full px-2 py-1 text-[10px] ${buildTaskSlaInfo(task).badgeClassName}`}
+                  className={`rounded-full px-2 py-1 text-xs ${buildTaskSlaInfo(task).badgeClassName}`}
                   title={buildTaskSlaInfo(task).detail}
                 >
                   {buildTaskSlaInfo(task).label}
@@ -376,7 +376,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             >
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
                   Indicadores secundarios
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">

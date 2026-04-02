@@ -40,7 +40,7 @@ export const UserNotificationBell = ({
       >
         <BellIcon />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-danger px-1 text-center text-xs font-bold text-white">
             {unreadCount}
           </span>
         )}
@@ -84,7 +84,7 @@ export const UserNotificationBell = ({
                     {renderTaskLinkChip(item.sourceTaskId)}
                     {!item.isVisualized && <span className="h-2 w-2 rounded-full bg-accent" />}
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] ${
+                      className={`rounded-full px-2 py-0.5 text-xs ${
                         item.priority === "critical"
                           ? "bg-danger/20 text-danger"
                           : item.priority === "high"

@@ -1114,7 +1114,7 @@ export const OperationsBoardRail = ({
           <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-glow">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
                   Mural operacional
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">

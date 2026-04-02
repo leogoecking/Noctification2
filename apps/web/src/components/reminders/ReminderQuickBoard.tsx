@@ -179,7 +179,7 @@ export const ReminderQuickBoard = ({
       <div className="border-b border-outlineSoft/80 px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-textMuted">Quadro rapido</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-textMuted">Quadro rapido</p>
             <h4 className="mt-1 font-display text-base text-textMain">Organizacao visual dos lembretes</h4>
             <p className="text-sm text-textMuted">
               Arraste os cards entre colunas para manter a rotina organizada sem mexer na biblioteca completa.
