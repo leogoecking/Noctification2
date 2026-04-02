@@ -42,6 +42,8 @@ vi.mock("./lib/api", () => ({
     myReminderOccurrences: vi.fn(),
     completeReminderOccurrence: vi.fn(),
     standardizeKmlPostes: vi.fn(),
+    getMySettings: vi.fn().mockResolvedValue({ value: null }),
+    updateMySettings: vi.fn().mockResolvedValue({ value: null }),
   },
   ApiError: class ApiError extends Error {
     status: number;

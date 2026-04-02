@@ -186,3 +186,63 @@ export const resetReminderAudioStateForTests = () => {
   sharedAudioContext = null;
   unlockListenersRegistered = false;
 };
+
+// ─── Notification sound presets ──────────────────────────────────────────────
+
+interface PresetStep {
+  frequency: number;
+  durationMs: number;
+  delayMs: number;
+  gain: number;
+  type: OscillatorType;
+}
+
+const NOTIFICATION_PRESETS: Record<string, PresetStep[]> = {
+  "Alerta alto": [
+    { frequency: 880, durationMs: 350, delayMs: 0,   gain: 0.2,  type: "square" },
+    { frequency: 660, durationMs: 350, delayMs: 150, gain: 0.2,  type: "square" },
+    { frequency: 880, durationMs: 350, delayMs: 300, gain: 0.2,  type: "square" },
+  ],
+  "Sino duplo": [
+    { frequency: 784,  durationMs: 350, delayMs: 0,   gain: 0.15, type: "sine" },
+    { frequency: 1047, durationMs: 350, delayMs: 200, gain: 0.15, type: "sine" },
+  ],
+  "Sino único": [
+    { frequency: 660, durationMs: 350, delayMs: 0, gain: 0.15, type: "sine" },
+  ],
+  "Sino triplo": [
+    { frequency: 523, durationMs: 350, delayMs: 0,   gain: 0.15, type: "sine" },
+    { frequency: 659, durationMs: 350, delayMs: 150, gain: 0.15, type: "sine" },
+    { frequency: 784, durationMs: 350, delayMs: 300, gain: 0.15, type: "sine" },
+  ],
+  "Pop suave": [
+    { frequency: 440, durationMs: 350, delayMs: 0, gain: 0.1, type: "sine" },
+  ],
+  "Beep": [
+    { frequency: 330, durationMs: 350, delayMs: 0, gain: 0.1, type: "square" },
+  ],
+};
+
+export const playNotificationPreset = (presetName: string): void => {
+  if (presetName === "Silêncio") return;
+
+  const steps = NOTIFICATION_PRESETS[presetName];
+  if (!steps) return;
+
+  const context = getOrCreateAudioContext();
+  if (!context || context.state === "closed") return;
+
+  for (const step of steps) {
+    scheduleToneStep(context, step);
+  }
+};
+
+export const playCustomAudio = (url: string): void => {
+  try {
+    const audio = new Audio(url);
+    audio.volume = 0.8;
+    void audio.play().catch(() => undefined);
+  } catch {
+    // Ignore playback errors
+  }
+};

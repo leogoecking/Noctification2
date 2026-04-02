@@ -7,6 +7,7 @@ import {
   type IncomingReminder
 } from "../lib/notificationEvents";
 import type { AuthUser, NotificationItem, NotificationOperationalStatus, NotificationResponseStatus } from "../types";
+import type { NotificationSoundPrefsHandle } from "../hooks/useNotificationSoundPrefs";
 import { UserNotificationBell } from "./user-notifications/UserNotificationBell";
 import { UserCriticalNotificationModal, UserNotificationCenter, UserNotificationFilterBar } from "./user-notifications/UserNotificationViews";
 import { OperationsBoardRail } from "./OperationsBoardRail";
@@ -23,6 +24,7 @@ interface UserDashboardProps {
   onBackToDashboard: () => void;
   onError: (message: string) => void;
   onToast: (message: string) => void;
+  soundPrefs: NotificationSoundPrefsHandle;
 }
 
 export const UserDashboard = ({
@@ -31,7 +33,8 @@ export const UserDashboard = ({
   onOpenAllNotifications,
   onBackToDashboard,
   onError,
-  onToast
+  onToast,
+  soundPrefs
 }: UserDashboardProps) => {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [loading, setLoading] = useState(false);
@@ -291,6 +294,7 @@ export const UserDashboard = ({
               onOpenAllNotifications();
               setBellOpen(false);
             }}
+            soundPrefs={soundPrefs}
           />
           {!isNotificationsPage && (
             <button

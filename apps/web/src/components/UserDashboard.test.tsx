@@ -3,6 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserDashboard } from "./UserDashboard";
 import { api } from "../lib/api";
 import type { NotificationItem, OperationsBoardMessageItem } from "../types";
+import type { NotificationSoundPrefsHandle } from "../hooks/useNotificationSoundPrefs";
+import { DEFAULT_SOUNDS } from "../lib/notificationSoundPrefs";
+
+const mockSoundPrefs: NotificationSoundPrefsHandle = {
+  prefs: { masterOn: true, sounds: { ...DEFAULT_SOUNDS }, customAudios: {} },
+  toggleMaster: vi.fn(),
+  setSound: vi.fn(),
+  setCustom: vi.fn(),
+  removeCustom: vi.fn(),
+  playSoundForPriority: vi.fn(),
+};
 
 vi.mock("../lib/socket", () => ({
   acquireSocket: () => ({
@@ -26,7 +37,9 @@ vi.mock("../lib/api", () => ({
     myOperationsBoardMessage: vi.fn(),
     createMyOperationsBoardMessage: vi.fn(),
     updateMyOperationsBoardMessage: vi.fn(),
-    createMyOperationsBoardComment: vi.fn()
+    createMyOperationsBoardComment: vi.fn(),
+    getMySettings: vi.fn().mockResolvedValue({ value: null }),
+    updateMySettings: vi.fn().mockResolvedValue({ value: null }),
   },
   ApiError: class ApiError extends Error {
     status: number;
@@ -145,6 +158,7 @@ describe("UserDashboard", () => {
         onBackToDashboard={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
+        soundPrefs={mockSoundPrefs}
       />
     );
 
@@ -176,6 +190,7 @@ describe("UserDashboard", () => {
         onBackToDashboard={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
+        soundPrefs={mockSoundPrefs}
       />
     );
 
@@ -206,6 +221,7 @@ describe("UserDashboard", () => {
         onBackToDashboard={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
+        soundPrefs={mockSoundPrefs}
       />
     );
 
@@ -230,6 +246,7 @@ describe("UserDashboard", () => {
           onBackToDashboard={vi.fn()}
           onError={vi.fn()}
           onToast={vi.fn()}
+          soundPrefs={mockSoundPrefs}
         />
       );
     });
@@ -258,6 +275,7 @@ describe("UserDashboard", () => {
         onBackToDashboard={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
+        soundPrefs={mockSoundPrefs}
       />
     );
 
@@ -290,6 +308,7 @@ describe("UserDashboard", () => {
         onBackToDashboard={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
+        soundPrefs={mockSoundPrefs}
       />
     );
 
@@ -307,6 +326,7 @@ describe("UserDashboard", () => {
         onBackToDashboard={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
+        soundPrefs={mockSoundPrefs}
       />
     );
 
@@ -327,6 +347,7 @@ describe("UserDashboard", () => {
           onBackToDashboard={vi.fn()}
           onError={vi.fn()}
           onToast={vi.fn()}
+          soundPrefs={mockSoundPrefs}
         />
       );
     });

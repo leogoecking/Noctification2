@@ -3,6 +3,7 @@ import { authApi } from "./apiAuth";
 import { notificationApi } from "./apiNotifications";
 import { operationsBoardApi } from "./apiOperationsBoard";
 import { reminderApi } from "./apiReminders";
+import { settingsApi } from "./apiSettings";
 import { webPushApi } from "./apiWebPush";
 import { taskApi } from "../features/tasks/api/tasksApi";
 import { kmlPosteApi } from "../features/kml-postes/api/kmlPosteApi";
@@ -16,6 +17,7 @@ export const api = {
   ...notificationApi,
   ...operationsBoardApi,
   ...reminderApi,
+  ...settingsApi,
   ...webPushApi,
   ...kmlPosteApi
 };

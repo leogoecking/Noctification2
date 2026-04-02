@@ -7,6 +7,7 @@ import { KmlPostePage } from "../../features/kml-postes/KmlPostePage";
 import { TaskUserPanel } from "../../features/tasks";
 import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "../../lib/featureFlags";
 import { useHoverExpandableSidebar } from "../../hooks/useHoverExpandableSidebar";
+import { useNotificationSoundPrefs } from "../../hooks/useNotificationSoundPrefs";
 import type { AuthUser } from "../../types";
 
 export type AppPath =
@@ -348,6 +349,7 @@ export const UserWorkspace = ({
     useHoverExpandableSidebar({
       storageKey: "noctification-user-sidebar-pinned"
     });
+  const soundPrefs = useNotificationSoundPrefs();
   const aprModuleEnabled = isAprModuleEnabled();
   const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
   const operationItems: UserNavItem[] = [];
@@ -467,6 +469,7 @@ export const UserWorkspace = ({
           onError={onError}
           onToast={onToast}
           onOpenNotifications={() => onNavigate("/notifications")}
+          onPlaySound={soundPrefs.playSoundForPriority}
         />
 
         <ReminderAlertCenter
@@ -492,6 +495,7 @@ export const UserWorkspace = ({
             onBackToDashboard={() => onNavigate("/")}
             onError={onError}
             onToast={onToast}
+            soundPrefs={soundPrefs}
           />
         )}
       </div>

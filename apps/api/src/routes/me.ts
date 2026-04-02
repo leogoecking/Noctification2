@@ -23,6 +23,7 @@ import {
   markNotificationRead,
   respondToNotification
 } from "./me-notification-actions";
+import { createMeSettingsRouter } from "./me-settings";
 
 interface NotificationRow {
   id: number;
@@ -197,6 +198,8 @@ export const createMeRouter = (db: Database.Database, io: Server, config: AppCon
 
     res.json(result);
   });
+
+  router.use("/settings", createMeSettingsRouter(db));
 
   return router;
 };

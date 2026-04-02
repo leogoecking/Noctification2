@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS user_settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(user_id, key)
+);
