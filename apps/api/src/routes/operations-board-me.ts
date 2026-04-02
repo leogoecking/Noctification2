@@ -10,6 +10,7 @@ import {
   listBoardMessages,
   normalizeBoardMessage,
   parseOperationsBoardStatus,
+  parseMuralCategory,
   updateBoardMessage
 } from "./operations-board-service";
 
@@ -67,9 +68,12 @@ export const createOperationsBoardMeRouter = (
       return;
     }
 
+    const category = parseMuralCategory(req.body?.category) ?? "geral";
+
     const message = createBoardMessage(db, {
       title,
       body,
+      category,
       actorUserId: req.authUser.id
     });
     res.status(201).json({ message: normalizeBoardMessage(message) });
@@ -105,6 +109,7 @@ export const createOperationsBoardMeRouter = (
     }
 
     const nextStatus = parsedStatus ?? existing.status;
+    const nextCategory = parseMuralCategory(req.body?.category) ?? existing.category;
 
     if (!nextTitle || !nextBody) {
       res.status(400).json({ error: "title e body nao podem ficar vazios" });
@@ -116,6 +121,7 @@ export const createOperationsBoardMeRouter = (
       nextTitle,
       nextBody,
       nextStatus,
+      nextCategory,
       actorUserId: req.authUser.id
     });
     res.json({ message: normalizeBoardMessage(message) });

@@ -236,6 +236,7 @@ export const buildOperationsBoardMessageItem = (
   title: "Troca de turno",
   body: "Equipe da madrugada assumiu o monitoramento.",
   status: "active",
+  category: "info",
   authorUserId: 1,
   authorName: "Admin",
   authorLogin: "admin",

@@ -1,17 +1,31 @@
 import type Database from "better-sqlite3";
 import { logAudit, nowIso, sanitizeMetadata } from "../db";
 
+export type MuralCategory = "urgente" | "info" | "aviso" | "comunicado" | "procedimento" | "geral";
+
 export type BoardMessageRow = {
   id: number;
   title: string;
   body: string;
   status: "active" | "resolved";
+  category: MuralCategory;
   authorUserId: number;
   authorName: string;
   authorLogin: string;
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+};
+
+export const VALID_CATEGORIES: MuralCategory[] = [
+  "urgente", "info", "aviso", "comunicado", "procedimento", "geral"
+];
+
+export const parseMuralCategory = (value: unknown): MuralCategory | undefined => {
+  if (typeof value === "string" && (VALID_CATEGORIES as string[]).includes(value)) {
+    return value as MuralCategory;
+  }
+  return undefined;
 };
 
 type BoardEventType = "created" | "updated" | "commented" | "resolved" | "reopened";
@@ -34,6 +48,7 @@ const boardMessageSelectSql = `
     m.title,
     m.body,
     m.status,
+    m.category,
     m.author_user_id AS authorUserId,
     author.name AS authorName,
     author.login AS authorLogin,
@@ -84,6 +99,7 @@ export const normalizeBoardMessage = (row: BoardMessageRow) => ({
   title: row.title,
   body: row.body,
   status: row.status,
+  category: row.category,
   authorUserId: row.authorUserId,
   authorName: row.authorName,
   authorLogin: row.authorLogin,
@@ -177,6 +193,7 @@ export const createBoardMessage = (
   params: {
     title: string;
     body: string;
+    category: MuralCategory;
     actorUserId: number;
   }
 ) => {
@@ -188,14 +205,15 @@ export const createBoardMessage = (
           title,
           body,
           status,
+          category,
           author_user_id,
           created_at,
           updated_at,
           resolved_at
-        ) VALUES (?, ?, 'active', ?, ?, ?, NULL)
+        ) VALUES (?, ?, 'active', ?, ?, ?, ?, NULL)
       `
     )
-    .run(params.title, params.body, params.actorUserId, timestamp, timestamp);
+    .run(params.title, params.body, params.category, params.actorUserId, timestamp, timestamp);
 
   const messageId = Number(result.lastInsertRowid);
   logBoardEvent(db, {
@@ -224,6 +242,7 @@ export const updateBoardMessage = (
     nextTitle: string;
     nextBody: string;
     nextStatus: "active" | "resolved";
+    nextCategory: MuralCategory;
     actorUserId: number;
   }
 ) => {
@@ -238,6 +257,7 @@ export const updateBoardMessage = (
         title = ?,
         body = ?,
         status = ?,
+        category = ?,
         updated_at = ?,
         resolved_at = ?
       WHERE id = ?
@@ -246,6 +266,7 @@ export const updateBoardMessage = (
     params.nextTitle,
     params.nextBody,
     params.nextStatus,
+    params.nextCategory,
     timestamp,
     resolvedAt,
     params.existing.id

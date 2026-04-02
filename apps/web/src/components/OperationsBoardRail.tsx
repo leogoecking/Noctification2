@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
-import type { OperationsBoardEventItem, OperationsBoardMessageItem } from "../types";
+import type { MuralCategory, OperationsBoardEventItem, OperationsBoardMessageItem } from "../types";
 
 interface OperationsBoardRailProps {
   currentUserName: string;
@@ -10,7 +10,7 @@ interface OperationsBoardRailProps {
   subtitle?: string;
 }
 
-type MuralCategoria = "urgente" | "info" | "aviso" | "comunicado" | "procedimento" | "geral";
+type MuralCategoria = MuralCategory;
 
 type MuralReaction = {
   emoji: string;
@@ -213,36 +213,6 @@ const formatDate = (value: string | null) => {
   }).format(new Date(value));
 };
 
-const inferCategory = (message: OperationsBoardMessageItem): MuralCategoria => {
-  const content = `${message.title} ${message.body}`.toLowerCase();
-
-  if (message.status === "resolved") {
-    return "comunicado";
-  }
-  if (
-    content.includes("falha") ||
-    content.includes("restrito") ||
-    content.includes("risco") ||
-    content.includes("urgente") ||
-    content.includes("bloque")
-  ) {
-    return "urgente";
-  }
-  if (content.includes("procedimento") || content.includes("fluxo") || content.includes("os")) {
-    return "procedimento";
-  }
-  if (content.includes("meta") || content.includes("parab") || content.includes("liberad")) {
-    return "comunicado";
-  }
-  if (content.includes("manuten") || content.includes("parada") || content.includes("sexta")) {
-    return "aviso";
-  }
-  if (content.includes("vers") || content.includes("sistema") || content.includes("painel")) {
-    return "info";
-  }
-
-  return "geral";
-};
 
 const buildInitialReactions = (): MuralReaction[] =>
   DEFAULT_REACTIONS.map((emoji, index) => ({
@@ -681,7 +651,6 @@ export const OperationsBoardRail = ({
   const [formBody, setFormBody] = useState("");
   const [formCategoria, setFormCategoria] = useState<MuralCategoria>("info");
   const [filtro, setFiltro] = useState<"todos" | MuralCategoria>("todos");
-  const [categoryById, setCategoryById] = useState<Record<number, MuralCategoria>>({});
   const [reactionsById, setReactionsById] = useState<Record<number, MuralReaction[]>>({});
   const [readersById, setReadersById] = useState<Record<number, MuralReadChip[]>>({});
   const mountedRef = useRef(true);
@@ -778,7 +747,8 @@ export const OperationsBoardRail = ({
       if (selected && !novoAberto) {
         const response = await api.updateMyOperationsBoardMessage(selected.id, {
           title: formTitle,
-          body: formBody
+          body: formBody,
+          category: formCategoria
         });
 
         if (!mountedRef.current) {
@@ -789,10 +759,6 @@ export const OperationsBoardRail = ({
         setMessages((prev) =>
           [response.message, ...prev.filter((item) => item.id !== response.message.id)].slice(0, 8)
         );
-        setCategoryById((current) => ({
-          ...current,
-          [response.message.id]: formCategoria
-        }));
         await openMessage(response.message);
         onToast("Recado atualizado");
         return;
@@ -800,7 +766,8 @@ export const OperationsBoardRail = ({
 
       const response = await api.createMyOperationsBoardMessage({
         title: formTitle,
-        body: formBody
+        body: formBody,
+        category: formCategoria
       });
 
       if (!mountedRef.current) {
@@ -808,10 +775,6 @@ export const OperationsBoardRail = ({
       }
 
       setMessages((prev) => [response.message, ...prev].slice(0, 8));
-      setCategoryById((current) => ({
-        ...current,
-        [response.message.id]: formCategoria
-      }));
       setReactionsById((current) => ({
         ...current,
         [response.message.id]: buildInitialReactions()
@@ -839,7 +802,7 @@ export const OperationsBoardRail = ({
 
     setFormTitle(selected.title);
     setFormBody(selected.body);
-    setFormCategoria(categoryById[selected.id] ?? inferCategory(selected));
+    setFormCategoria(selected.category);
     setNovoAberto(false);
   };
 
@@ -932,14 +895,13 @@ export const OperationsBoardRail = ({
     () =>
       filtro === "todos"
         ? messages
-        : messages.filter((message) => (categoryById[message.id] ?? inferCategory(message)) === filtro),
-    [categoryById, filtro, messages]
+        : messages.filter((message) => message.category === filtro),
+    [filtro, messages]
   );
 
   const totalUrgentes = useMemo(
-    () =>
-      messages.filter((message) => (categoryById[message.id] ?? inferCategory(message)) === "urgente").length,
-    [categoryById, messages]
+    () => messages.filter((message) => message.category === "urgente").length,
+    [messages]
   );
   const totalVisualizacoes = useMemo(
     () => Object.values(readersById).reduce((acc, readers) => acc + readers.length, 0),
@@ -1095,7 +1057,7 @@ export const OperationsBoardRail = ({
               <div key={message.id} style={{ breakInside: "avoid" }}>
                 <CardAviso
                   aviso={message}
-                  categoria={categoryById[message.id] ?? inferCategory(message)}
+                  categoria={message.category}
                   darkMode={darkMode}
                   onOpen={(item) => void openMessage(item)}
                   onToggleReacao={handleToggleReacao}

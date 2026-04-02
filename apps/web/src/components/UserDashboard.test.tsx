@@ -80,6 +80,7 @@ const buildBoardMessage = (overrides: Partial<OperationsBoardMessageItem> = {}):
   title: "Turno da madrugada",
   body: "Monitorar o enlace principal",
   status: "active",
+  category: "geral",
   authorUserId: 2,
   authorName: "Usuario",
   authorLogin: "user",
@@ -369,7 +370,8 @@ describe("UserDashboard", () => {
     await waitFor(() =>
       expect(mockedApi.updateMyOperationsBoardMessage).toHaveBeenCalledWith(1, {
         title: "Turno revisado",
-        body: "Monitorar o enlace secundario"
+        body: "Monitorar o enlace secundario",
+        category: "geral"
       })
     );
     expect(mockedApi.createMyOperationsBoardMessage).not.toHaveBeenCalled();
