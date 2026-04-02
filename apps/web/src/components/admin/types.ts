@@ -39,10 +39,8 @@ export type HistoryFilters = {
   limit: number;
 };
 
-export type QueuePriorityFilter = "" | NotificationPriority;
-
 export type QueueFilters = {
-  priority: QueuePriorityFilter;
+  priority: "" | NotificationPriority;
   userId: string;
   limit: number;
 };

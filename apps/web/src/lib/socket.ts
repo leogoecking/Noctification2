@@ -39,6 +39,3 @@ export const releaseSocket = (socket: Socket): void => {
   sharedSocket = null;
 };
 
-export const connectSocket = (): Socket => {
-  return acquireSocket();
-};

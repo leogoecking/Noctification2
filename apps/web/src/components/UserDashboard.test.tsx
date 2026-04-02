@@ -5,12 +5,13 @@ import { api } from "../lib/api";
 import type { NotificationItem, OperationsBoardMessageItem } from "../types";
 
 vi.mock("../lib/socket", () => ({
-  connectSocket: () => ({
+  acquireSocket: () => ({
     on: vi.fn(),
     off: vi.fn(),
     emit: vi.fn(),
     disconnect: vi.fn()
-  })
+  }),
+  releaseSocket: vi.fn()
 }));
 
 vi.mock("../lib/api", () => ({

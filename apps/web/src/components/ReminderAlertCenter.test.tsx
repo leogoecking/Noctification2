@@ -40,7 +40,6 @@ vi.mock("../lib/socket", () => ({
     disconnect: vi.fn()
   }),
   releaseSocket: vi.fn(),
-  connectSocket: vi.fn()
 }));
 
 vi.mock("../lib/reminderAudio", () => ({
