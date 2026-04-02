@@ -5,12 +5,11 @@ import { api } from "../../lib/api";
 
 vi.mock("../../lib/api", () => ({
   api: {
-    myReminders: vi.fn(),
     archiveMyStaleReminders: vi.fn(),
+    myReminders: vi.fn(),
     createMyReminder: vi.fn(),
     updateMyReminder: vi.fn(),
-    deleteMyReminder: vi.fn(),
-    createMyOperationsBoardMessage: vi.fn()
+    deleteMyReminder: vi.fn()
   },
   ApiError: class ApiError extends Error {
     status: number;
@@ -24,70 +23,54 @@ vi.mock("../../lib/api", () => ({
 const mockedApi = vi.mocked(api);
 
 describe("AdminRemindersPanel", () => {
-  const getReminderBoardPanel = () => {
-    const panel = screen.getByText("Organizacao visual dos lembretes").closest("article") as HTMLElement | null;
-    expect(panel).not.toBeNull();
-    return panel!;
-  };
-
-  const getReminderCardByTitle = (title: string) => {
-    const card = within(getReminderBoardPanel())
-      .getByText((_content, element) => element?.tagName === "P" && element.textContent === title)
-      .closest("div.rounded-xl") as HTMLElement | null;
-    expect(card).not.toBeNull();
-    return card!;
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    mockedApi.archiveMyStaleReminders.mockResolvedValue({ archivedCount: 0 });
     mockedApi.myReminders.mockResolvedValue({
       reminders: [
         {
           id: 1,
           userId: 1,
-          title: "Checklist",
-          description: "- [x] Validar alarmes\n- [ ] Checar comunicacao",
+          title: "Checklist de abertura",
+          description: "",
           startDate: "2026-03-13",
-          timeOfDay: "08:00",
+          timeOfDay: "08:30",
           timezone: "America/Bahia",
           repeatType: "none",
           weekdays: [],
-          checklistItems: [
-            { checked: true, label: "Validar alarmes" },
-            { checked: false, label: "Checar comunicacao" }
-          ],
+          isActive: true,
           noteKind: "checklist",
           pinned: false,
           tag: "",
           color: "emerald",
-          isActive: true,
+          checklistItems: [
+            { checked: true, label: "Validar alarmes" },
+            { checked: false, label: "Checar comunicacao" }
+          ],
           lastScheduledFor: null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }
       ]
     });
-    mockedApi.archiveMyStaleReminders.mockResolvedValue({
-      archivedCount: 0
-    });
     mockedApi.createMyReminder.mockResolvedValue({
       reminder: {
         id: 2,
         userId: 1,
         title: "Novo lembrete",
-        description: "",
+        description: "Levantamento rapido",
         startDate: "2026-03-14",
         timeOfDay: "10:00",
         timezone: "America/Bahia",
         repeatType: "none",
         weekdays: [],
-        checklistItems: [],
+        isActive: true,
         noteKind: "note",
         pinned: false,
         tag: "",
-        color: "slate",
-        isActive: true,
+        color: "sky",
+        checklistItems: [],
         lastScheduledFor: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -97,126 +80,123 @@ describe("AdminRemindersPanel", () => {
       reminder: {
         id: 1,
         userId: 1,
-        title: "Checklist atualizada",
+        title: "Checklist revisada",
         description: "- [x] Validar alarmes\n- [x] Checar comunicacao",
         startDate: "2026-03-13",
-        timeOfDay: "08:00",
+        timeOfDay: "08:30",
         timezone: "America/Bahia",
         repeatType: "none",
         weekdays: [],
-        checklistItems: [
-          { checked: true, label: "Validar alarmes" },
-          { checked: true, label: "Checar comunicacao" }
-        ],
+        isActive: true,
         noteKind: "checklist",
         pinned: true,
         tag: "",
         color: "emerald",
-        isActive: true,
+        checklistItems: [
+          { checked: true, label: "Validar alarmes" },
+          { checked: true, label: "Checar comunicacao" }
+        ],
         lastScheduledFor: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
     });
     mockedApi.deleteMyReminder.mockResolvedValue(undefined);
-    mockedApi.createMyOperationsBoardMessage.mockResolvedValue({
-      message: {
-        id: 1,
-        title: "x",
-        body: "x",
-        status: "active",
-        authorUserId: 1,
-        authorName: "Admin",
-        authorLogin: "admin",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        resolvedAt: null
-      }
-    });
   });
 
-  it("carrega o quadro admin como lembretes pessoais", async () => {
+  it("renderiza o painel admin com a nova experiencia de lembretes", async () => {
     render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
 
     await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalledWith(""));
-    await waitFor(() =>
-      expect(within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ })).toBeInTheDocument()
-    );
+    expect(screen.getByText("Meus lembretes")).toBeInTheDocument();
+    expect(await screen.findByText("Checklist de abertura")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "⊞ Grade" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "≡ Lista" })).toBeInTheDocument();
   });
 
-  it("cria lembrete pessoal no painel admin", async () => {
+  it("cria e edita lembrete pelo compositor inline no admin", async () => {
     render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
     await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole("button", { name: "Novo lembrete admin" }));
-    fireEvent.change(screen.getByPlaceholderText("Titulo da nota"), {
+    fireEvent.click(screen.getByRole("button", { name: "+ Nova nota" }));
+    fireEvent.change(screen.getByPlaceholderText("Título da nota…"), {
       target: { value: "Novo lembrete" }
     });
-    const formPanel = screen.getByText("Nova nota operacional").closest("article");
-    expect(formPanel).not.toBeNull();
-    fireEvent.change(formPanel!.querySelector('input[type="date"]') as HTMLInputElement, {
-      target: { value: "2026-03-14" }
+    fireEvent.change(screen.getByPlaceholderText("Escreva aqui…"), {
+      target: { value: "Levantamento rapido" }
     });
-    fireEvent.change(formPanel!.querySelector('input[type="time"]') as HTMLInputElement, {
-      target: { value: "10:00" }
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Criar nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
 
     await waitFor(() => expect(mockedApi.createMyReminder).toHaveBeenCalled());
-    expect(mockedApi.createMyReminder).toHaveBeenCalledWith(
+    expect(await screen.findByText("Novo lembrete")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Checklist de abertura"));
+    fireEvent.change(screen.getByDisplayValue("Checklist de abertura"), {
+      target: { value: "Checklist revisada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Checklist item 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
+  });
+
+  it("filtra checklist e permite marcar item no painel admin", async () => {
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
+    await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: /☑ Listas/i }));
+
+    expect(await screen.findByText("Checklist de abertura")).toBeInTheDocument();
+    expect(screen.getByText("1 de 2 feitos")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Checar comunicacao"));
+
+    await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
+    expect(mockedApi.updateMyReminder).toHaveBeenCalledWith(
+      1,
       expect.objectContaining({
-        title: "Novo lembrete"
+        noteKind: "checklist",
+        checklistItems: [
+          { checked: true, label: "Validar alarmes" },
+          { checked: true, label: "Checar comunicacao" }
+        ]
       })
-    );
-    await waitFor(() =>
-      expect(within(getReminderBoardPanel()).getByText("Novo lembrete")).toBeInTheDocument()
     );
   });
 
-  it("permite fixar e arquivar direto no quadro admin", async () => {
+  it("adiciona novo item de checklist com enter no admin", async () => {
+    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
+    await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Nova nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "☑ Checklist" }));
+
+    const firstChecklistInput = screen.getByLabelText("Texto do item 1");
+    fireEvent.change(firstChecklistInput, {
+      target: { value: "Validar alarmes" }
+    });
+    fireEvent.keyDown(firstChecklistInput, {
+      key: "Enter",
+      code: "Enter"
+    });
+
+    expect(await screen.findByLabelText("Texto do item 2")).toBeInTheDocument();
+  });
+
+  it("permite fixar e arquivar lembrete no admin", async () => {
     const onToast = vi.fn();
     render(<AdminRemindersPanel onError={vi.fn()} onToast={onToast} />);
     await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(
-        within(getReminderBoardPanel()).getByText(
-          (_content, element) => element?.tagName === "P" && element.textContent === "Checklist"
-        )
-      ).toBeInTheDocument()
-    );
 
-    const reminderCard = getReminderCardByTitle("Checklist");
+    const card = screen.getByText("Checklist de abertura").closest('[role="button"]') as HTMLElement | null;
+    expect(card).not.toBeNull();
+    fireEvent.click(within(card!).getByRole("button", { name: "Fixar" }));
 
-    fireEvent.click(within(reminderCard!).getByRole("button", { name: "Fixar" }));
     await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
     expect(onToast).toHaveBeenCalledWith("Nota fixada");
 
-    fireEvent.click(within(reminderCard!).getByRole("button", { name: "Arquivar" }));
+    fireEvent.click(screen.getByText("Checklist revisada"));
+    fireEvent.click(screen.getByRole("button", { name: "Arquivar" }));
+
     await waitFor(() => expect(mockedApi.deleteMyReminder).toHaveBeenCalledWith(1));
-  });
-
-  it("permite marcar checklist e enviar ao mural pelo quadro admin", async () => {
-    render(<AdminRemindersPanel onError={vi.fn()} onToast={vi.fn()} />);
-    await waitFor(() => expect(mockedApi.myReminders).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(
-        within(getReminderBoardPanel()).getByText(
-          (_content, element) => element?.tagName === "P" && element.textContent === "Checklist"
-        )
-      ).toBeInTheDocument()
-    );
-
-    await waitFor(() =>
-      expect(
-        within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ })
-      ).toBeInTheDocument()
-    );
-
-    fireEvent.click(within(getReminderBoardPanel()).getByRole("button", { name: /Checar comunicacao/ }));
-    await waitFor(() => expect(mockedApi.updateMyReminder).toHaveBeenCalled());
-
-    const reminderCard = getReminderCardByTitle("Checklist atualizada");
-    fireEvent.click(within(reminderCard!).getByRole("button", { name: "No mural" }));
-    await waitFor(() => expect(mockedApi.createMyOperationsBoardMessage).toHaveBeenCalled());
   });
 });

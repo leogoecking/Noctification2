@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserDashboard } from "./UserDashboard";
 import { api } from "../lib/api";
 import type { NotificationItem, OperationsBoardMessageItem } from "../types";
@@ -38,6 +38,11 @@ vi.mock("../lib/api", () => ({
 
 const mockedApi = vi.mocked(api);
 
+const waitForBoardReady = async () => {
+  await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=8"));
+  await waitFor(() => expect(screen.queryByText("Carregando mural...")).not.toBeInTheDocument());
+};
+
 const buildNotification = (id: number, isVisualized: boolean): NotificationItem => ({
   id,
   title: `Notificacao ${id}`,
@@ -71,50 +76,14 @@ const buildBoardMessage = (overrides: Partial<OperationsBoardMessageItem> = {}):
 });
 
 describe("UserDashboard", () => {
+  afterEach(() => {
+    document.documentElement.classList.remove("dark");
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockedApi.myOperationsBoard.mockResolvedValue({
       messages: [buildBoardMessage()]
-    });
-    mockedApi.myReminders.mockResolvedValue({
-      reminders: [
-        {
-          id: 1,
-          userId: 2,
-          title: "Checklist de turno",
-          description: "Revisar painel principal",
-          startDate: "2026-03-29",
-          timeOfDay: "08:00",
-          timezone: "America/Bahia",
-          repeatType: "daily",
-          weekdays: [],
-          isActive: true,
-          lastScheduledFor: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ]
-    });
-    mockedApi.myReminderOccurrences.mockResolvedValue({
-      occurrences: [
-        {
-          id: 1,
-          reminderId: 1,
-          userId: 2,
-          scheduledFor: new Date().toISOString(),
-          triggeredAt: null,
-          status: "pending",
-          retryCount: 0,
-          nextRetryAt: null,
-          completedAt: null,
-          expiredAt: null,
-          triggerSource: "scheduler",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          title: "Checklist de turno",
-          description: "Revisar painel principal"
-        }
-      ]
     });
     mockedApi.myOperationsBoardMessage.mockResolvedValue({
       message: buildBoardMessage(),
@@ -132,6 +101,32 @@ describe("UserDashboard", () => {
         }
       ]
     });
+    mockedApi.createMyOperationsBoardMessage.mockResolvedValue({
+      message: buildBoardMessage({
+        id: 2,
+        title: "Novo aviso",
+        body: "Novo corpo"
+      })
+    });
+    mockedApi.updateMyOperationsBoardMessage.mockResolvedValue({
+      message: buildBoardMessage({
+        title: "Turno revisado",
+        body: "Monitorar o enlace secundario"
+      })
+    });
+    mockedApi.createMyOperationsBoardComment.mockResolvedValue({
+      event: {
+        id: 11,
+        messageId: 1,
+        actorUserId: 2,
+        actorName: "Usuario",
+        actorLogin: "user",
+        eventType: "commented",
+        body: "Acompanhando",
+        metadata: null,
+        createdAt: new Date().toISOString()
+      }
+    });
   });
 
   it("mostra somente 10 itens no dropdown e CTA para pagina completa", async () => {
@@ -147,8 +142,6 @@ describe("UserDashboard", () => {
         isNotificationsPage={false}
         onOpenAllNotifications={onOpenAllNotifications}
         onBackToDashboard={vi.fn()}
-        onOpenTasks={vi.fn()}
-        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
@@ -180,8 +173,6 @@ describe("UserDashboard", () => {
         isNotificationsPage
         onOpenAllNotifications={vi.fn()}
         onBackToDashboard={vi.fn()}
-        onOpenTasks={vi.fn()}
-        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
@@ -212,8 +203,6 @@ describe("UserDashboard", () => {
         isNotificationsPage
         onOpenAllNotifications={vi.fn()}
         onBackToDashboard={vi.fn()}
-        onOpenTasks={vi.fn()}
-        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
@@ -231,30 +220,53 @@ describe("UserDashboard", () => {
       notifications: [buildNotification(1, false)]
     });
 
+    await act(async () => {
+      render(
+        <UserDashboard
+          user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+          isNotificationsPage={false}
+          onOpenAllNotifications={vi.fn()}
+          onBackToDashboard={vi.fn()}
+          onError={vi.fn()}
+          onToast={vi.fn()}
+        />
+      );
+    });
+
+    await waitForBoardReady();
+    expect(screen.getByTestId("operations-board-rail")).toBeInTheDocument();
+    expect(screen.getByText("Turno da madrugada")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Turno da madrugada/i }));
+
+    await waitFor(() => expect(mockedApi.myOperationsBoardMessage).toHaveBeenCalledWith(1));
+    expect(await screen.findByText("Comentario rapido")).toBeInTheDocument();
+  });
+
+  it("aplica a paleta escura nos avisos quando o tema dark esta ativo", async () => {
+    document.documentElement.classList.add("dark");
+    mockedApi.myNotifications.mockResolvedValue({
+      notifications: [buildNotification(1, false)]
+    });
+
     render(
       <UserDashboard
         user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
         isNotificationsPage={false}
         onOpenAllNotifications={vi.fn()}
         onBackToDashboard={vi.fn()}
-        onOpenTasks={vi.fn()}
-        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
     );
 
-    await waitFor(() => expect(mockedApi.myOperationsBoard).toHaveBeenCalledWith("?status=active&limit=8"));
-    expect(mockedApi.myReminders).toHaveBeenCalledWith("?active=true");
-    expect(mockedApi.myReminderOccurrences).toHaveBeenCalledWith("?status=pending");
-    expect(screen.getByTestId("operations-board-rail")).toBeInTheDocument();
-    expect(screen.getByText("Turno da madrugada")).toBeInTheDocument();
-    expect(screen.getByText("Agenda e lembretes")).toBeInTheDocument();
+    await waitForBoardReady();
+    expect(await screen.findByRole("button", { name: /Turno da madrugada/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Turno da madrugada/i }));
-
-    await waitFor(() => expect(mockedApi.myOperationsBoardMessage).toHaveBeenCalledWith(1));
-    expect(await screen.findByText("Comentario rapido")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Turno da madrugada/i })).toHaveStyle({
+      background: "#2B2924",
+      border: "1.5px solid #60584B"
+    });
   });
 
   it("reseta o filtro ao voltar da central completa para o painel", async () => {
@@ -275,8 +287,6 @@ describe("UserDashboard", () => {
         isNotificationsPage
         onOpenAllNotifications={vi.fn()}
         onBackToDashboard={vi.fn()}
-        onOpenTasks={vi.fn()}
-        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
@@ -294,13 +304,52 @@ describe("UserDashboard", () => {
         isNotificationsPage={false}
         onOpenAllNotifications={vi.fn()}
         onBackToDashboard={vi.fn()}
-        onOpenTasks={vi.fn()}
-        onOpenReminders={vi.fn()}
         onError={vi.fn()}
         onToast={vi.fn()}
       />
     );
 
     await waitFor(() => expect(mockedApi.myNotifications).toHaveBeenLastCalledWith(""));
+  });
+
+  it("atualiza o recado existente mesmo quando o titulo muda na edicao", async () => {
+    mockedApi.myNotifications.mockResolvedValue({
+      notifications: [buildNotification(1, false)]
+    });
+
+    await act(async () => {
+      render(
+        <UserDashboard
+          user={{ id: 2, login: "user", name: "Usuario", role: "user" }}
+          isNotificationsPage={false}
+          onOpenAllNotifications={vi.fn()}
+          onBackToDashboard={vi.fn()}
+          onError={vi.fn()}
+          onToast={vi.fn()}
+        />
+      );
+    });
+
+    await waitForBoardReady();
+    fireEvent.click(await screen.findByRole("button", { name: /Turno da madrugada/i }));
+
+    await waitFor(() => expect(mockedApi.myOperationsBoardMessage).toHaveBeenCalledWith(1));
+    fireEvent.click(await screen.findByRole("button", { name: "Preparar edicao" }));
+
+    fireEvent.change(screen.getByDisplayValue("Turno da madrugada"), {
+      target: { value: "Turno revisado" }
+    });
+    fireEvent.change(screen.getByDisplayValue("Monitorar o enlace principal"), {
+      target: { value: "Monitorar o enlace secundario" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alteracoes" }));
+
+    await waitFor(() =>
+      expect(mockedApi.updateMyOperationsBoardMessage).toHaveBeenCalledWith(1, {
+        title: "Turno revisado",
+        body: "Monitorar o enlace secundario"
+      })
+    );
+    expect(mockedApi.createMyOperationsBoardMessage).not.toHaveBeenCalled();
   });
 });

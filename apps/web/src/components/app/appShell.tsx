@@ -522,8 +522,6 @@ export const UserWorkspace = ({
             isNotificationsPage={currentPath === "/notifications"}
             onOpenAllNotifications={() => onNavigate("/notifications")}
             onBackToDashboard={() => onNavigate("/")}
-            onOpenTasks={() => onNavigate("/tasks")}
-            onOpenReminders={() => onNavigate("/reminders")}
             onError={onError}
             onToast={onToast}
           />
