@@ -12,7 +12,6 @@ import type { AuthUser } from "../../types";
 export type AppPath =
   | "/"
   | "/login"
-  | "/admin/login"
   | "/notifications"
   | "/reminders"
   | "/tasks"
@@ -31,10 +30,6 @@ export const normalizePath = (rawPath: string): AppPath => {
 
   if (rawPath === "/login") {
     return "/login";
-  }
-
-  if (rawPath === "/admin/login") {
-    return "/admin/login";
   }
 
   if (rawPath === "/notifications") {
@@ -65,7 +60,7 @@ export const getPageTitle = (
   currentUser: AuthUser | null
 ): string => {
   if (!currentUser) {
-    return currentPath === "/admin/login" ? "Console Administrativo" : "Acesso de Usuario";
+    return "Acesso interno";
   }
 
   if (currentPath === "/apr") {
@@ -96,40 +91,26 @@ export const getPageTitle = (
 };
 
 interface AppHeaderProps {
-  currentPath: AppPath;
   currentUser: AuthUser | null;
   pageTitle: string;
   darkMode: boolean;
   onLogout: () => void;
-  onNavigate: (path: AppPath) => void;
   onToggleDarkMode: () => void;
 }
 
-export const AppHeader = ({
-  currentPath,
-  currentUser,
-  pageTitle,
+const ThemeToggle = ({
   darkMode,
-  onLogout,
-  onNavigate,
-  onToggleDarkMode
-}: AppHeaderProps) => {
-  const themeToggleLabel = darkMode ? "Ativar modo claro" : "Ativar modo escuro";
-  const themeToggleTrackClass = darkMode
-    ? "bg-surfaceHighest"
-    : "bg-panelAlt";
-  const themeToggleThumbClass = darkMode ? "translate-x-5 bg-textMain" : "translate-x-0 bg-accent";
-  const themeToggleIcon = darkMode ? (
-    <svg
-      aria-hidden="true"
-      className="h-3.5 w-3.5 text-canvas"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <path
-        d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8Z"
-        fill="currentColor"
-      />
+  onToggle
+}: {
+  darkMode: boolean;
+  onToggle: () => void;
+}) => {
+  const label = darkMode ? "Ativar modo claro" : "Ativar modo escuro";
+  const trackClass = darkMode ? "bg-surfaceHighest" : "bg-panelAlt";
+  const thumbClass = darkMode ? "translate-x-5 bg-textMain" : "translate-x-0 bg-accent";
+  const icon = darkMode ? (
+    <svg aria-hidden="true" className="h-3.5 w-3.5 text-canvas" fill="none" viewBox="0 0 24 24">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8Z" fill="currentColor" />
     </svg>
   ) : (
     <svg
@@ -147,81 +128,88 @@ export const AppHeader = ({
     </svg>
   );
 
-  const themeToggleButton = (
+  return (
     <button
-      aria-label={themeToggleLabel}
+      aria-label={label}
       className="flex items-center rounded-full border border-outlineSoft/80 bg-panel px-1 py-1 transition hover:border-accent/40"
-      onClick={onToggleDarkMode}
-      title={themeToggleLabel}
+      onClick={onToggle}
+      title={label}
       type="button"
     >
-      <span className="sr-only">{themeToggleLabel}</span>
-      <span
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${themeToggleTrackClass}`}
-      >
-        <span
-          className={`absolute left-1 inline-flex h-4.5 w-4.5 items-center justify-center rounded-full shadow-sm transition-transform duration-200 ${themeToggleThumbClass}`}
-        >
-          {themeToggleIcon}
+      <span className="sr-only">{label}</span>
+      <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${trackClass}`}>
+        <span className={`absolute left-1 inline-flex h-4.5 w-4.5 items-center justify-center rounded-full shadow-sm transition-transform duration-200 ${thumbClass}`}>
+          {icon}
         </span>
       </span>
     </button>
   );
+};
+
+const UserBadge = ({
+  user,
+  onLogout
+}: {
+  user: AuthUser;
+  onLogout: () => void;
+}) => {
+  const initial = user.name.trim().charAt(0).toUpperCase() || "U";
+  const roleLabel = user.role === "admin" ? "Admin" : "Usuário";
 
   return (
-    <header className="sticky top-0 z-30 mb-6 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-outlineSoft/50 bg-canvas/90 px-2 py-3 backdrop-blur">
-      <div className="flex items-center gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-textMuted">Plataforma interna</p>
-          <h1 className="font-display text-2xl font-extrabold text-textMain">{pageTitle}</h1>
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 rounded-xl border border-outlineSoft/70 bg-panel px-3 py-1.5 shadow-xs">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+          {initial}
+        </div>
+        <div className="hidden sm:block">
+          <p className="max-w-[10rem] truncate text-sm font-semibold leading-tight text-textMain">
+            {user.name}
+          </p>
+          <p className="text-xs leading-tight text-textMuted">{roleLabel}</p>
         </div>
       </div>
-
-      {!currentUser && (
-        <div className="flex items-center gap-2">
-          {themeToggleButton}
-          <button
-            className={`rounded-xl px-3 py-2 text-sm ${
-              currentPath === "/login"
-                ? "bg-surfaceHighest text-textMain"
-                : "border border-outlineSoft text-textMuted"
-            }`}
-            onClick={() => onNavigate("/login")}
-          >
-            /login
-          </button>
-          <button
-            className={`rounded-xl px-3 py-2 text-sm ${
-              currentPath === "/admin/login"
-                ? "bg-surfaceHighest text-textMain"
-                : "border border-outlineSoft text-textMuted"
-            }`}
-            onClick={() => onNavigate("/admin/login")}
-          >
-            /admin/login
-          </button>
-        </div>
-      )}
-
-      {currentUser && (
-        <div className="flex items-center gap-3">
-          <span className="rounded-xl border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMuted">
-            {currentUser.name} ({currentUser.role})
-          </span>
-          {themeToggleButton}
-          {currentUser.role !== "admin" ? (
-            <button
-              className="rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm font-semibold text-textMain"
-              onClick={onLogout}
-            >
-              Sair
-            </button>
-          ) : null}
-        </div>
-      )}
-    </header>
+      <button
+        aria-label="Sair da sessão"
+        className="rounded-xl border border-outlineSoft/70 bg-panel px-3 py-2 text-sm font-medium text-textMuted transition hover:border-danger/40 hover:text-danger"
+        onClick={onLogout}
+        type="button"
+      >
+        Sair
+      </button>
+    </div>
   );
 };
+
+export const AppHeader = ({
+  currentUser,
+  pageTitle,
+  darkMode,
+  onLogout,
+  onToggleDarkMode
+}: AppHeaderProps) => (
+  <header className="sticky top-0 z-30 mb-6 flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-outlineSoft/40 bg-canvas/90 px-2 py-2.5 backdrop-blur">
+    <div className="flex items-center gap-3">
+      <img
+        alt="Noctification"
+        className="h-7 w-7 shrink-0 opacity-80"
+        src="/icons/icon-192.svg"
+      />
+      <div>
+        <h1 className="font-display text-xl font-bold leading-tight text-textMain">
+          {pageTitle}
+        </h1>
+      </div>
+    </div>
+
+    <div className="flex items-center gap-2">
+      <ThemeToggle darkMode={darkMode} onToggle={onToggleDarkMode} />
+      {currentUser && (
+        <UserBadge user={currentUser} onLogout={onLogout} />
+      )}
+    </div>
+  </header>
+);
 
 interface UserWorkspaceProps {
   currentPath: AppPath;

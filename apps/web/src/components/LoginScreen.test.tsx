@@ -7,9 +7,7 @@ describe("LoginScreen", () => {
     const onLogin = vi.fn();
     const onRegister = vi.fn().mockResolvedValue(undefined);
 
-    render(
-      <LoginScreen mode="user" onLogin={onLogin} onRegister={onRegister} isLoading={false} />
-    );
+    render(<LoginScreen onLogin={onLogin} onRegister={onRegister} isLoading={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
 
@@ -23,15 +21,14 @@ describe("LoginScreen", () => {
     expect(onLogin).not.toHaveBeenCalled();
   });
 
-  it("em modo admin fixa login admin e nao exibe aba de cadastro", () => {
+  it("exibe a aba de cadastro por padrao", () => {
     const onLogin = vi.fn().mockResolvedValue(undefined);
 
-    render(<LoginScreen mode="admin" onLogin={onLogin} isLoading={false} />);
+    render(<LoginScreen onLogin={onLogin} isLoading={false} />);
 
+    expect(screen.getByRole("button", { name: "Criar conta" })).toBeTruthy();
     const loginInput = screen.getByLabelText("Login") as HTMLInputElement;
-
-    expect(loginInput.value).toBe("admin");
-    expect(loginInput.readOnly).toBe(true);
-    expect(screen.queryByRole("button", { name: "Criar conta" })).toBeNull();
+    expect(loginInput.value).toBe("");
+    expect(loginInput.readOnly).toBeFalsy();
   });
 });
