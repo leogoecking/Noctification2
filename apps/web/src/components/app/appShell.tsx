@@ -298,7 +298,7 @@ const USER_NAV_ITEMS: Array<{ title: string; items: UserNavItem[] }> = [
 ];
 
 const sidebarSectionTitleClass =
-  "px-3 text-xs font-bold uppercase tracking-[0.22em] text-textMuted/80";
+  "px-3 text-xs font-semibold tracking-wide text-textMuted/70 uppercase";
 
 const getSidebarDesktopStateClass = (isExpanded: boolean): string =>
   isExpanded
@@ -331,10 +331,10 @@ const IconPin = ({ pinned }: { pinned: boolean }) => (
 );
 
 const userMenuButtonClass = (active: boolean): string =>
-  `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-xs font-medium uppercase tracking-[0.12em] transition ${
+  `flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
     active
-      ? "bg-surfaceHighest text-textMain shadow-sm"
-      : "text-textMuted hover:bg-panelAlt hover:text-textMain"
+      ? "bg-accent/10 text-accent shadow-xs"
+      : "text-textMuted hover:bg-panel/60 hover:text-textMain"
   }`;
 
 export const UserWorkspace = ({
@@ -382,33 +382,17 @@ export const UserWorkspace = ({
         onMouseLeave={onMouseLeave}
       >
         <div className="mb-6 px-2">
-          <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <SidebarLogo />
-            <div className="flex items-center gap-2">
-              <button
-                aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
-                className="hidden h-10 w-10 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
-                onClick={togglePinned}
-                title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
-                type="button"
-              >
-                <IconPin pinned={isPinned} />
-              </button>
-              <div
-                aria-label={currentUser.name}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-panel text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
-              >
-                {userInitial}
-              </div>
-            </div>
-          </div>
-          <div className="mb-2 flex items-center gap-3">
-            <div>
-              <p className={`font-bold text-textMain ${getSidebarTextClass(isExpanded)}`}>Operations</p>
-              <p className={`text-xs uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(isExpanded)}`}>
-                Precision Orchestrator
-              </p>
-            </div>
+            <button
+              aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+              className="hidden h-8 w-8 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
+              onClick={togglePinned}
+              title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+              type="button"
+            >
+              <IconPin pinned={isPinned} />
+            </button>
           </div>
         </div>
 
@@ -442,42 +426,38 @@ export const UserWorkspace = ({
           ))}
         </nav>
 
-        <div className="mt-6 rounded-2xl bg-panel p-4">
-          {isExpanded ? (
-            <>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
-                Workspace
-              </p>
-              <p className="mt-2 text-sm font-semibold text-textMain">{currentUser.name}</p>
-              <p className="text-xs uppercase tracking-[0.16em] text-textMuted">{currentUser.role}</p>
-            </>
-          ) : (
-            <div className="hidden items-center justify-center lg:flex">
-              <div
-                aria-label={currentUser.name}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-panelAlt text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
-              >
-                {userInitial}
-              </div>
-            </div>
-          )}
+        <div className="mt-6 flex items-center gap-3 rounded-2xl bg-panel px-3 py-3">
+          <div
+            aria-label={currentUser.name}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent ring-1 ring-accent/20"
+          >
+            {userInitial}
+          </div>
+          <div className={`min-w-0 ${getSidebarTextClass(isExpanded)}`}>
+            <p className="truncate text-sm font-semibold leading-tight text-textMain">
+              {currentUser.name}
+            </p>
+            <p className="text-xs leading-tight text-textMuted capitalize">{currentUser.role}</p>
+          </div>
         </div>
       </aside>
 
       <div className="space-y-4">
-        <nav className="flex flex-wrap gap-2 rounded-[1.5rem] bg-panelAlt p-2 lg:hidden">
+        <nav className="flex flex-wrap gap-1.5 rounded-[1.5rem] bg-panelAlt p-2 lg:hidden">
           {navigationSections.flatMap((section) => section.items).map((item) => (
             <button
               key={item.path}
-              className={`rounded-xl px-4 py-2 text-sm transition ${
+              aria-label={item.label}
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
                 currentPath === item.path
-                  ? "bg-surfaceHighest text-textMain"
-                  : "text-textMuted hover:bg-panelAlt hover:text-textMain"
+                  ? "bg-accent/10 text-accent shadow-xs"
+                  : "text-textMuted hover:bg-panel/60 hover:text-textMain"
               }`}
               onClick={() => onNavigate(item.path)}
               type="button"
             >
-              {item.label}
+              <span className="shrink-0">{item.icon}</span>
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
