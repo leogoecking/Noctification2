@@ -235,45 +235,45 @@ export const AdminDashboard = ({
             <KmlPostePage onError={onError} onToast={onToast} />
           ) : (
             <>
-          <header className="rounded-[1.25rem] bg-panel p-4">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-accent">
-                    {headerCopy.chip}
-                  </span>
-                  <span className="rounded-full bg-panelAlt px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
-                    Admin
-                  </span>
-                </div>
-                <h3 className="font-display text-2xl font-extrabold tracking-tight text-textMain">
-                  {headerCopy.title}
-                </h3>
-                <p className="mt-1 max-w-3xl text-sm text-textMuted">{headerCopy.subtitle}</p>
+          <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-panel px-5 py-4 shadow-xs">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                <span className="rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                  {headerCopy.chip}
+                </span>
+                <span className="rounded-md bg-panelAlt px-2 py-0.5 text-xs font-medium text-textMuted">
+                  Admin
+                </span>
               </div>
+              <h3 className="font-display text-xl font-bold text-textMain">
+                {headerCopy.title}
+              </h3>
+              <p className="mt-0.5 max-w-3xl text-sm text-textMuted">{headerCopy.subtitle}</p>
+            </div>
 
-              <div className="flex min-w-[18rem] flex-1 items-center justify-end gap-3 lg:max-w-2xl">
-                {globalSearchEnabled ? (
-                  <label className="mx-auto flex w-full max-w-xl items-center gap-3 rounded-xl bg-panelAlt px-3 py-2 text-sm text-textMuted">
-                    <span className="text-xs uppercase tracking-[0.18em]">Search</span>
-                    <input
-                      aria-label="Busca global do admin"
-                      className="min-w-0 flex-1 bg-transparent text-sm text-textMain outline-none placeholder:text-textMuted"
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Buscar tarefas, usuarios, notificacoes e auditoria"
-                      type="search"
-                      value={searchQuery}
-                    />
-                  </label>
-                ) : null}
-                <AdminOnlineUsersTrigger
-                  onlineUsers={onlineUsers}
-                  onlineSummary={onlineSummary}
-                  lastOnlineRefreshAt={lastOnlineRefreshAt}
-                  loadingOnlineUsers={loadingOnlineUsers}
-                  onRefreshOnlineUsers={loadOnlineUsers}
-                />
-              </div>
+            <div className="flex flex-1 items-center justify-end gap-3 lg:max-w-2xl">
+              {globalSearchEnabled ? (
+                <label className="mx-auto flex w-full max-w-xl items-center gap-2 rounded-xl border border-outlineSoft/60 bg-panelAlt px-3 py-2 text-sm">
+                  <svg aria-hidden="true" className="h-4 w-4 shrink-0 text-textMuted" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                  </svg>
+                  <input
+                    aria-label="Busca global do admin"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-textMain outline-none placeholder:text-textMuted"
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Buscar tarefas, usuários, notificações..."
+                    type="search"
+                    value={searchQuery}
+                  />
+                </label>
+              ) : null}
+              <AdminOnlineUsersTrigger
+                onlineUsers={onlineUsers}
+                onlineSummary={onlineSummary}
+                lastOnlineRefreshAt={lastOnlineRefreshAt}
+                loadingOnlineUsers={loadingOnlineUsers}
+                onRefreshOnlineUsers={loadOnlineUsers}
+              />
             </div>
           </header>
 

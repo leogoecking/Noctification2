@@ -21,16 +21,16 @@ const SidebarLogo = () => (
 );
 
 const menuBaseClass =
-  "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-xs font-medium uppercase tracking-[0.12em] transition";
+  "flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition";
 
 const menuButtonClass = (active: boolean): string => {
   return `${menuBaseClass} ${
-    active ? "bg-surfaceHighest text-textMain shadow-sm" : "text-textMuted hover:bg-panelAlt"
+    active ? "bg-accent/10 text-accent shadow-xs" : "text-textMuted hover:bg-panel/60 hover:text-textMain"
   }`;
 };
 
 const sidebarSectionTitleClass =
-  "px-3 text-xs font-bold uppercase tracking-[0.22em] text-textMuted/80";
+  "px-3 text-xs font-semibold uppercase tracking-wide text-textMuted/70";
 
 const getSidebarDesktopStateClass = (isExpanded: boolean): string =>
   isExpanded
@@ -54,14 +54,8 @@ const SidebarTooltip = ({ isExpanded, label }: { isExpanded: boolean; label: str
 
 const IconPin = ({ pinned }: { pinned: boolean }) => (
   <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
-    <path
-      d={
-        pinned
-          ? "M15 3v4l3 3v2h-5v7l-1 2-1-2v-7H6v-2l3-3V3z"
-          : "M15 3v4l3 3v2h-5v7l-1 2-1-2v-7H6v-2l3-3V3z"
-      }
-      fill="currentColor"
-    />
+    <path d="M15 3v4l3 3v2h-5v7l-1 2-1-2v-7H6v-2l3-3V3z" fill="currentColor" />
+    {pinned ? <circle cx="18" cy="6" fill="currentColor" r="2.2" /> : null}
   </svg>
 );
 
@@ -213,37 +207,17 @@ export const AdminSidebar = ({
       onMouseLeave={onMouseLeave}
     >
       <div className="mb-6 px-2">
-        <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <SidebarLogo />
-          <div className="flex items-center gap-2">
-            <button
-              aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
-              className="hidden h-10 w-10 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
-              onClick={togglePinned}
-              title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
-              type="button"
-            >
-              <IconPin pinned={isPinned} />
-            </button>
-            <div
-              aria-label="Administracao"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-panel text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
-            >
-              A
-            </div>
-          </div>
-        </div>
-        <div className="mb-2 flex items-center gap-3">
-          <div>
-            <p className={`font-bold text-textMain ${getSidebarTextClass(isExpanded)}`}>Operations</p>
-            <p
-              className={`text-xs uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(
-                isExpanded
-              )}`}
-            >
-              Precision Orchestrator
-            </p>
-          </div>
+          <button
+            aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+            className="hidden h-8 w-8 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
+            onClick={togglePinned}
+            title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+            type="button"
+          >
+            <IconPin pinned={isPinned} />
+          </button>
         </div>
       </div>
 
@@ -341,33 +315,27 @@ export const AdminSidebar = ({
         </div>
       </nav>
 
-      <div className="mt-6 rounded-2xl bg-panel p-4">
-        {isExpanded ? (
-          <>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">Workspace</p>
-            <p className="mt-2 text-sm font-semibold text-textMain">Administracao</p>
-            <p className="text-xs uppercase tracking-[0.16em] text-textMuted">Console interno</p>
-          </>
-        ) : (
-          <div className="hidden items-center justify-center lg:flex">
-            <div
-              aria-label="Workspace administrativo"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-panelAlt text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
-            >
-              A
-            </div>
+      <div className="mt-6 space-y-2">
+        <div className="flex items-center gap-3 rounded-2xl bg-panel px-3 py-3">
+          <div
+            aria-label="Administração"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent ring-1 ring-accent/20"
+          >
+            A
           </div>
-        )}
+          <div className={`min-w-0 ${getSidebarTextClass(isExpanded)}`}>
+            <p className="truncate text-sm font-semibold leading-tight text-textMain">Administração</p>
+            <p className="text-xs leading-tight text-textMuted">Console interno</p>
+          </div>
+        </div>
         {onLogout ? (
           <button
-            className="group relative mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm font-semibold text-textMain"
+            className="group relative flex w-full items-center justify-center gap-3 rounded-2xl border border-outlineSoft/60 bg-panel px-3 py-2.5 text-sm font-medium text-textMuted transition hover:border-danger/40 hover:text-danger"
             onClick={onLogout}
             title={!isExpanded ? "Sair" : undefined}
             type="button"
           >
-            <span className="shrink-0 text-textMain">
-              <IconLogout />
-            </span>
+            <span className="shrink-0"><IconLogout /></span>
             <span className={getSidebarTextClass(isExpanded)}>Sair</span>
             <SidebarTooltip isExpanded={isExpanded} label="Sair" />
           </button>

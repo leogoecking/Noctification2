@@ -179,12 +179,12 @@ describe("UserDashboard", () => {
     );
 
     await waitFor(() => expect(mockedApi.myNotifications).toHaveBeenCalled());
-    expect(screen.getByTestId("unread-counter")).toHaveTextContent("Nao lidas: 1");
+    expect(screen.getByTestId("unread-counter")).toHaveTextContent("Não lidas: 1");
 
     fireEvent.click(screen.getByTestId("mark-all-read-btn"));
 
     await waitFor(() => expect(mockedApi.markAllRead).toHaveBeenCalledTimes(1));
-    expect(screen.getByTestId("unread-counter")).toHaveTextContent("Nao lidas: 0");
+    expect(screen.getByTestId("unread-counter")).toHaveTextContent("Não lidas: 0");
   });
 
   it("mostra o identificador da tarefa vinculada no detalhe da notificacao", async () => {

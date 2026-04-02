@@ -36,10 +36,10 @@ export const AdminTaskBulkToolbar = ({
   }
 
   return (
-    <article className="sticky top-4 z-10 rounded-[1.25rem] border border-outlineSoft bg-panel p-4 shadow-glow">
+    <article className="sticky top-4 z-10 rounded-[1.25rem] border border-outlineSoft bg-panel p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Selecao em lote</p>
+          <p className="text-xs uppercase tracking-wider text-textMuted">Selecao em lote</p>
           <h4 className="mt-1 font-display text-sm text-textMain">
             {selectedTaskCount} tarefa(s) selecionada(s)
           </h4>

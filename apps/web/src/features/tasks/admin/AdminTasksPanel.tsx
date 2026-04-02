@@ -332,7 +332,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
       <div className="fixed bottom-8 right-8 z-20">
         <button
           aria-label="Nova tarefa"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-glow transition hover:scale-[1.02]"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-sm transition hover:scale-[1.02]"
           onClick={openCreateTask}
           type="button"
         >
@@ -357,7 +357,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
           type="button"
         >
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Indicadores secundarios</p>
+            <p className="text-xs uppercase tracking-wider text-textMuted">Indicadores secundarios</p>
             <h4 className="mt-1 font-display text-base text-textMain">Produtividade, capacidade e automacao</h4>
             <p className="text-sm text-textMuted">Analise complementar fora da operacao principal do kanban.</p>
           </div>
@@ -371,12 +371,12 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             <div
               aria-label="Indicadores da fila"
               aria-modal="true"
-              className="max-h-[85vh] w-full max-w-6xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-glow"
+              className="max-h-[85vh] w-full max-w-6xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-sm"
               role="dialog"
             >
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
+                <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
                   Indicadores secundarios
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
@@ -399,7 +399,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             <article className="rounded-[1.25rem] bg-panelAlt/80 p-4">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Produtividade</p>
+                  <p className="text-xs uppercase tracking-wider text-textMuted">Produtividade</p>
                   <h4 className="mt-1 font-display text-base text-textMain">Janela operacional</h4>
                   <p className="text-sm text-textMuted">Metricas da fila filtrada para acompanhamento do time.</p>
                 </div>
@@ -433,7 +433,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
               ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
-                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Entrega</p>
+                  <p className="text-xs uppercase tracking-wider text-textMuted">Entrega</p>
                   <p className="mt-2 text-2xl font-semibold text-textMain">{productivityMetrics.completedInWindow}</p>
                   <p className="mt-1 text-sm text-textMuted">
                     concluidas nos ultimos {productivityMetrics.windowDays} dias
@@ -454,7 +454,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
                   </div>
                 </div>
                 <div className="rounded-[1.25rem] bg-panel p-4 ring-1 ring-outlineSoft/50">
-                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Fluxo</p>
+                  <p className="text-xs uppercase tracking-wider text-textMuted">Fluxo</p>
                   <p className="mt-2 text-2xl font-semibold text-textMain">{productivityMetrics.createdInWindow}</p>
                   <p className="mt-1 text-sm text-textMuted">
                     criadas nos ultimos {productivityMetrics.windowDays} dias
@@ -487,7 +487,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
             <article className="rounded-[1.5rem] bg-panelAlt/80 p-4 ring-1 ring-outlineSoft/50">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Capacidade</p>
+                  <p className="text-xs uppercase tracking-wider text-textMuted">Capacidade</p>
                   <h4 className="mt-1 font-display text-base text-textMain">Carga por responsavel ou equipe</h4>
                   <p className="text-sm text-textMuted">Resumo operacional do filtro atual por pessoa ou departamento.</p>
                 </div>
@@ -581,7 +581,7 @@ export const AdminTasksPanel = ({ onError, onToast }: AdminTasksPanelProps) => {
               <article className="rounded-[1.5rem] bg-panelAlt/80 p-4 ring-1 ring-outlineSoft/50">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Automacao</p>
+                    <p className="text-xs uppercase tracking-wider text-textMuted">Automacao</p>
                     <h4 className="mt-1 font-display text-base text-textMain">Precisa de atencao</h4>
                     <p className="text-sm text-textMuted">
                       Visao do scheduler para atraso e tarefa parada na fila atual.

@@ -113,10 +113,10 @@ export const TaskBoard = ({
   };
 
   return (
-    <article className="rounded-[1.5rem] bg-panel p-5 shadow-glow">
+    <article className="rounded-[1.5rem] bg-panel p-5 shadow-sm">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">{headerEyebrow}</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-textMuted">{headerEyebrow}</p>
           <h4 className="mt-1 font-display text-xl font-extrabold tracking-tight text-textMain">
             {headerTitle}
           </h4>

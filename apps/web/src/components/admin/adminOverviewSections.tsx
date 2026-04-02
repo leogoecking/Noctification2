@@ -19,7 +19,7 @@ import {
 export const AdminOverviewMetrics = ({ metrics }: { metrics: AdminMetrics }) => (
   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     <article className="rounded-[1.25rem] bg-panel p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
+      <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
         Nao visualizadas
       </p>
       <p className="mt-3 font-display text-3xl font-black tracking-tight text-textMain">
@@ -29,7 +29,7 @@ export const AdminOverviewMetrics = ({ metrics }: { metrics: AdminMetrics }) => 
     </article>
 
     <article className="rounded-[1.25rem] bg-panel p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
+      <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
         Pendencias operacionais
       </p>
       <p className="mt-3 font-display text-3xl font-black tracking-tight text-warning">
@@ -39,7 +39,7 @@ export const AdminOverviewMetrics = ({ metrics }: { metrics: AdminMetrics }) => 
     </article>
 
     <article className="rounded-[1.25rem] bg-panel p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
+      <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
         Criticas abertas
       </p>
       <p className="mt-3 font-display text-3xl font-black tracking-tight text-danger">
@@ -49,7 +49,7 @@ export const AdminOverviewMetrics = ({ metrics }: { metrics: AdminMetrics }) => 
     </article>
 
     <article className="rounded-[1.25rem] bg-panel p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
+      <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
         Em andamento
       </p>
       <p className="mt-3 font-display text-3xl font-black tracking-tight text-accent">
@@ -102,7 +102,7 @@ export const AdminOverviewSystemHealth = ({
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-panel px-3 py-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">A vencer</p>
+            <p className="text-xs uppercase tracking-wider text-textMuted">A vencer</p>
             <p className="mt-2 text-xl font-bold text-textMain">
               {taskHealth?.dueSoonEligible ?? 0}
             </p>
@@ -110,13 +110,13 @@ export const AdminOverviewSystemHealth = ({
           </div>
 
           <div className="rounded-xl bg-panel px-3 py-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Vencidas</p>
+            <p className="text-xs uppercase tracking-wider text-textMuted">Vencidas</p>
             <p className="mt-2 text-xl font-bold text-danger">{taskHealth?.overdueEligible ?? 0}</p>
             <p className="mt-1 text-xs text-textMuted">Tasks elegiveis para alerta de atraso</p>
           </div>
 
           <div className="rounded-xl bg-panel px-3 py-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Alertas hoje</p>
+            <p className="text-xs uppercase tracking-wider text-textMuted">Alertas hoje</p>
             <p className="mt-2 text-xl font-bold text-textMain">
               {(taskHealth?.dueSoonSentToday ?? 0) +
                 (taskHealth?.overdueSentToday ?? 0) +
@@ -128,7 +128,7 @@ export const AdminOverviewSystemHealth = ({
         </div>
 
         <details className="rounded-xl bg-panel px-3 py-3">
-          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.18em] text-textMuted">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-textMuted">
             Ver detalhes tecnicos
           </summary>
           <div className="mt-3 space-y-3">
@@ -187,10 +187,10 @@ export const AdminOnlineUsersTrigger = ({
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-glow">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
+                <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
                   Presenca online
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
@@ -220,15 +220,15 @@ export const AdminOnlineUsersTrigger = ({
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-panelAlt px-3 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Total online</p>
+                <p className="text-xs uppercase tracking-wider text-textMuted">Total online</p>
                 <p className="mt-2 text-xl font-bold text-success">{onlineUsers.length}</p>
               </div>
               <div className="rounded-xl bg-panelAlt px-3 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Usuarios</p>
+                <p className="text-xs uppercase tracking-wider text-textMuted">Usuarios</p>
                 <p className="mt-2 text-xl font-bold text-accent">{onlineSummary.operators}</p>
               </div>
               <div className="rounded-xl bg-panelAlt px-3 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Admins</p>
+                <p className="text-xs uppercase tracking-wider text-textMuted">Admins</p>
                 <p className="mt-2 text-xl font-bold text-textMain">{onlineSummary.admins}</p>
               </div>
             </div>

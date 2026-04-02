@@ -26,7 +26,7 @@ export const LoginScreen = ({ onLogin, onRegister, isLoading }: LoginScreenProps
         <img alt="Noctification" className="h-9 w-9" src="/icons/icon-192.svg" />
         <div>
           <p className="text-xs font-medium text-textMuted">Noctification</p>
-          <h1 className="font-display text-2xl font-bold leading-tight text-textMain">{heading}</h1>
+          <h2 className="font-display text-2xl font-bold leading-tight text-textMain">{heading}</h2>
         </div>
       </div>
 

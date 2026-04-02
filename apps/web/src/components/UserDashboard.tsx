@@ -258,116 +258,75 @@ export const UserDashboard = ({
   };
 
   return (
-    <section className="animate-fade-in space-y-6">
-      <header className="rounded-[1.5rem] bg-panel p-4 shadow-glow">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-textMuted">
-                Operations overview
-              </p>
-              <h2 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
-                Noctification
-              </h2>
-            </div>
-            <div className="hidden h-4 w-px bg-outlineSoft md:block" />
-            <p className="text-sm text-textMuted">
-              {isNotificationsPage ? "Todas as notificacoes" : "Dashboard Overview"}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div
-              data-testid="unread-counter"
-              className="rounded-full bg-panelAlt px-4 py-2 text-sm text-textMain"
-            >
-              Nao lidas: <strong className="text-accent">{unreadCount}</strong>
-            </div>
-            <UserNotificationBell
-              bellOpen={bellOpen}
-              dropdownItems={dropdownItems}
-              unreadCount={unreadCount}
-              onOpenChange={setBellOpen}
-              onSelectNotification={(item) => {
-                setSelected(item);
-                setBellOpen(false);
-              }}
-              onOpenAllNotifications={() => {
-                onOpenAllNotifications();
-                setBellOpen(false);
-              }}
-            />
-          </div>
+    <section className="animate-fade-in space-y-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-panel px-5 py-4 shadow-xs">
+        <div>
+          <h2 className="font-display text-lg font-bold text-textMain">
+            {isNotificationsPage ? "Notificações" : "Painel Operacional"}
+          </h2>
+          <p className="text-sm text-textMuted">
+            {isNotificationsPage
+              ? "Histórico completo de notificações recebidas"
+              : `Olá, ${user.name}. Acompanhe pendências e sinais em tempo real.`}
+          </p>
         </div>
-      </header>
 
-      <header className="rounded-[1.5rem] bg-panelAlt/80 p-6 shadow-glow">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
-              Live operations
-            </p>
-            <h3 className="font-display text-3xl font-extrabold tracking-tight text-textMain">
-              {isNotificationsPage ? "Todas as notificacoes" : "Painel do Usuario"}
-            </h3>
-            <p className="max-w-2xl text-sm text-textMuted">
-              Conectado como {user.name}. Acompanhe sinais operacionais, pendencias recentes e o
-              status das notificacoes sem sair do fluxo atual.
-            </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            data-testid="unread-counter"
+            className="rounded-full border border-outlineSoft/60 bg-panelAlt px-3 py-1.5 text-sm text-textMain"
+          >
+            Não lidas: <strong className="text-accent">{unreadCount}</strong>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {!isNotificationsPage && (
+          <UserNotificationBell
+            bellOpen={bellOpen}
+            dropdownItems={dropdownItems}
+            unreadCount={unreadCount}
+            onOpenChange={setBellOpen}
+            onSelectNotification={(item) => {
+              setSelected(item);
+              setBellOpen(false);
+            }}
+            onOpenAllNotifications={() => {
+              onOpenAllNotifications();
+              setBellOpen(false);
+            }}
+          />
+          {!isNotificationsPage && (
+            <button
+              className="rounded-xl border border-outlineSoft bg-panelAlt px-4 py-2 text-sm font-medium text-textMuted transition hover:text-textMain"
+              onClick={onOpenAllNotifications}
+              type="button"
+            >
+              Ver todas
+            </button>
+          )}
+          {isNotificationsPage && (
+            <>
               <button
-                className="rounded-xl border border-outlineSoft bg-panel px-4 py-2 text-sm text-textMain"
-                onClick={onOpenAllNotifications}
+                className="rounded-xl border border-outlineSoft bg-panelAlt px-4 py-2 text-sm font-medium text-textMuted transition hover:text-textMain"
+                onClick={onBackToDashboard}
                 type="button"
               >
-                Abrir central de notificacoes
+                Voltar
               </button>
-            )}
-            {isNotificationsPage && (
-              <>
-                <button
-                  className="rounded-xl border border-outlineSoft bg-panel px-4 py-2 text-sm text-textMain"
-                  onClick={onBackToDashboard}
-                  type="button"
-                >
-                  Voltar ao painel
-                </button>
-                <button
-                  data-testid="mark-all-read-btn"
-                  className="btn-success"
-                  onClick={markAllAsRead}
-                  disabled={submittingReadAll}
-                  type="button"
-                >
-                  {submittingReadAll ? "Marcando..." : "Marcar todas como lidas"}
-                </button>
-              </>
-            )}
-          </div>
+              <button
+                data-testid="mark-all-read-btn"
+                className="btn-success"
+                onClick={markAllAsRead}
+                disabled={submittingReadAll}
+                type="button"
+              >
+                {submittingReadAll ? "Marcando..." : "Marcar todas como lidas"}
+              </button>
+            </>
+          )}
         </div>
       </header>
 
       {isNotificationsPage ? (
-        <article className="rounded-[1.25rem] bg-panel p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
-                Live notification stream
-              </p>
-              <h3 className="mt-1 font-display text-xl text-textMain">Central completa</h3>
-            </div>
-          </div>
-
-          <div className="mb-4 rounded-[1rem] bg-panelAlt p-3">
-            <div className="mb-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
-                Filtros
-              </p>
-              <h3 className="mt-1 text-sm font-semibold text-textMain">Central completa</h3>
-            </div>
+        <article className="rounded-2xl bg-panel p-5 shadow-xs">
+          <div className="mb-4 rounded-xl bg-panelAlt p-3">
             <UserNotificationFilterBar filter={filter} onChange={setFilter} />
           </div>
 

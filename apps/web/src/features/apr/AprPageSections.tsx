@@ -30,7 +30,7 @@ export const AprMonthReferenceSection = ({
 }: SidebarProps) => (
   <article className="rounded-[1.25rem] bg-panel p-5">
     <div className="mb-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
         Referencia
       </p>
       <h3 className="mt-2 font-display text-2xl text-textMain">Mes ativo</h3>
@@ -40,7 +40,7 @@ export const AprMonthReferenceSection = ({
     </div>
 
     <div className="mb-4">
-      <label className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted" htmlFor="apr-month-input">
+      <label className="mb-1 block text-xs uppercase tracking-wide text-textMuted" htmlFor="apr-month-input">
         Referencia manual
       </label>
       <input
@@ -128,7 +128,7 @@ const AprImportCard = ({
 
       <div className="space-y-3">
         <label className="block">
-          <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">
+          <span className="mb-1 block text-xs uppercase tracking-wide text-textMuted">
             {copy.inputLabel}
           </span>
           <input
@@ -182,7 +182,7 @@ export const AprImportSection = ({
 }: ImportSectionProps) => (
   <section className="space-y-4">
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
         Importacao
       </p>
       <h3 className="mt-2 font-display text-2xl text-textMain">Bases separadas</h3>
@@ -373,7 +373,7 @@ export const AprManualFormSection = ({
 
     <div className="space-y-3">
       <label className="block" htmlFor="apr-manual-external-id">
-        <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">External ID</span>
+        <span className="mb-1 block text-xs uppercase tracking-wide text-textMuted">External ID</span>
         <input
           id="apr-manual-external-id"
           className="w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
@@ -383,7 +383,7 @@ export const AprManualFormSection = ({
       </label>
 
       <label className="block" htmlFor="apr-manual-opened-on">
-        <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">Data de abertura</span>
+        <span className="mb-1 block text-xs uppercase tracking-wide text-textMuted">Data de abertura</span>
         <input
           id="apr-manual-opened-on"
           className="w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
@@ -394,7 +394,7 @@ export const AprManualFormSection = ({
       </label>
 
       <label className="block" htmlFor="apr-manual-subject">
-        <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">Assunto</span>
+        <span className="mb-1 block text-xs uppercase tracking-wide text-textMuted">Assunto</span>
         <input
           id="apr-manual-subject"
           className="w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
@@ -412,7 +412,7 @@ export const AprManualFormSection = ({
       </label>
 
       <label className="block" htmlFor="apr-manual-collaborator">
-        <span className="mb-1 block text-xs uppercase tracking-[0.16em] text-textMuted">Colaborador</span>
+        <span className="mb-1 block text-xs uppercase tracking-wide text-textMuted">Colaborador</span>
         <input
           id="apr-manual-collaborator"
           className="w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm text-textMain outline-none"
@@ -577,15 +577,15 @@ export const AprHistorySection = ({
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="grid flex-1 gap-3 md:grid-cols-3">
               <div className="rounded-xl bg-panelAlt p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-textMuted">Novos</p>
+                <p className="text-xs uppercase tracking-wide text-textMuted">Novos</p>
                 <p className="mt-1 font-display text-xl text-textMain">{history.summary.novo}</p>
               </div>
               <div className="rounded-xl bg-panelAlt p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-textMuted">Alterados</p>
+                <p className="text-xs uppercase tracking-wide text-textMuted">Alterados</p>
                 <p className="mt-1 font-display text-xl text-textMain">{history.summary.alterado}</p>
               </div>
               <div className="rounded-xl bg-panelAlt p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-textMuted">Sem alteracao</p>
+                <p className="text-xs uppercase tracking-wide text-textMuted">Sem alteracao</p>
                 <p className="mt-1 font-display text-xl text-textMain">{history.summary.semAlteracao}</p>
               </div>
             </div>
@@ -660,12 +660,12 @@ export const AprCollaboratorComparisonSection = ({
   return (
     <article className="relative overflow-hidden rounded-[1.25rem] bg-panel p-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">APR por colaborador</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-textMuted">APR por colaborador</h3>
         <span className="rounded-md bg-panelAlt px-2 py-1 text-xs text-textMuted">Dados reais</span>
       </div>
       <div className="mt-4 rounded-[1.1rem] bg-panelAlt p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">Comparativo por colaborador</h4>
+          <h4 className="text-xs font-bold uppercase tracking-widest text-textMuted">Comparativo por colaborador</h4>
           <span className="text-xs text-textMuted">Sistema x manual</span>
         </div>
 
@@ -675,7 +675,7 @@ export const AprCollaboratorComparisonSection = ({
           <div className="space-y-5">
             <section className="grid gap-3">
               <article className="rounded-xl bg-panel p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-textMuted">
+                <p className="text-xs font-bold uppercase tracking-wider text-textMuted">
                   APRs divergentes
                 </p>
                 <p className="mt-2 font-display text-2xl font-black text-danger">{totalDivergentAprs}</p>
@@ -694,7 +694,7 @@ export const AprCollaboratorComparisonSection = ({
                     type="button"
                     className={`w-full rounded-[1.1rem] border p-4 text-left transition ${
                       isSelected
-                        ? "border-accent bg-panel shadow-glow"
+                        ? "border-accent bg-panel shadow-sm"
                         : "border-outlineSoft bg-panel hover:border-accent/40"
                     }`}
                     onClick={() => setSelectedCollaborator(item.collaborator)}
@@ -704,14 +704,14 @@ export const AprCollaboratorComparisonSection = ({
                         <p className="truncate text-sm font-semibold text-textMain">{item.collaborator}</p>
                         <p className="text-xs text-textMuted">{item.uniqueIds} ID(s) unicos</p>
                       </div>
-                      <span className="text-xs uppercase tracking-[0.16em] text-textMuted">
+                      <span className="text-xs uppercase tracking-wide text-textMuted">
                         {item.divergentIds} divergencia(s)
                       </span>
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
-                        <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-textMuted">
+                        <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-wide text-textMuted">
                           <span>Sistema</span>
                           <span>{item.systemCount}</span>
                         </div>
@@ -720,7 +720,7 @@ export const AprCollaboratorComparisonSection = ({
                         </div>
                       </div>
                       <div>
-                        <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-textMuted">
+                        <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-wide text-textMuted">
                           <span>Manual</span>
                           <span>{item.manualCount}</span>
                         </div>
@@ -741,7 +741,7 @@ export const AprCollaboratorComparisonSection = ({
                     <h5 className="text-sm font-semibold text-textMain">{selectedBar.collaborator}</h5>
                     <p className="text-xs text-textMuted">Detalhe por ID comparando presença em cada origem.</p>
                   </div>
-                  <p className="text-xs uppercase tracking-[0.16em] text-textMuted">
+                  <p className="text-xs uppercase tracking-wide text-textMuted">
                     {selectedBar.divergentIds} divergencia(s) neste colaborador
                   </p>
                 </div>
@@ -771,7 +771,7 @@ export const AprCollaboratorComparisonSection = ({
                           <td className="py-3 pr-4 text-textMuted">{detail.subject}</td>
                           <td className="py-3 pr-4">
                             <span
-                              className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${
+                              className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
                                 detail.systemPresent ? "bg-accent/15 text-accent" : "bg-panelAlt text-textMuted"
                               }`}
                             >
@@ -780,7 +780,7 @@ export const AprCollaboratorComparisonSection = ({
                           </td>
                           <td className="py-3 pr-4">
                             <span
-                              className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${
+                              className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
                                 detail.manualPresent ? "bg-warning/15 text-warning" : "bg-panelAlt text-textMuted"
                               }`}
                             >

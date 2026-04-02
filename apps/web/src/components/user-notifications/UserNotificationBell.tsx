@@ -49,7 +49,7 @@ export const UserNotificationBell = ({
       {bellOpen && (
         <div
           data-testid="notif-dropdown"
-          className="absolute right-0 z-30 mt-2 w-80 rounded-[1.5rem] bg-panel p-3 shadow-glow ring-1 ring-outlineSoft/50"
+          className="absolute right-0 z-30 mt-2 w-80 rounded-[1.5rem] bg-panel p-3 shadow-sm ring-1 ring-outlineSoft/50"
         >
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-textMain">Ultimas 10 notificacoes</p>

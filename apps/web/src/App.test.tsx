@@ -66,32 +66,28 @@ describe("App routing", () => {
     vi.unstubAllEnvs();
   });
 
-  it("renderiza tela de admin em /admin/login", async () => {
+  it("renderiza tela de login unificada em /login", async () => {
+    window.history.replaceState({}, "", "/login");
+
+    render(<App />);
+
+    await waitFor(() => expect(mockedApi.me).toHaveBeenCalled());
+    expect(screen.getByRole("heading", { level: 2, name: "Acesso interno" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Criar conta" })).toBeInTheDocument();
+  });
+
+  it("redireciona /admin/login para /login quando nao autenticado", async () => {
     window.history.replaceState({}, "", "/admin/login");
 
     render(<App />);
 
     await waitFor(() => expect(mockedApi.me).toHaveBeenCalled());
-    expect(screen.getByText("Acesso administrativo")).toBeInTheDocument();
-    const loginInput = (await screen.findByLabelText("Login")) as HTMLInputElement;
-    expect(loginInput.value).toBe("admin");
+    expect(screen.getByRole("heading", { level: 2, name: "Acesso interno" })).toBeInTheDocument();
   });
 
-  it("renderiza tela de usuario em /login", async () => {
+  it("envia login sem expected_role e exibe erro quando backend rejeita", async () => {
     window.history.replaceState({}, "", "/login");
-
-    render(<App />);
-
-    await waitFor(() => expect(mockedApi.me).toHaveBeenCalled());
-    expect(screen.getByText("Acesso interno")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Criar conta" })).toBeInTheDocument();
-  });
-
-  it("envia expected_role ao backend e mantem usuario fora da sessao quando a rota diverge", async () => {
-    window.history.replaceState({}, "", "/login");
-    mockedApi.login.mockRejectedValueOnce(
-      new ApiError("Use /login para acesso de usuario", 403)
-    );
+    mockedApi.login.mockRejectedValueOnce(new ApiError("Credenciais invalidas", 401));
 
     render(<App />);
 
@@ -101,50 +97,13 @@ describe("App routing", () => {
     const passwordInput = await screen.findByLabelText("Senha");
 
     fireEvent.change(loginInput, { target: { value: "admin" } });
-    fireEvent.change(passwordInput, { target: { value: "admin" } });
+    fireEvent.change(passwordInput, { target: { value: "wrong" } });
     fireEvent.submit(passwordInput.closest("form") as HTMLFormElement);
 
     await waitFor(() => {
-      expect(mockedApi.login).toHaveBeenCalledWith("admin", "admin", "user");
+      expect(mockedApi.login).toHaveBeenCalledWith("admin", "wrong");
     });
-    expect(await screen.findByText("Use /login para acesso de usuario")).toBeInTheDocument();
-    expect(mockedApi.logout).not.toHaveBeenCalled();
-    expect(screen.queryByText("Console Administrativo")).toBeNull();
-  });
-
-  it("faz logout compensatorio se receber usuario com role divergente", async () => {
-    const adminUser = {
-      id: 1,
-      login: "admin",
-      name: "Administrador",
-      role: "admin" as const
-    };
-
-    window.history.replaceState({}, "", "/login");
-    mockedApi.login.mockResolvedValueOnce({ user: adminUser });
-    mockedApi.logout.mockResolvedValueOnce(undefined);
-
-    render(<App />);
-
-    await waitFor(() => expect(mockedApi.me).toHaveBeenCalledTimes(1));
-
-    const loginInput = await screen.findByLabelText("Login");
-    const passwordInput = await screen.findByLabelText("Senha");
-
-    fireEvent.change(loginInput, { target: { value: "admin" } });
-    fireEvent.change(passwordInput, { target: { value: "admin" } });
-    fireEvent.submit(passwordInput.closest("form") as HTMLFormElement);
-
-    await waitFor(() => {
-      expect(mockedApi.login).toHaveBeenCalledWith("admin", "admin", "user");
-    });
-    await waitFor(() => {
-      expect(mockedApi.logout).toHaveBeenCalledTimes(1);
-    });
-    await waitFor(() => {
-      expect(screen.getByText("Use /admin/login para acesso administrativo")).toBeInTheDocument();
-    });
-    expect(screen.queryByText("AdminDashboardMock")).toBeNull();
+    expect(await screen.findByText("Credenciais invalidas")).toBeInTheDocument();
   });
 
   it("renderiza painel de tarefas em /tasks para usuario autenticado", async () => {

@@ -97,7 +97,7 @@ export const AdminAuditPanel = ({
       <section className="rounded-[1.25rem] bg-panelAlt/70 p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">
+            <span className="text-xs font-medium uppercase tracking-wider text-textMuted">
               Tipo de evento
             </span>
             <input
@@ -124,7 +124,7 @@ export const AdminAuditPanel = ({
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">De</span>
+            <span className="text-xs font-medium uppercase tracking-wider text-textMuted">De</span>
             <input
               className="input"
               type="date"
@@ -134,7 +134,7 @@ export const AdminAuditPanel = ({
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">Ate</span>
+            <span className="text-xs font-medium uppercase tracking-wider text-textMuted">Ate</span>
             <input
               className="input"
               type="date"
@@ -144,7 +144,7 @@ export const AdminAuditPanel = ({
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-xs font-medium uppercase tracking-[0.18em] text-textMuted">Limite</span>
+            <span className="text-xs font-medium uppercase tracking-wider text-textMuted">Limite</span>
             <select
               className="input"
               value={auditFilters.limit}
@@ -285,17 +285,17 @@ export const AdminAuditPanel = ({
 
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               <div className="rounded-lg bg-panel/80 p-2.5">
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">
+                <p className="text-xs uppercase tracking-wider text-textMuted">
                   {AUDIT_LABELS.category}
                 </p>
                 <p className="mt-1 text-sm text-textMain">{getAuditCategory(event.event_type).label}</p>
               </div>
               <div className="rounded-lg bg-panel/80 p-2.5">
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">{AUDIT_LABELS.actor}</p>
+                <p className="text-xs uppercase tracking-wider text-textMuted">{AUDIT_LABELS.actor}</p>
                 <p className="mt-1 text-sm text-textMain">{formatAuditActor(event.actor)}</p>
               </div>
               <div className="rounded-lg bg-panel/80 p-2.5">
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">{AUDIT_LABELS.target}</p>
+                <p className="text-xs uppercase tracking-wider text-textMuted">{AUDIT_LABELS.target}</p>
                 <p className="mt-1 text-sm text-textMain">
                   {formatAuditTargetType(event.target_type)} #{event.target_id ?? "-"}
                 </p>
@@ -303,7 +303,7 @@ export const AdminAuditPanel = ({
             </div>
 
             <div className="mt-2 rounded-lg bg-panel/80 p-2.5">
-              <p className="text-xs uppercase tracking-[0.18em] text-textMuted">{AUDIT_LABELS.details}</p>
+              <p className="text-xs uppercase tracking-wider text-textMuted">{AUDIT_LABELS.details}</p>
               <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
             </div>
           </div>

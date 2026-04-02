@@ -79,7 +79,7 @@ export const KmlPostePage = ({ onError, onToast }: KmlPostePageProps) => {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-[1.5rem] bg-panel p-5 shadow-glow">
+      <div className="rounded-[1.5rem] bg-panel p-5 shadow-sm">
         <div className="mb-4">
           <h2 className="font-display text-xl text-textMain">Padronizador de postes KML/KMZ</h2>
           <p className="mt-1 text-sm text-textMuted">
@@ -205,32 +205,32 @@ export const KmlPostePage = ({ onError, onToast }: KmlPostePageProps) => {
         <>
           <div className="grid gap-4 md:grid-cols-4">
             <div className="rounded-[1.5rem] bg-panel p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Renomeados</p>
+              <p className="text-xs uppercase tracking-widest text-textMuted">Renomeados</p>
               <p className="mt-2 text-2xl font-semibold text-textMain">
                 {result.summary.renamedCount}
               </p>
             </div>
             <div className="rounded-[1.5rem] bg-panel p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Ignorados</p>
+              <p className="text-xs uppercase tracking-widest text-textMuted">Ignorados</p>
               <p className="mt-2 text-2xl font-semibold text-textMain">
                 {result.summary.ignoredCount}
               </p>
             </div>
             <div className="rounded-[1.5rem] bg-panel p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Pulados</p>
+              <p className="text-xs uppercase tracking-widest text-textMuted">Pulados</p>
               <p className="mt-2 text-2xl font-semibold text-textMain">
                 {result.summary.skippedCount}
               </p>
             </div>
             <div className="rounded-[1.5rem] bg-panel p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-textMuted">Pontos</p>
+              <p className="text-xs uppercase tracking-widest text-textMuted">Pontos</p>
               <p className="mt-2 text-2xl font-semibold text-textMain">
                 {result.summary.totalPointPlacemarkCount}
               </p>
             </div>
           </div>
 
-          <div className="rounded-[1.5rem] bg-panel p-5 shadow-glow">
+          <div className="rounded-[1.5rem] bg-panel p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-display text-lg text-textMain">Previa das renomeacoes</h3>

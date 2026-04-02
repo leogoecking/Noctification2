@@ -63,7 +63,7 @@ export const TaskDetailSheet = ({
         <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-accent">Detalhe da tarefa</p>
+              <p className="text-xs uppercase tracking-wider text-accent">Detalhe da tarefa</p>
               <h4 className="mt-1 font-display text-lg text-textMain">{selectedTask.title}</h4>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -90,24 +90,24 @@ export const TaskDetailSheet = ({
 
           <div className="rounded-2xl bg-panelAlt/70 p-4">
             <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,120px),1fr]">
-              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Responsavel</dt>
+              <dt className="text-xs uppercase tracking-wider text-textMuted">Responsavel</dt>
               <dd className="text-sm text-textMain">{selectedTask.assigneeName || "Nao atribuido"}</dd>
-              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Criada por</dt>
+              <dt className="text-xs uppercase tracking-wider text-textMuted">Criada por</dt>
               <dd className="text-sm text-textMain">{selectedTask.creatorName || "-"}</dd>
-              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Prazo</dt>
+              <dt className="text-xs uppercase tracking-wider text-textMuted">Prazo</dt>
               <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.dueAt)}</dd>
-              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">SLA</dt>
+              <dt className="text-xs uppercase tracking-wider text-textMuted">SLA</dt>
               <dd className="text-sm text-textMain">
                 <span className={`rounded-full px-2.5 py-1 text-[11px] ${taskSla.badgeClassName}`}>
                   {taskSla.label}
                 </span>
                 <span className="ml-2 text-textMuted">{taskSla.detail}</span>
               </dd>
-              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Recorrencia</dt>
+              <dt className="text-xs uppercase tracking-wider text-textMuted">Recorrencia</dt>
               <dd className="text-sm text-textMain">
                 {buildTaskRecurrenceSummary(selectedTask.repeatType, selectedTask.repeatWeekdays)}
               </dd>
-              <dt className="text-xs uppercase tracking-[0.18em] text-textMuted">Atualizada em</dt>
+              <dt className="text-xs uppercase tracking-wider text-textMuted">Atualizada em</dt>
               <dd className="text-sm text-textMain">{formatTaskDateTime(selectedTask.updatedAt)}</dd>
             </dl>
           </div>
@@ -115,7 +115,7 @@ export const TaskDetailSheet = ({
           {selectedTask.status !== "done" && selectedTask.status !== "cancelled" && (
             <div className="space-y-3 rounded-[1.25rem] bg-panelAlt p-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Acao principal</p>
+                <p className="text-xs uppercase tracking-wider text-textMuted">Acao principal</p>
                 <p className="mt-1 text-sm text-textMuted">
                   O kanban concentra mudancas de status. No detalhe ficam apenas as acoes de manutencao.
                 </p>
@@ -142,7 +142,7 @@ export const TaskDetailSheet = ({
           <div className="space-y-2">
             <div className="rounded-[1.25rem] bg-panelAlt p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-[0.18em] text-textMuted">Comentarios</p>
+                <p className="text-xs uppercase tracking-wider text-textMuted">Comentarios</p>
                 {commentSaving && <span className="text-[11px] text-textMuted">Enviando...</span>}
               </div>
               <textarea
@@ -162,7 +162,7 @@ export const TaskDetailSheet = ({
 
           <details className="rounded-[1.25rem] bg-panelAlt p-4" open>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-              <span className="text-xs uppercase tracking-[0.18em] text-textMuted">Historico da tarefa</span>
+              <span className="text-xs uppercase tracking-wider text-textMuted">Historico da tarefa</span>
               {detailLoading && <span className="text-[11px] text-textMuted">Atualizando...</span>}
             </summary>
             <div className="mt-3 space-y-2">

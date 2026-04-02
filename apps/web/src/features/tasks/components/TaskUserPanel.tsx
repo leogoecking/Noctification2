@@ -238,7 +238,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
       <div className="fixed bottom-8 right-8 z-20">
         <button
           aria-label="Nova tarefa"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-glow transition hover:scale-[1.02]"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-sm transition hover:scale-[1.02]"
           onClick={openCreateTask}
           type="button"
         >
@@ -262,7 +262,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-accent">Kanban</p>
+                  <p className="text-xs uppercase tracking-wider text-accent">Kanban</p>
                   <h4 className="mt-1 font-display text-lg text-textMain">
                     {form.id > 0 ? "Editar tarefa" : "Nova tarefa"}
                   </h4>

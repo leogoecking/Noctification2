@@ -97,11 +97,11 @@ export const ReminderComposer = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end bg-slate-950/55 p-4 backdrop-blur-sm sm:items-center sm:p-6">
-      <div className="w-full max-w-2xl overflow-hidden rounded-[1.5rem] border border-outlineSoft bg-panel shadow-glow">
+      <div className="w-full max-w-2xl overflow-hidden rounded-[1.5rem] border border-outlineSoft bg-panel shadow-sm">
         <article className="max-h-[92vh] overflow-y-auto p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">Novo lembrete</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-textMuted">Novo lembrete</p>
               <h4 className="mt-1 font-display text-base text-textMain">
                 {form.id ? "Editar nota operacional" : "Nova nota operacional"}
               </h4>
@@ -381,7 +381,7 @@ export const ReminderComposer = ({
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs uppercase tracking-[0.18em] text-textMuted">Cor</span>
+                <span className="text-xs uppercase tracking-wider text-textMuted">Cor</span>
                 <div className="flex gap-2">
                   {colorOptions.map((color) => (
                     <button

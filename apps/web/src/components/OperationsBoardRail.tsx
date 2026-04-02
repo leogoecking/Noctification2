@@ -962,7 +962,7 @@ export const OperationsBoardRail = ({
   return (
     <>
       <article
-        className="rounded-[1.5rem] border border-outlineSoft/70 bg-panel p-5 shadow-glow"
+        className="rounded-[1.5rem] border border-outlineSoft/70 bg-panel p-5 shadow-sm"
         data-testid="operations-board-rail"
       >
         <div
@@ -1111,10 +1111,10 @@ export const OperationsBoardRail = ({
 
       {selected ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-glow">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-textMuted">
+                <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
                   Mural operacional
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
@@ -1192,7 +1192,7 @@ export const OperationsBoardRail = ({
                 </div>
 
                 <div className="mt-4 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-textMuted">Timeline</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-textMuted">Timeline</p>
                   {timeline.map((event) => (
                     <div key={event.id} className="rounded-xl bg-panelAlt p-3">
                       <div className="flex items-center justify-between gap-3">
@@ -1201,7 +1201,7 @@ export const OperationsBoardRail = ({
                         </p>
                         <span className="text-[11px] text-textMuted">{formatDate(event.createdAt)}</span>
                       </div>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-textMuted">
+                      <p className="mt-1 text-xs uppercase tracking-wider text-textMuted">
                         {buildTimelineLabels[event.eventType] ?? event.eventType}
                       </p>
                       {event.body ? (

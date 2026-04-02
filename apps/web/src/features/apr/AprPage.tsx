@@ -66,7 +66,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
       <header className="rounded-[1.5rem] bg-panel p-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
               APR module
             </p>
             <h2 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-textMain">
@@ -99,7 +99,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
       <section className="space-y-4">
         <div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
               Operacao manual
             </p>
             <h3 className="mt-2 font-display text-2xl text-textMain">Base manual</h3>
@@ -136,7 +136,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
       <section className="space-y-4">
         <div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
               Conferencia
             </p>
             <h3 className="mt-2 font-display text-2xl text-textMain">Divergencias e historico</h3>
@@ -170,7 +170,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
 
       <section className="space-y-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
             Colaboradores
           </p>
           <h3 className="mt-2 font-display text-2xl text-textMain">Leitura por colaborador</h3>
