@@ -504,17 +504,27 @@ interface AppToastStackProps {
 }
 
 export const AppToastStack = ({ toasts }: AppToastStackProps) => (
-  <aside className="fixed bottom-4 right-4 z-50 space-y-2">
+  <aside aria-label="Notificações do sistema" aria-live="polite" className="fixed bottom-4 right-4 z-50 space-y-2">
     {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={`w-80 animate-rise-in rounded-xl border px-4 py-3 text-sm shadow-lg ${
+      <div
+        key={toast.id}
+        role="alert"
+        className={`flex w-80 animate-rise-in items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md ${
           toast.tone === "ok"
             ? "border-success/25 bg-success/12 text-textMain"
             : "border-danger/25 bg-danger/12 text-textMain"
         }`}
       >
-        {toast.message}
+        {toast.tone === "ok" ? (
+          <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-success" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        ) : (
+          <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-danger" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+        )}
+        <span>{toast.message}</span>
       </div>
     ))}
   </aside>
