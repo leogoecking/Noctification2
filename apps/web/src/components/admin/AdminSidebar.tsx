@@ -1,4 +1,5 @@
 import type { AdminMenu } from "./types";
+import { useHoverExpandableSidebar } from "../../hooks/useHoverExpandableSidebar";
 
 interface AdminSidebarProps {
   menu: AdminMenu;
@@ -30,6 +31,39 @@ const menuButtonClass = (active: boolean): string => {
 
 const sidebarSectionTitleClass =
   "px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-textMuted/80";
+
+const getSidebarDesktopStateClass = (isExpanded: boolean): string =>
+  isExpanded
+    ? "lg:w-64 lg:px-4"
+    : "lg:w-20 lg:px-3";
+
+const getSidebarTextClass = (isExpanded: boolean): string =>
+  isExpanded
+    ? "min-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 lg:max-w-[12rem] lg:opacity-100"
+    : "min-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 lg:max-w-0 lg:opacity-0";
+
+const getSidebarSectionTitleVisibilityClass = (isExpanded: boolean): string =>
+  isExpanded ? "lg:opacity-100" : "lg:opacity-0";
+
+const SidebarTooltip = ({ isExpanded, label }: { isExpanded: boolean; label: string }) =>
+  isExpanded ? null : (
+    <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-20 hidden -translate-y-1/2 rounded-xl border border-outlineSoft/80 bg-panel px-3 py-2 text-[11px] font-semibold normal-case tracking-normal text-textMain shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 lg:block lg:opacity-0">
+      {label}
+    </span>
+  );
+
+const IconPin = ({ pinned }: { pinned: boolean }) => (
+  <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
+    <path
+      d={
+        pinned
+          ? "M15 3v4l3 3v2h-5v7l-1 2-1-2v-7H6v-2l3-3V3z"
+          : "M15 3v4l3 3v2h-5v7l-1 2-1-2v-7H6v-2l3-3V3z"
+      }
+      fill="currentColor"
+    />
+  </svg>
+);
 
 const IconDashboard = () => (
   <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
@@ -112,6 +146,15 @@ const IconMapPin = () => (
   </svg>
 );
 
+const IconLogout = () => (
+  <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+    <path
+      d="M10 17l1.4-1.4L9.8 14H18v-2H9.8l1.6-1.6L10 9l-4 4zm-5 4h7v-2H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 export const AdminSidebar = ({
   menu,
   onSelect,
@@ -124,6 +167,10 @@ export const AdminSidebar = ({
   onOpenDashboard,
   onLogout
 }: AdminSidebarProps) => {
+  const { isExpanded, isPinned, onMouseEnter, onMouseLeave, togglePinned } =
+    useHoverExpandableSidebar({
+      storageKey: "noctification-admin-sidebar-pinned"
+    });
   const mainItems = [
     { menu: "dashboard" as const, label: "Dashboard", ariaLabel: "Dashboard", icon: <IconDashboard /> },
     {
@@ -158,37 +205,66 @@ export const AdminSidebar = ({
   ];
 
   return (
-    <aside className="rounded-[1.75rem] bg-panelAlt p-4 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col">
+    <aside
+      className={`rounded-[1.75rem] bg-panelAlt p-4 transition-[width,padding] duration-200 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col ${getSidebarDesktopStateClass(
+        isExpanded
+      )}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <div className="mb-6 px-2">
         <div className="mb-5 flex items-center justify-between gap-3">
           <SidebarLogo />
-          <div
-            aria-label="Administracao"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-panel text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
-          >
-            A
+          <div className="flex items-center gap-2">
+            <button
+              aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+              className="hidden h-10 w-10 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
+              onClick={togglePinned}
+              title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+              type="button"
+            >
+              <IconPin pinned={isPinned} />
+            </button>
+            <div
+              aria-label="Administracao"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-panel text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
+            >
+              A
+            </div>
           </div>
         </div>
         <div className="mb-2 flex items-center gap-3">
           <div>
-            <p className="font-bold text-textMain">Operations</p>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">Precision Orchestrator</p>
+            <p className={`font-bold text-textMain ${getSidebarTextClass(isExpanded)}`}>Operations</p>
+            <p
+              className={`text-[10px] uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(
+                isExpanded
+              )}`}
+            >
+              Precision Orchestrator
+            </p>
           </div>
         </div>
       </div>
 
       <nav className="flex-1 space-y-5 px-2">
         <div className="space-y-2">
-          <p className={sidebarSectionTitleClass}>Principal</p>
+          <p
+            className={`${sidebarSectionTitleClass} transition-opacity duration-200 ${getSidebarSectionTitleVisibilityClass(
+              isExpanded
+            )}`}
+          >
+            Principal
+          </p>
           <div className="space-y-1">
             {mainItems.map((item) => (
               <button
                 aria-label={item.ariaLabel}
-                className={menuButtonClass(
+                className={`${menuButtonClass(
                   item.menu === "dashboard"
                     ? !aprActive && !kmlPosteActive && menu === "dashboard"
                     : menu === item.menu
-                )}
+                )} group relative`}
                 key={item.menu}
                 onClick={() => {
                   if (item.menu === "dashboard" && onOpenDashboard) {
@@ -197,54 +273,68 @@ export const AdminSidebar = ({
                   }
                   onSelect(item.menu);
                 }}
+                title={!isExpanded ? item.label : undefined}
                 type="button"
               >
-                <span className="text-textMain">{item.icon}</span>
-                {item.label}
+                <span className="shrink-0 text-textMain">{item.icon}</span>
+                <span className={getSidebarTextClass(isExpanded)}>{item.label}</span>
+                <SidebarTooltip isExpanded={isExpanded} label={item.label} />
               </button>
             ))}
             {aprEnabled && onOpenApr ? (
               <button
                 aria-label="APR"
-                className={menuButtonClass(aprActive)}
+                className={`${menuButtonClass(aprActive)} group relative`}
                 onClick={onOpenApr}
+                title={!isExpanded ? "APR" : undefined}
                 type="button"
               >
-                <span className="text-textMain">
+                <span className="shrink-0 text-textMain">
                   <IconApr />
                 </span>
-                APR
+                <span className={getSidebarTextClass(isExpanded)}>APR</span>
+                <SidebarTooltip isExpanded={isExpanded} label="APR" />
               </button>
             ) : null}
             {kmlPosteEnabled && onOpenKmlPostes ? (
               <button
                 aria-label="KML/KMZ"
-                className={menuButtonClass(kmlPosteActive)}
+                className={`${menuButtonClass(kmlPosteActive)} group relative`}
                 onClick={onOpenKmlPostes}
+                title={!isExpanded ? "KML/KMZ" : undefined}
                 type="button"
               >
-                <span className="text-textMain">
+                <span className="shrink-0 text-textMain">
                   <IconMapPin />
                 </span>
-                KML/KMZ
+                <span className={getSidebarTextClass(isExpanded)}>KML/KMZ</span>
+                <SidebarTooltip isExpanded={isExpanded} label="KML/KMZ" />
               </button>
             ) : null}
           </div>
         </div>
 
         <div className="space-y-2">
-          <p className={sidebarSectionTitleClass}>Operacao</p>
+          <p
+            className={`${sidebarSectionTitleClass} transition-opacity duration-200 ${getSidebarSectionTitleVisibilityClass(
+              isExpanded
+            )}`}
+          >
+            Operacao
+          </p>
           <div className="space-y-1">
             {managementItems.map((item) => (
               <button
                 aria-label={item.ariaLabel}
-                className={menuButtonClass(menu === item.menu)}
+                className={`${menuButtonClass(menu === item.menu)} group relative`}
                 key={item.menu}
                 onClick={() => onSelect(item.menu)}
+                title={!isExpanded ? item.label : undefined}
                 type="button"
               >
-                <span className="text-textMain">{item.icon}</span>
-                {item.label}
+                <span className="shrink-0 text-textMain">{item.icon}</span>
+                <span className={getSidebarTextClass(isExpanded)}>{item.label}</span>
+                <SidebarTooltip isExpanded={isExpanded} label={item.label} />
               </button>
             ))}
           </div>
@@ -252,16 +342,34 @@ export const AdminSidebar = ({
       </nav>
 
       <div className="mt-6 rounded-2xl bg-panel p-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Workspace</p>
-        <p className="mt-2 text-sm font-semibold text-textMain">Administracao</p>
-        <p className="text-xs uppercase tracking-[0.16em] text-textMuted">Console interno</p>
+        {isExpanded ? (
+          <>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">Workspace</p>
+            <p className="mt-2 text-sm font-semibold text-textMain">Administracao</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-textMuted">Console interno</p>
+          </>
+        ) : (
+          <div className="hidden items-center justify-center lg:flex">
+            <div
+              aria-label="Workspace administrativo"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-panelAlt text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
+            >
+              A
+            </div>
+          </div>
+        )}
         {onLogout ? (
           <button
-            className="mt-4 w-full rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm font-semibold text-textMain"
+            className="group relative mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2 text-sm font-semibold text-textMain"
             onClick={onLogout}
+            title={!isExpanded ? "Sair" : undefined}
             type="button"
           >
-            Sair
+            <span className="shrink-0 text-textMain">
+              <IconLogout />
+            </span>
+            <span className={getSidebarTextClass(isExpanded)}>Sair</span>
+            <SidebarTooltip isExpanded={isExpanded} label="Sair" />
           </button>
         ) : null}
       </div>

@@ -63,10 +63,8 @@ export interface UseAprPageControllerResult {
   setAuditSearch: React.Dispatch<React.SetStateAction<string>>;
   historySearch: string;
   setHistorySearch: React.Dispatch<React.SetStateAction<string>>;
-  importSource: AprSourceType;
-  setImportSource: React.Dispatch<React.SetStateAction<AprSourceType>>;
-  importFile: File | null;
-  setImportFile: React.Dispatch<React.SetStateAction<File | null>>;
+  importFiles: Record<AprSourceType, File | null>;
+  setImportFileForSource: (source: AprSourceType, file: File | null) => void;
   importResult: AprImportResult | null;
   loadingMonths: boolean;
   loadingMonthData: boolean;
@@ -87,7 +85,7 @@ export interface UseAprPageControllerResult {
   startEditManual: (row: AprRow) => void;
   saveManual: () => Promise<void>;
   removeManual: (row: AprRow) => Promise<void>;
-  submitImport: () => Promise<void>;
+  submitImport: (source: AprSourceType) => Promise<void>;
   exportAuditPdf: () => void;
 }
 
@@ -104,8 +102,10 @@ export const useAprPageController = ({
   const [manualSearch, setManualSearch] = useState("");
   const [auditSearch, setAuditSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
-  const [importSource, setImportSource] = useState<AprSourceType>("manual");
-  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importFiles, setImportFiles] = useState<Record<AprSourceType, File | null>>({
+    manual: null,
+    system: null
+  });
   const [importResult, setImportResult] = useState<AprImportResult | null>(null);
   const [loadingMonths, setLoadingMonths] = useState(true);
   const [savingManual, setSavingManual] = useState(false);
@@ -217,8 +217,17 @@ export const useAprPageController = ({
     [manualForm.id, onError, onToast, refreshAfterMutation, resetManualForm, selectedMonth]
   );
 
-  const submitImport = useCallback(async () => {
-    if (!importFile) {
+  const setImportFileForSource = useCallback((source: AprSourceType, file: File | null) => {
+    setImportFiles((current) => ({
+      ...current,
+      [source]: file
+    }));
+  }, []);
+
+  const submitImport = useCallback(async (source: AprSourceType) => {
+    const file = importFiles[source];
+
+    if (!file) {
       onError("Selecione um arquivo para importar");
       return;
     }
@@ -226,9 +235,12 @@ export const useAprPageController = ({
     setUploading(true);
 
     try {
-      const response = await aprApi.importRows(importSource, importFile, selectedMonth);
+      const response = await aprApi.importRows(source, file, selectedMonth);
       setImportResult(response);
-      setImportFile(null);
+      setImportFiles((current) => ({
+        ...current,
+        [source]: null
+      }));
       await refreshAfterMutation(response.monthRef);
       onToast("Importacao APR concluida");
     } catch (error) {
@@ -236,7 +248,7 @@ export const useAprPageController = ({
     } finally {
       setUploading(false);
     }
-  }, [importFile, importSource, onError, onToast, refreshAfterMutation, selectedMonth]);
+  }, [importFiles, onError, onToast, refreshAfterMutation, selectedMonth]);
 
   const collaboratorRiskBars = useMemo(
     () => buildAprCollaboratorRiskBars(manualRows, audit, history),
@@ -326,10 +338,8 @@ export const useAprPageController = ({
     setAuditSearch,
     historySearch,
     setHistorySearch,
-    importSource,
-    setImportSource,
-    importFile,
-    setImportFile,
+    importFiles,
+    setImportFileForSource,
     importResult,
     loadingMonths,
     loadingMonthData,

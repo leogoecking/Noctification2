@@ -6,6 +6,7 @@ import { AprPage } from "../../features/apr/AprPage";
 import { KmlPostePage } from "../../features/kml-postes/KmlPostePage";
 import { TaskUserPanel } from "../../features/tasks";
 import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "../../lib/featureFlags";
+import { useHoverExpandableSidebar } from "../../hooks/useHoverExpandableSidebar";
 import type { AuthUser } from "../../types";
 
 export type AppPath =
@@ -311,6 +312,36 @@ const USER_NAV_ITEMS: Array<{ title: string; items: UserNavItem[] }> = [
 const sidebarSectionTitleClass =
   "px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-textMuted/80";
 
+const getSidebarDesktopStateClass = (isExpanded: boolean): string =>
+  isExpanded
+    ? "lg:w-64 lg:px-4"
+    : "lg:w-20 lg:px-3";
+
+const getSidebarTextClass = (isExpanded: boolean): string =>
+  isExpanded
+    ? "min-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 lg:max-w-[12rem] lg:opacity-100"
+    : "min-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 lg:max-w-0 lg:opacity-0";
+
+const getSidebarSectionTitleVisibilityClass = (isExpanded: boolean): string =>
+  isExpanded ? "lg:opacity-100" : "lg:opacity-0";
+
+const SidebarTooltip = ({ isExpanded, label }: { isExpanded: boolean; label: string }) =>
+  isExpanded ? null : (
+    <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-20 hidden -translate-y-1/2 rounded-xl border border-outlineSoft/80 bg-panel px-3 py-2 text-[11px] font-semibold normal-case tracking-normal text-textMain shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 lg:block lg:opacity-0">
+      {label}
+    </span>
+  );
+
+const IconPin = ({ pinned }: { pinned: boolean }) => (
+  <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
+    <path
+      d="M15 3v4l3 3v2h-5v7l-1 2-1-2v-7H6v-2l3-3V3z"
+      fill="currentColor"
+    />
+    {pinned ? <circle cx="18" cy="6" fill="currentColor" r="2.2" /> : null}
+  </svg>
+);
+
 const userMenuButtonClass = (active: boolean): string =>
   `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-xs font-medium uppercase tracking-[0.12em] transition ${
     active
@@ -325,6 +356,10 @@ export const UserWorkspace = ({
   onError,
   onToast
 }: UserWorkspaceProps) => {
+  const { isExpanded, isPinned, onMouseEnter, onMouseLeave, togglePinned } =
+    useHoverExpandableSidebar({
+      storageKey: "noctification-user-sidebar-pinned"
+    });
   const aprModuleEnabled = isAprModuleEnabled();
   const kmlPosteModuleEnabled = isKmlPosteModuleEnabled();
   const operationItems: UserNavItem[] = [];
@@ -350,22 +385,39 @@ export const UserWorkspace = ({
   const userInitial = currentUser.name.trim().charAt(0).toUpperCase() || "U";
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[15rem,1fr]">
-      <aside className="hidden rounded-[1.75rem] bg-panelAlt p-4 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col">
+    <section className="grid gap-6 lg:grid-cols-[max-content,1fr]">
+      <aside
+        className={`hidden rounded-[1.75rem] bg-panelAlt p-4 transition-[width,padding] duration-200 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col ${getSidebarDesktopStateClass(
+          isExpanded
+        )}`}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
         <div className="mb-6 px-2">
           <div className="mb-5 flex items-center justify-between gap-3">
             <SidebarLogo />
-            <div
-              aria-label={currentUser.name}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-panel text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
-            >
-              {userInitial}
+            <div className="flex items-center gap-2">
+              <button
+                aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+                className="hidden h-10 w-10 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
+                onClick={togglePinned}
+                title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
+                type="button"
+              >
+                <IconPin pinned={isPinned} />
+              </button>
+              <div
+                aria-label={currentUser.name}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-panel text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
+              >
+                {userInitial}
+              </div>
             </div>
           </div>
           <div className="mb-2 flex items-center gap-3">
             <div>
-              <p className="font-bold text-textMain">Operations</p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-textMuted">
+              <p className={`font-bold text-textMain ${getSidebarTextClass(isExpanded)}`}>Operations</p>
+              <p className={`text-[10px] uppercase tracking-[0.18em] text-textMuted ${getSidebarTextClass(isExpanded)}`}>
                 Precision Orchestrator
               </p>
             </div>
@@ -375,18 +427,26 @@ export const UserWorkspace = ({
         <nav className="flex-1 space-y-5 px-2">
           {navigationSections.map((section) => (
             <div key={section.title} className="space-y-2">
-              <p className={sidebarSectionTitleClass}>{section.title}</p>
+              <p
+                className={`${sidebarSectionTitleClass} transition-opacity duration-200 ${getSidebarSectionTitleVisibilityClass(
+                  isExpanded
+                )}`}
+              >
+                {section.title}
+              </p>
               <div className="space-y-1">
                 {section.items.map((item) => (
                   <button
                     aria-label={item.label}
                     key={item.path}
-                    className={userMenuButtonClass(currentPath === item.path)}
+                    className={`${userMenuButtonClass(currentPath === item.path)} group relative`}
                     onClick={() => onNavigate(item.path)}
+                    title={!isExpanded ? item.label : undefined}
                     type="button"
                   >
-                    <span className="text-textMain">{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span className="shrink-0 text-textMain">{item.icon}</span>
+                    <span className={getSidebarTextClass(isExpanded)}>{item.label}</span>
+                    <SidebarTooltip isExpanded={isExpanded} label={item.label} />
                   </button>
                 ))}
               </div>
@@ -395,11 +455,24 @@ export const UserWorkspace = ({
         </nav>
 
         <div className="mt-6 rounded-2xl bg-panel p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
-            Workspace
-          </p>
-          <p className="mt-2 text-sm font-semibold text-textMain">{currentUser.name}</p>
-          <p className="text-xs uppercase tracking-[0.16em] text-textMuted">{currentUser.role}</p>
+          {isExpanded ? (
+            <>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textMuted">
+                Workspace
+              </p>
+              <p className="mt-2 text-sm font-semibold text-textMain">{currentUser.name}</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-textMuted">{currentUser.role}</p>
+            </>
+          ) : (
+            <div className="hidden items-center justify-center lg:flex">
+              <div
+                aria-label={currentUser.name}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-panelAlt text-sm font-bold text-textMain ring-1 ring-outlineSoft/70"
+              >
+                {userInitial}
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 

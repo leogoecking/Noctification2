@@ -195,7 +195,7 @@ export const AdminDashboard = ({
 
   return (
     <section className="animate-fade-in">
-      <div className="grid gap-6 lg:grid-cols-[15rem,1fr]">
+      <div className="grid gap-6 lg:grid-cols-[max-content,1fr]">
         <AdminSidebar
           aprActive={isAprPage}
           aprEnabled={aprModuleEnabled}

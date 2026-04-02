@@ -263,10 +263,10 @@ describe("AprPage", () => {
       type: "text/csv"
     });
 
-    fireEvent.change(screen.getByLabelText("Arquivo"), {
+    fireEvent.change(screen.getByLabelText("Arquivo manual"), {
       target: { files: [file] }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Importar arquivo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Importar manual" }));
 
     await waitFor(() => expect(mockedAprApi.importRows).toHaveBeenCalledWith("manual", file, "2026-03"));
     expect(onToast).toHaveBeenCalledWith("Importacao APR concluida");
