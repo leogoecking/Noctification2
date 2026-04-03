@@ -55,6 +55,23 @@ interface TaskBoardProps {
   showHeaderMetaBadge?: boolean;
 }
 
+const COLUMN_STATUS_DOT: Record<TaskStatus, string> = {
+  new: "bg-accent",
+  assumed: "bg-sky-400",
+  in_progress: "bg-warning",
+  blocked: "bg-danger",
+  waiting_external: "bg-textMuted",
+  done: "bg-success",
+  cancelled: "bg-danger"
+};
+
+const PRIORITY_CARD_BORDER: Record<string, string> = {
+  low: "border-l-outlineSoft/40",
+  normal: "border-l-accent",
+  high: "border-l-warning",
+  critical: "border-l-danger"
+};
+
 export const TaskBoard = ({
   headerTitle,
   headerDescription,
@@ -113,7 +130,7 @@ export const TaskBoard = ({
   };
 
   return (
-    <article className="rounded-[1.5rem] bg-panel p-5 shadow-sm">
+    <article className="rounded-[1.5rem] border border-outlineSoft/70 bg-panel p-5 shadow-sm">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-textMuted">{headerEyebrow}</p>
@@ -136,7 +153,7 @@ export const TaskBoard = ({
         </div>
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-[1rem] bg-panelAlt/80 p-3">
+      <div className="mb-5 flex flex-wrap items-center gap-2">
         <button
           aria-label="Atualizar tarefas"
           className="flex h-10 w-10 items-center justify-center rounded-lg border border-outlineSoft bg-panel text-textMain"
@@ -161,12 +178,12 @@ export const TaskBoard = ({
         <p className="text-sm text-textMuted">{emptyMessage}</p>
       )}
 
-      <div className="flex gap-6 overflow-x-auto pb-2">
+      <div className="flex gap-4 overflow-x-auto pb-2">
         {boardColumns.map((column) => (
           <section
             key={column.status}
             aria-label={`Coluna ${column.label}`}
-            className={`min-h-40 min-w-[320px] flex-1 rounded-[1.25rem] p-4 ${
+            className={`min-h-40 min-w-[220px] flex-1 rounded-[1.25rem] p-4 ${
               isBoardDropTargetStatus(column.status) && dragTaskId !== null
                 ? "bg-accent/5 ring-1 ring-accent/30"
                 : "bg-panelAlt/80"
@@ -180,9 +197,12 @@ export const TaskBoard = ({
             onDrop={(event) => handleColumnDrop(event, column.status)}
           >
             <div className="mb-4 flex items-center justify-between gap-2">
-              <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[column.status]}`}>
-                {column.label}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${COLUMN_STATUS_DOT[column.status]}`} />
+                <span className={`rounded-full px-2.5 py-1 text-[11px] ${TASK_STATUS_BADGES[column.status]}`}>
+                  {column.label}
+                </span>
+              </div>
               <span className="rounded-full bg-panel px-2.5 py-1 text-xs text-textMuted">
                 {column.tasks.length}
               </span>
@@ -199,10 +219,10 @@ export const TaskBoard = ({
                 <div
                   key={task.id}
                   aria-label={`Abrir tarefa ${task.title}`}
-                  className={`w-full cursor-pointer rounded-xl border p-3 text-left transition ${
+                  className={`w-full cursor-pointer rounded-xl border-l-[3px] border-t border-r border-b p-3 text-left transition ${
                     selectedTaskId === task.id
-                      ? "border-accent bg-accent/10"
-                      : "border-transparent bg-panel hover:bg-surfaceHigh"
+                      ? `${PRIORITY_CARD_BORDER[task.priority]} border-t-outlineSoft/40 border-r-outlineSoft/40 border-b-outlineSoft/40 ring-1 ring-accent/20 bg-accent/5`
+                      : `${PRIORITY_CARD_BORDER[task.priority]} border-t-outlineSoft/40 border-r-outlineSoft/40 border-b-outlineSoft/40 bg-panel hover:border-t-outlineSoft hover:border-r-outlineSoft hover:border-b-outlineSoft hover:bg-surfaceHigh`
                   }`}
                   draggable={isBoardMutableStatus(task.status)}
                   onClick={() => onOpenTask(task)}
@@ -230,17 +250,13 @@ export const TaskBoard = ({
                       <p className="min-w-0 flex-1 break-words text-sm font-medium text-textMain">{task.title}</p>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-1 text-xs ${TASK_PRIORITY_BADGES[task.priority]}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${TASK_PRIORITY_BADGES[task.priority]}`}
                     >
                       {TASK_PRIORITY_LABELS[task.priority]}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-textMuted">
-                    {metaRowRenderer ? metaRowRenderer(task) : <span>Prazo: {formatTaskDateTime(task.dueAt)}</span>}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-textMuted">
-                    <span>{selectedTaskId === task.id ? "Selecionada" : "Clique para abrir"}</span>
-                    {selectedTaskId === task.id && <span className="text-accent">Acoes no topo do board</span>}
+                    {metaRowRenderer ? metaRowRenderer(task) : <span>{formatTaskDateTime(task.dueAt)}</span>}
                   </div>
                 </div>
               ))}

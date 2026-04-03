@@ -48,7 +48,8 @@ export type OperationsBoardEventType =
   | "updated"
   | "commented"
   | "resolved"
-  | "reopened";
+  | "reopened"
+  | "viewed";
 
 export interface PaginationInfo {
   page: number;

@@ -1,7 +1,9 @@
 import { Router } from "express";
 import type Database from "better-sqlite3";
+import type { Server } from "socket.io";
 import type { AppConfig } from "../config";
 import { authenticate } from "../middleware/auth";
+import { emitBoardViewed } from "../socket";
 import {
   addBoardComment,
   createBoardMessage,
@@ -11,11 +13,13 @@ import {
   normalizeBoardMessage,
   parseOperationsBoardStatus,
   parseMuralCategory,
+  recordBoardView,
   updateBoardMessage
 } from "./operations-board-service";
 
 export const createOperationsBoardMeRouter = (
   db: Database.Database,
+  io: Server,
   config: AppConfig
 ): Router => {
   const router = Router();
@@ -37,6 +41,11 @@ export const createOperationsBoardMeRouter = (
   });
 
   router.get("/operations-board/:id", (req, res) => {
+    if (!req.authUser) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return;
+    }
+
     const messageId = Number(req.params.id);
     if (!Number.isInteger(messageId) || messageId <= 0) {
       res.status(400).json({ error: "ID invalido" });
@@ -47,6 +56,23 @@ export const createOperationsBoardMeRouter = (
     if (!message) {
       res.status(404).json({ error: "Recado nao encontrado" });
       return;
+    }
+
+    const viewResult = recordBoardView(db, {
+      message,
+      actorUserId: req.authUser.id,
+      actorName: req.authUser.name,
+      actorLogin: req.authUser.login
+    });
+
+    if (viewResult.recorded) {
+      emitBoardViewed(io, {
+        messageId: message.id,
+        actorUserId: viewResult.actorUserId,
+        actorName: viewResult.actorName,
+        actorLogin: viewResult.actorLogin,
+        viewedAt: viewResult.viewedAt
+      });
     }
 
     res.json({

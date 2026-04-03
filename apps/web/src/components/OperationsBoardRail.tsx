@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import type { MuralCategory, OperationsBoardEventItem, OperationsBoardMessageItem } from "../types";
+import { useOperationsBoardSocket } from "../hooks/useOperationsBoardSocket";
+import type { BoardViewedPayload } from "../hooks/useOperationsBoardSocket";
 
 interface OperationsBoardRailProps {
   currentUserName: string;
@@ -265,6 +267,17 @@ const buildReadChips = (
   }
 
   return chips;
+};
+
+const appendViewerChip = (chips: MuralReadChip[], actorName: string, actorLogin: string): MuralReadChip[] => {
+  const initial =
+    actorName.trim().charAt(0).toUpperCase() || actorLogin.trim().charAt(0).toUpperCase() || "?";
+  const base = chips.filter((c) => c.variant !== "summary");
+  const next = [...base, { ini: initial, variant: "secondary" as const }];
+  if (next.length > 4) {
+    return [...next.slice(0, 3), { ini: `+${next.length - 3}`, variant: "summary" as const }];
+  }
+  return next;
 };
 
 interface CardAvisoProps {
@@ -626,10 +639,21 @@ const FormNovoAviso = ({
 };
 
 const buildTimelineLabels: Record<string, string> = {
-  created: "Criado",
-  commented: "Comentado",
-  updated: "Atualizado",
-  resolved: "Encerrado"
+  created: "Criou",
+  commented: "Comentou",
+  updated: "Atualizou",
+  resolved: "Encerrou",
+  reopened: "Reabriu",
+  viewed: "Visualizou"
+};
+
+const TIMELINE_ICONS: Record<string, string> = {
+  created: "✨",
+  commented: "💬",
+  updated: "✏",
+  resolved: "✅",
+  reopened: "🔁",
+  viewed: "👁"
 };
 
 export const OperationsBoardRail = ({
@@ -654,6 +678,8 @@ export const OperationsBoardRail = ({
   const [reactionsById, setReactionsById] = useState<Record<number, MuralReaction[]>>({});
   const [readersById, setReadersById] = useState<Record<number, MuralReadChip[]>>({});
   const mountedRef = useRef(true);
+  // tracks "name:login" keys already shown per message — prevents duplicate chips from socket events
+  const viewerSeenRef = useRef<Record<number, Set<string>>>({});
 
   useEffect(() => {
     mountedRef.current = true;
@@ -715,6 +741,10 @@ export const OperationsBoardRail = ({
           setSelected(response.message);
           setTimeline(response.timeline);
           setCommentDraft("");
+          const seed = new Set<string>();
+          seed.add(`${response.message.authorName}:${response.message.authorLogin}`);
+          response.timeline.forEach((e) => seed.add(`${e.actorName}:${e.actorLogin}`));
+          viewerSeenRef.current[message.id] = seed;
           setReadersById((current) => ({
             ...current,
             [message.id]: buildReadChips(response.message, response.timeline)
@@ -736,6 +766,22 @@ export const OperationsBoardRail = ({
   useEffect(() => {
     void loadMessages();
   }, [loadMessages]);
+
+  const handleBoardViewed = useCallback((payload: BoardViewedPayload) => {
+    if (!mountedRef.current) return;
+    const { messageId, actorName, actorLogin } = payload;
+    const key = `${actorName}:${actorLogin}`;
+    const seen = viewerSeenRef.current[messageId];
+    if (!seen || seen.has(key)) return;
+    seen.add(key);
+    setReadersById((current) => {
+      const chips = current[messageId];
+      if (!chips) return current;
+      return { ...current, [messageId]: appendViewerChip(chips, actorName, actorLogin) };
+    });
+  }, []);
+
+  useOperationsBoardSocket({ onViewed: handleBoardViewed });
 
   const saveMessage = async () => {
     if (!formTitle.trim() || !formBody.trim()) {
@@ -779,6 +825,9 @@ export const OperationsBoardRail = ({
         ...current,
         [response.message.id]: buildInitialReactions()
       }));
+      viewerSeenRef.current[response.message.id] = new Set([
+        `${response.message.authorName}:${response.message.authorLogin}`
+      ]);
       setReadersById((current) => ({
         ...current,
         [response.message.id]: buildReadChips(response.message, [])
@@ -824,9 +873,14 @@ export const OperationsBoardRail = ({
 
       setTimeline((prev) => [response.event, ...prev]);
       setCommentDraft("");
+      const newTimeline = [response.event, ...timeline];
+      const commentSeed = new Set<string>();
+      commentSeed.add(`${selected.authorName}:${selected.authorLogin}`);
+      newTimeline.forEach((e) => commentSeed.add(`${e.actorName}:${e.actorLogin}`));
+      viewerSeenRef.current[selected.id] = commentSeed;
       setReadersById((current) => ({
         ...current,
-        [selected.id]: buildReadChips(selected, [response.event, ...timeline])
+        [selected.id]: buildReadChips(selected, newTimeline)
       }));
       setMessages((prev) =>
         prev.map((item) =>
@@ -1072,38 +1126,81 @@ export const OperationsBoardRail = ({
       </article>
 
       {selected ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] bg-panel p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-textMuted">
-                  Mural operacional
-                </p>
-                <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-textMain">
-                  {selected.title}
-                </h3>
-                <p className="mt-2 text-sm text-textMuted">
-                  Publicado por {selected.authorName} ({selected.authorLogin}) • {formatDate(selected.createdAt)}
-                </p>
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          onClick={(event) => { if (event.target === event.currentTarget) setSelected(null); }}
+        >
+          <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] bg-panel shadow-2xl sm:rounded-[1.75rem]">
+
+            {/* Faixa colorida da categoria */}
+            <div style={{ height: 4, background: getCategoryPalette(selected.category, darkMode).pin }} />
+
+            {/* Header fixo (fora do scroll) */}
+            <div className="px-6 pb-4 pt-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                    style={{
+                      background: getCategoryPalette(selected.category, darkMode).bg,
+                      color: getCategoryPalette(selected.category, darkMode).labelColor,
+                      border: `1px solid ${getCategoryPalette(selected.category, darkMode).border}`
+                    }}
+                  >
+                    {CATEGORIAS[selected.category].label}
+                  </span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                    selected.status === "active"
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                      : "bg-panelAlt text-textMuted"
+                  }`}>
+                    {selected.status === "active" ? "Ativo" : "Encerrado"}
+                  </span>
+                </div>
+                <button
+                  aria-label="Fechar"
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-outlineSoft bg-panelAlt text-base text-textMuted transition-colors hover:bg-outlineSoft"
+                  onClick={() => setSelected(null)}
+                  type="button"
+                >
+                  ×
+                </button>
               </div>
-              <button
-                className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-2 text-xs text-textMain"
-                onClick={() => setSelected(null)}
-                type="button"
-              >
-                Fechar
-              </button>
+
+              <h3 className="mt-3 text-xl font-bold leading-snug text-textMain">
+                {selected.title}
+              </h3>
+
+              <div className="mt-2 flex items-center gap-2">
+                <div
+                  className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  style={{ background: getCategoryPalette(selected.category, darkMode).pin }}
+                >
+                  {selected.authorName.trim().charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs text-textMuted">
+                  {selected.authorName} · {formatDate(selected.createdAt)}
+                </span>
+              </div>
             </div>
 
-            {detailLoading ? (
-              <p className="mt-4 text-sm text-textMuted">Carregando detalhes...</p>
-            ) : (
-              <>
-                <div className="mt-5 rounded-xl bg-panelAlt p-4">
-                  <p className="whitespace-pre-wrap text-sm text-textMain">{selected.body}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mx-6 h-px bg-outlineSoft/50" />
+
+            {/* Corpo com scroll */}
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
+              {detailLoading ? (
+                <p className="mt-6 text-sm text-textMuted">Carregando detalhes...</p>
+              ) : (
+                <>
+                  {/* Conteúdo do recado */}
+                  <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed text-textMain">
+                    {selected.body}
+                  </p>
+
+                  {/* Ações */}
+                  <div className="mt-5 flex flex-wrap gap-2">
                     <button
-                      className="rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-xs text-textMain"
+                      className="rounded-lg border border-outlineSoft bg-panelAlt px-3 py-1.5 text-xs font-medium text-textMain transition-colors hover:bg-outlineSoft/60"
                       onClick={prepareEdition}
                       type="button"
                     >
@@ -1115,65 +1212,95 @@ export const OperationsBoardRail = ({
                       </button>
                     ) : null}
                   </div>
-                </div>
 
-                {formTitle && formBody ? (
-                  <div className="mt-4 space-y-3 rounded-xl bg-panelAlt p-3">
-                    <p className="text-xs font-semibold text-textMain">Edicao preparada</p>
-                    <input
-                      className="w-full rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain outline-none"
-                      onChange={(event) => setFormTitle(event.target.value)}
-                      value={formTitle}
-                    />
+                  {/* Formulário de edição */}
+                  {formTitle && formBody ? (
+                    <div className="mt-5 space-y-3 rounded-xl border border-outlineSoft bg-panelAlt p-4">
+                      <p className="text-xs font-semibold text-textMain">Edicao preparada</p>
+                      <input
+                        className="w-full rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain outline-none"
+                        onChange={(event) => setFormTitle(event.target.value)}
+                        value={formTitle}
+                      />
+                      <textarea
+                        className="min-h-24 w-full resize-none rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain outline-none"
+                        onChange={(event) => setFormBody(event.target.value)}
+                        value={formBody}
+                      />
+                      <button className="btn-primary w-full" onClick={() => void saveMessage()} type="button">
+                        Salvar alteracoes
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {/* Comentário */}
+                  <div className="mt-6">
+                    <p className="mb-2 text-xs font-semibold text-textMuted">Comentario rapido</p>
                     <textarea
-                      className="min-h-24 w-full rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain outline-none"
-                      onChange={(event) => setFormBody(event.target.value)}
-                      value={formBody}
+                      className="w-full resize-none rounded-xl border border-outlineSoft bg-panelAlt px-3 py-2.5 text-sm text-textMain outline-none"
+                      style={{ minHeight: 72 }}
+                      onChange={(event) => setCommentDraft(event.target.value)}
+                      placeholder={`Atualizacao de ${currentUserName}...`}
+                      value={commentDraft}
                     />
-                    <button className="btn-primary w-full" onClick={() => void saveMessage()} type="button">
-                      Salvar alteracoes
+                    <button
+                      className="mt-2 w-full rounded-xl border border-outlineSoft bg-panel px-4 py-2.5 text-sm font-semibold text-textMain transition-colors hover:bg-panelAlt disabled:opacity-40"
+                      disabled={!commentDraft.trim()}
+                      onClick={() => void submitComment()}
+                      type="button"
+                    >
+                      Registrar comentario
                     </button>
                   </div>
-                ) : null}
 
-                <div className="mt-4 rounded-xl bg-panelAlt p-3">
-                  <p className="text-xs font-semibold text-textMain">Comentario rapido</p>
-                  <textarea
-                    className="mt-3 min-h-20 w-full rounded-lg border border-outlineSoft bg-panel px-3 py-2 text-sm text-textMain outline-none"
-                    onChange={(event) => setCommentDraft(event.target.value)}
-                    placeholder={`Atualizacao de ${currentUserName}...`}
-                    value={commentDraft}
-                  />
-                  <button
-                    className="mt-3 w-full rounded-xl bg-panel px-4 py-3 text-sm font-semibold text-textMain"
-                    onClick={() => void submitComment()}
-                    type="button"
-                  >
-                    Registrar comentario
-                  </button>
-                </div>
+                  {/* Timeline */}
+                  {timeline.length > 0 ? (
+                    <div className="mt-6">
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-textMuted">Histórico</p>
+                      <div className="space-y-2">
+                        {timeline.map((event) => {
+                          const icon = TIMELINE_ICONS[event.eventType] ?? "•";
+                          const label = buildTimelineLabels[event.eventType] ?? event.eventType;
 
-                <div className="mt-4 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-textMuted">Timeline</p>
-                  {timeline.map((event) => (
-                    <div key={event.id} className="rounded-xl bg-panelAlt p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-textMain">
-                          {event.actorName} ({event.actorLogin})
-                        </p>
-                        <span className="text-[11px] text-textMuted">{formatDate(event.createdAt)}</span>
+                          if (event.eventType === "viewed") {
+                            return (
+                              <div key={event.id} className="flex items-center gap-2 py-0.5">
+                                <span className="text-xs text-textMuted/40">{icon}</span>
+                                <span className="text-xs text-textMuted/60">
+                                  {event.actorName} visualizou · {formatDate(event.createdAt)}
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={event.id} className="rounded-xl bg-panelAlt p-3.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm leading-none">{icon}</span>
+                                  <span className="text-sm font-semibold text-textMain">{event.actorName}</span>
+                                  <span className="rounded-full bg-outlineSoft/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-textMuted">
+                                    {label}
+                                  </span>
+                                </div>
+                                <span className="flex-shrink-0 text-[11px] text-textMuted">
+                                  {formatDate(event.createdAt)}
+                                </span>
+                              </div>
+                              {event.body ? (
+                                <p className="mt-2 whitespace-pre-wrap border-l-2 border-outlineSoft pl-3 text-sm text-textMain">
+                                  {event.body}
+                                </p>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <p className="mt-1 text-xs uppercase tracking-wider text-textMuted">
-                        {buildTimelineLabels[event.eventType] ?? event.eventType}
-                      </p>
-                      {event.body ? (
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-textMain">{event.body}</p>
-                      ) : null}
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
+                  ) : null}
+                </>
+              )}
+            </div>
           </div>
         </div>
       ) : null}

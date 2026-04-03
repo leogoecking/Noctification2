@@ -28,7 +28,7 @@ export const parseMuralCategory = (value: unknown): MuralCategory | undefined =>
   return undefined;
 };
 
-type BoardEventType = "created" | "updated" | "commented" | "resolved" | "reopened";
+type BoardEventType = "created" | "updated" | "commented" | "resolved" | "reopened" | "viewed";
 
 export type BoardEventRow = {
   id: number;
@@ -338,4 +338,47 @@ export const addBoardComment = (
   });
 
   return listBoardEvents(db, params.messageId)[0];
+};
+
+export interface BoardViewedResult {
+  recorded: boolean;
+  actorUserId: number;
+  actorName: string;
+  actorLogin: string;
+  viewedAt: string;
+}
+
+export const recordBoardView = (
+  db: Database.Database,
+  params: {
+    message: BoardMessageRow;
+    actorUserId: number;
+    actorName: string;
+    actorLogin: string;
+  }
+): BoardViewedResult => {
+  const timestamp = nowIso();
+
+  // Skip if the viewer is the author — they're already shown as the creator
+  if (params.actorUserId === params.message.authorUserId) {
+    return { recorded: false, actorUserId: params.actorUserId, actorName: params.actorName, actorLogin: params.actorLogin, viewedAt: timestamp };
+  }
+
+  // Skip if the user already has any event on this message (commented, viewed, etc.)
+  const existing = db
+    .prepare("SELECT 1 FROM operations_board_events WHERE message_id = ? AND actor_user_id = ? LIMIT 1")
+    .get(params.message.id, params.actorUserId);
+
+  if (existing) {
+    return { recorded: false, actorUserId: params.actorUserId, actorName: params.actorName, actorLogin: params.actorLogin, viewedAt: timestamp };
+  }
+
+  logBoardEvent(db, {
+    messageId: params.message.id,
+    actorUserId: params.actorUserId,
+    eventType: "viewed",
+    createdAt: timestamp
+  });
+
+  return { recorded: true, actorUserId: params.actorUserId, actorName: params.actorName, actorLogin: params.actorLogin, viewedAt: timestamp };
 };
