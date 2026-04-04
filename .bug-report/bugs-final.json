@@ -1,0 +1,24 @@
+[
+  {
+    "id": "ERR-001",
+    "tipo": "erro_de_configuracao",
+    "status": "corrigido",
+    "severidade": "media",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/api/src/test/api.test.ts",
+    "linha": 82,
+    "prioridade": 1
+  },
+  {
+    "id": "QUAL-001",
+    "tipo": "problema_de_qualidade",
+    "status": "corrigido",
+    "severidade": "baixa",
+    "confianca_diagnostica": "alta",
+    "risco_de_regressao": "baixo",
+    "arquivo": "apps/web/src/components/OperationsBoardRail.test.tsx",
+    "linha": 69,
+    "prioridade": 2
+  }
+]
