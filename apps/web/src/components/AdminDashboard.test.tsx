@@ -318,10 +318,55 @@ describe("AdminDashboard", () => {
           total: 1,
           totalPages: 1
         }
+      })
+      .mockResolvedValueOnce({
+        notifications: [
+          {
+            id: 77,
+            title: "Fila critica",
+            message: "Acao",
+            priority: "high",
+            recipient_mode: "users",
+            created_at: new Date().toISOString(),
+            sender: {
+              id: 1,
+              name: "Admin",
+              login: "admin"
+            },
+            recipients: [
+              {
+                userId: 2,
+                name: "Operador",
+                login: "operador",
+                visualizedAt: null,
+                deliveredAt: new Date().toISOString(),
+                operationalStatus: "recebida",
+                responseAt: null,
+                responseMessage: null
+              }
+            ],
+            stats: {
+              total: 1,
+              read: 0,
+              unread: 1,
+              responded: 0,
+              inProgress: 0,
+              resolved: 0,
+              operationalPending: 1,
+              operationalCompleted: 0
+            }
+          }
+        ],
+        pagination: {
+          page: 1,
+          limit: 100,
+          total: 1,
+          totalPages: 1
+        }
       });
 
     render(<AdminDashboard onError={vi.fn()} onToast={vi.fn()} />);
-    await waitFor(() => expect(mockedApi.adminNotifications).toHaveBeenCalled());
+    await waitFor(() => expect(mockedApi.adminNotifications).toHaveBeenCalledTimes(2));
 
     fireEvent.click(screen.getByRole("button", { name: "Historico notificacoes" }));
     fireEvent.change(screen.getByLabelText("Status"), {

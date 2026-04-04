@@ -1,22 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError } from "../../lib/api";
 import type { NotificationHistoryItem, PaginationInfo } from "../../types";
 import type { HistoryFilters, QueueFilters } from "./types";
-import { matchesHistoryFilters, matchesQueueFilters } from "./utils";
 import { createHistoryFilters, createPagination, createQueueFilters } from "./adminRealtimeState";
 import { buildHistoryQuery, buildQueueQuery } from "./adminRealtimeQueries";
 import { getCompletedNotifications, getUnreadNotifications } from "./adminRealtimeDerived";
 import {
-  insertHistoryNotificationPage,
-  insertQueueNotificationPage,
-  reconcileHistoryReadUpdate,
-  reconcileQueueReadUpdate,
   type NotificationReadUpdatePayload
 } from "./realtimeNotifications";
-
-const toErrorMessage = (error: unknown, fallback: string): string => {
-  return error instanceof ApiError ? error.message : fallback;
-};
+import {
+  applyCreatedNotificationUpdate,
+  applyHistoryFiltersState,
+  applyQueueFiltersState,
+  applyReadUpdateCollections,
+  resetHistoryFiltersState,
+  resetQueueFiltersState
+} from "./adminNotificationRealtimeUpdates";
+import { loadAdminNotificationsPage } from "./adminNotificationRealtimeLoaders";
 
 interface UseAdminNotificationRealtimeOptions {
   onError: (message: string) => void;
@@ -42,122 +41,94 @@ export const useAdminNotificationRealtime = ({ onError }: UseAdminNotificationRe
   const queuePaginationRef = useRef<PaginationInfo>(createPagination(20));
   const historyPaginationRef = useRef<PaginationInfo>(createPagination(100));
 
+  const commitCollectionUpdates = useCallback((nextState: {
+    queue: { items: NotificationHistoryItem[]; pagination: PaginationInfo };
+    history: { items: NotificationHistoryItem[]; pagination: PaginationInfo };
+  }, refreshedAt: string) => {
+    historyRef.current = nextState.queue.items;
+    queuePaginationRef.current = nextState.queue.pagination;
+    historyAllRef.current = nextState.history.items;
+    historyPaginationRef.current = nextState.history.pagination;
+    setHistory(nextState.queue.items);
+    setQueuePagination(nextState.queue.pagination);
+    setHistoryAll(nextState.history.items);
+    setHistoryPagination(nextState.history.pagination);
+    setLastQueueRefreshAt(refreshedAt);
+    setLastHistoryRefreshAt(refreshedAt);
+  }, []);
+
   const loadUnreadDashboard = useCallback(async () => {
-    const requestId = queueRequestIdRef.current + 1;
-    queueRequestIdRef.current = requestId;
-    setLoadingHistory(true);
-    try {
-      const response = await api.adminNotifications(
-        buildQueueQuery(appliedQueueFilters, queuePagination.page)
-      );
-      if (requestId !== queueRequestIdRef.current) {
-        return;
-      }
-
-      setHistory(response.notifications);
-      setQueuePagination(response.pagination);
-      setLastQueueRefreshAt(new Date().toISOString());
-    } catch (error) {
-      if (requestId !== queueRequestIdRef.current) {
-        return;
-      }
-
-      onError(toErrorMessage(error, "Falha ao carregar dashboard"));
-    } finally {
-      if (requestId === queueRequestIdRef.current) {
-        setLoadingHistory(false);
-      }
-    }
+    await loadAdminNotificationsPage({
+      requestIdRef: queueRequestIdRef,
+      setLoading: setLoadingHistory,
+      filters: appliedQueueFilters,
+      page: queuePagination.page,
+      buildQuery: buildQueueQuery,
+      onSuccess: (response) => {
+        setHistory(response.notifications);
+        setQueuePagination(response.pagination);
+        setLastQueueRefreshAt(new Date().toISOString());
+      },
+      onError,
+      fallbackMessage: "Falha ao carregar dashboard"
+    });
   }, [appliedQueueFilters, onError, queuePagination.page]);
 
   const loadNotificationHistory = useCallback(async () => {
-    const requestId = historyRequestIdRef.current + 1;
-    historyRequestIdRef.current = requestId;
-    setLoadingHistoryAll(true);
-    try {
-      const response = await api.adminNotifications(
-        buildHistoryQuery(appliedHistoryFilters, historyPagination.page)
-      );
-      if (requestId !== historyRequestIdRef.current) {
-        return;
-      }
-
-      setHistoryAll(response.notifications);
-      setHistoryPagination(response.pagination);
-      setLastHistoryRefreshAt(new Date().toISOString());
-    } catch (error) {
-      if (requestId !== historyRequestIdRef.current) {
-        return;
-      }
-
-      onError(toErrorMessage(error, "Falha ao carregar historico"));
-    } finally {
-      if (requestId === historyRequestIdRef.current) {
-        setLoadingHistoryAll(false);
-      }
-    }
+    await loadAdminNotificationsPage({
+      requestIdRef: historyRequestIdRef,
+      setLoading: setLoadingHistoryAll,
+      filters: appliedHistoryFilters,
+      page: historyPagination.page,
+      buildQuery: buildHistoryQuery,
+      onSuccess: (response) => {
+        setHistoryAll(response.notifications);
+        setHistoryPagination(response.pagination);
+        setLastHistoryRefreshAt(new Date().toISOString());
+      },
+      onError,
+      fallbackMessage: "Falha ao carregar historico"
+    });
   }, [appliedHistoryFilters, historyPagination.page, onError]);
 
   const insertCreatedNotification = useCallback((item: NotificationHistoryItem) => {
-    if (matchesQueueFilters(item, appliedQueueFilters)) {
-      const nextQueueState = insertQueueNotificationPage(
-        item,
-        historyRef.current,
-        appliedQueueFilters,
-        queuePaginationRef.current
-      );
-      historyRef.current = nextQueueState.items;
-      queuePaginationRef.current = nextQueueState.pagination;
-      setHistory(nextQueueState.items);
-      setQueuePagination(nextQueueState.pagination);
-      setLastQueueRefreshAt(new Date().toISOString());
-    }
-
-    if (matchesHistoryFilters(item, appliedHistoryFilters)) {
-      const nextHistoryState = insertHistoryNotificationPage(
-        item,
-        historyAllRef.current,
-        appliedHistoryFilters,
-        historyPaginationRef.current
-      );
-      historyAllRef.current = nextHistoryState.items;
-      historyPaginationRef.current = nextHistoryState.pagination;
-      setHistoryAll(nextHistoryState.items);
-      setHistoryPagination(nextHistoryState.pagination);
-      setLastHistoryRefreshAt(new Date().toISOString());
-    }
-  }, [appliedHistoryFilters, appliedQueueFilters]);
+    const nextState = applyCreatedNotificationUpdate({
+      item,
+      queue: {
+        items: historyRef.current,
+        pagination: queuePaginationRef.current
+      },
+      queueFilters: appliedQueueFilters,
+      history: {
+        items: historyAllRef.current,
+        pagination: historyPaginationRef.current
+      },
+      historyFilters: appliedHistoryFilters
+    });
+    commitCollectionUpdates(nextState, new Date().toISOString());
+  }, [appliedHistoryFilters, appliedQueueFilters, commitCollectionUpdates]);
 
   const handleReadUpdate = useCallback((payload?: NotificationReadUpdatePayload) => {
     if (payload?.notificationId && payload.userId) {
-      const nextQueueState = reconcileQueueReadUpdate(
-        historyRef.current,
-        queuePaginationRef.current,
-        payload
-      );
-      historyRef.current = nextQueueState.items;
-      queuePaginationRef.current = nextQueueState.pagination;
-      setHistory(nextQueueState.items);
-      setQueuePagination(nextQueueState.pagination);
-
-      const nextHistoryState = reconcileHistoryReadUpdate(
-        historyAllRef.current,
-        historyPaginationRef.current,
-        appliedHistoryFilters,
-        payload
-      );
-      historyAllRef.current = nextHistoryState.items;
-      historyPaginationRef.current = nextHistoryState.pagination;
-      setHistoryAll(nextHistoryState.items);
-      setHistoryPagination(nextHistoryState.pagination);
-      setLastHistoryRefreshAt(new Date().toISOString());
-      setLastQueueRefreshAt(new Date().toISOString());
+      const nextState = applyReadUpdateCollections({
+        payload,
+        queue: {
+          items: historyRef.current,
+          pagination: queuePaginationRef.current
+        },
+        history: {
+          items: historyAllRef.current,
+          pagination: historyPaginationRef.current
+        },
+        historyFilters: appliedHistoryFilters
+      });
+      commitCollectionUpdates(nextState, new Date().toISOString());
       return;
     }
 
     void loadUnreadDashboard();
     void loadNotificationHistory();
-  }, [appliedHistoryFilters, loadNotificationHistory, loadUnreadDashboard]);
+  }, [appliedHistoryFilters, commitCollectionUpdates, loadNotificationHistory, loadUnreadDashboard]);
 
   const handleNotificationCreated = useCallback((payload?: NotificationHistoryItem) => {
     if (!payload?.id) {
@@ -197,27 +168,37 @@ export const useAdminNotificationRealtime = ({ onError }: UseAdminNotificationRe
   const completedNotifications = useMemo(() => getCompletedNotifications(historyAll), [historyAll]);
 
   const applyHistoryFilters = useCallback(() => {
-    setAppliedHistoryFilters(historyFilters);
-    setHistoryPagination((prev) => ({ ...prev, page: 1, limit: historyFilters.limit }));
+    setHistoryPagination((prev) => {
+      const nextState = applyHistoryFiltersState(prev, historyFilters);
+      setAppliedHistoryFilters(nextState.appliedFilters);
+      return nextState.pagination;
+    });
   }, [historyFilters]);
 
   const resetHistoryFilters = useCallback(() => {
-    const nextFilters = createHistoryFilters();
-    setHistoryFilters(nextFilters);
-    setAppliedHistoryFilters(nextFilters);
-    setHistoryPagination((prev) => ({ ...prev, page: 1, limit: 100 }));
+    setHistoryPagination((prev) => {
+      const nextState = resetHistoryFiltersState(prev);
+      setHistoryFilters(nextState.filters);
+      setAppliedHistoryFilters(nextState.appliedFilters);
+      return nextState.pagination;
+    });
   }, []);
 
   const applyQueueFilters = useCallback(() => {
-    setAppliedQueueFilters(queueFilters);
-    setQueuePagination((prev) => ({ ...prev, page: 1, limit: queueFilters.limit }));
+    setQueuePagination((prev) => {
+      const nextState = applyQueueFiltersState(prev, queueFilters);
+      setAppliedQueueFilters(nextState.appliedFilters);
+      return nextState.pagination;
+    });
   }, [queueFilters]);
 
   const resetQueueFilters = useCallback(() => {
-    const nextFilters = createQueueFilters();
-    setQueueFilters(nextFilters);
-    setAppliedQueueFilters(nextFilters);
-    setQueuePagination((prev) => ({ ...prev, page: 1, limit: 20 }));
+    setQueuePagination((prev) => {
+      const nextState = resetQueueFiltersState(prev);
+      setQueueFilters(nextState.filters);
+      setAppliedQueueFilters(nextState.appliedFilters);
+      return nextState.pagination;
+    });
   }, []);
 
   return {

@@ -7,6 +7,7 @@ import {
   AprManualFormSection,
   AprManualTableSection,
 } from "./AprPageSections";
+import type { UseAprPageControllerResult } from "./aprPageControllerTypes";
 import { useAprPageController } from "./useAprPageController";
 
 interface AprPageProps {
@@ -59,7 +60,7 @@ export const AprPage = ({ onError, onToast }: AprPageProps) => {
     removeManual,
     submitImport,
     exportAuditPdf
-  } = useAprPageController({ onError, onToast });
+  }: UseAprPageControllerResult = useAprPageController({ onError, onToast });
 
   return (
     <section className="space-y-5">

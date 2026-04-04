@@ -1,6 +1,7 @@
 import path from "node:path";
 import bcrypt from "bcryptjs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { Server } from "socket.io";
 import type { AppConfig } from "../config";
 import { connectDatabase, nowIso, runMigrations } from "../db";
 import { createOperationsBoardMeRouter } from "../routes/operations-board-me";
@@ -32,6 +33,19 @@ describe("operations board routes", () => {
   let regularUser: { id: number; login: string; name: string; role: "admin" | "user" };
   let secondUser: { id: number; login: string; name: string; role: "admin" | "user" };
 
+  const ioStub = {
+    emit() {
+      return undefined;
+    },
+    to() {
+      return {
+        emit() {
+          return undefined;
+        }
+      };
+    }
+  };
+
   beforeEach(async () => {
     db = connectDatabase(":memory:");
     runMigrations(db, path.resolve(process.cwd(), "migrations"));
@@ -55,7 +69,7 @@ describe("operations board routes", () => {
       .prepare("SELECT id, login, name, role FROM users WHERE login = 'user2'")
       .get() as typeof secondUser;
 
-    meRouter = createOperationsBoardMeRouter(db, testConfig);
+    meRouter = createOperationsBoardMeRouter(db, ioStub as unknown as Server, testConfig);
   });
 
   afterEach(() => {
@@ -200,5 +214,66 @@ describe("operations board routes", () => {
       .prepare("SELECT status FROM operations_board_messages WHERE id = ?")
       .get(messageId) as { status: string };
     expect(persisted.status).toBe("active");
+  });
+
+  it("registra visualizacao apenas uma vez e ignora o autor", () => {
+    const createHandler = getRouteHandler(meRouter, "/operations-board", "post");
+    const detailHandler = getRouteHandler(meRouter, "/operations-board/:id", "get");
+
+    const createRes = createMockResponse();
+    createHandler(
+      {
+        authUser: regularUser,
+        body: {
+          title: "Troca de turno",
+          body: "Confirmar leitura do recado"
+        }
+      },
+      createRes
+    );
+
+    expect(createRes.statusCode).toBe(201);
+    const messageId = (createRes.body as { message: { id: number } }).message.id;
+
+    const authorDetailRes = createMockResponse();
+    detailHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(messageId) }
+      },
+      authorDetailRes
+    );
+
+    expect(authorDetailRes.statusCode).toBe(200);
+
+    const firstViewerRes = createMockResponse();
+    detailHandler(
+      {
+        authUser: secondUser,
+        params: { id: String(messageId) }
+      },
+      firstViewerRes
+    );
+
+    expect(firstViewerRes.statusCode).toBe(200);
+
+    const secondViewerRes = createMockResponse();
+    detailHandler(
+      {
+        authUser: secondUser,
+        params: { id: String(messageId) }
+      },
+      secondViewerRes
+    );
+
+    expect(secondViewerRes.statusCode).toBe(200);
+
+    const viewEvents = db
+      .prepare(
+        "SELECT event_type AS eventType, actor_user_id AS actorUserId FROM operations_board_events WHERE message_id = ? AND event_type = 'viewed' ORDER BY id ASC"
+      )
+      .all(messageId) as Array<{ eventType: string; actorUserId: number }>;
+
+    expect(viewEvents).toEqual([{ eventType: "viewed", actorUserId: secondUser.id }]);
   });
 });

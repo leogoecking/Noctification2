@@ -10,7 +10,6 @@ import { useToastQueue } from "./hooks/useToastQueue";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
 import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "./lib/featureFlags";
-import type { AuthUser } from "./types";
 import {
   AppHeader,
   AppToastStack,
