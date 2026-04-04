@@ -1,3 +1,0 @@
-id,tipo,severidade,confianca_diagnostica,risco_de_regressao,arquivo,linha,prioridade,status
-ERR-001,erro_de_configuracao,media,alta,baixo,apps/api/src/test/api.test.ts,82,1,corrigido
-QUAL-001,problema_de_qualidade,baixa,alta,baixo,apps/web/src/components/OperationsBoardRail.test.tsx,69,2,corrigido
