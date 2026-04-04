@@ -20,7 +20,7 @@ interface UserWorkspaceProps {
 }
 
 const SidebarLogo = () => (
-  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-panelAlt ring-1 ring-outlineSoft/60">
+  <div className="flex h-11 w-11 items-center justify-center rounded-md bg-surfaceHigh ring-1 ring-accent/30">
     <img alt="Noctification" className="h-7 w-7 object-contain" src="/icons/icon-192.svg" />
   </div>
 );
@@ -113,7 +113,7 @@ const getSidebarSectionTitleVisibilityClass = (isExpanded: boolean): string =>
 
 const SidebarTooltip = ({ isExpanded, label }: { isExpanded: boolean; label: string }) =>
   isExpanded ? null : (
-    <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-20 hidden -translate-y-1/2 rounded-xl border border-outlineSoft/80 bg-panel px-3 py-2 text-[11px] font-semibold normal-case tracking-normal text-textMain shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 lg:block lg:opacity-0">
+    <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-20 hidden -translate-y-1/2 rounded-md border border-outlineSoft/80 bg-panel px-3 py-2 text-[11px] font-semibold normal-case tracking-normal text-textMain shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 lg:block lg:opacity-0">
       {label}
     </span>
   );
@@ -129,10 +129,10 @@ const IconPin = ({ pinned }: { pinned: boolean }) => (
 );
 
 const userMenuButtonClass = (active: boolean): string =>
-  `flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
+  `flex w-full items-center gap-3 rounded-md px-4 py-2.5 text-sm font-medium transition ${
     active
-      ? "bg-accent/10 text-accent shadow-xs"
-      : "text-textMuted hover:bg-panel/60 hover:text-textMain"
+      ? "bg-accent/15 text-accent border-l-2 border-accent"
+      : "text-textMuted hover:bg-surfaceHigh hover:text-textMain"
   }`;
 
 export const UserWorkspace = ({
@@ -172,9 +172,9 @@ export const UserWorkspace = ({
   const userInitial = currentUser.name.trim().charAt(0).toUpperCase() || "U";
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[max-content,1fr]">
+    <section className="grid gap-0 lg:grid-cols-[max-content,1fr]">
       <aside
-        className={`hidden rounded-[1.75rem] bg-panelAlt p-4 transition-[width,padding] duration-200 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col ${getSidebarDesktopStateClass(
+        className={`hidden border-r border-outlineSoft/40 bg-panel p-4 transition-[width,padding] duration-200 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col ${getSidebarDesktopStateClass(
           isExpanded
         )}`}
         onMouseEnter={onMouseEnter}
@@ -185,7 +185,7 @@ export const UserWorkspace = ({
             <SidebarLogo />
             <button
               aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
-              className="hidden h-8 w-8 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
+              className="hidden h-8 w-8 items-center justify-center rounded-md border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
               onClick={togglePinned}
               title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
               type="button"
@@ -225,10 +225,10 @@ export const UserWorkspace = ({
           ))}
         </nav>
 
-        <div className="mt-6 flex items-center gap-3 rounded-2xl bg-panel px-3 py-3">
+        <div className="mt-6 flex items-center gap-3 rounded-md border border-outlineSoft/40 bg-surfaceHigh px-3 py-3">
           <div
             aria-label={currentUser.name}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent ring-1 ring-accent/20"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent ring-1 ring-accent/35"
           >
             {userInitial}
           </div>
@@ -241,16 +241,16 @@ export const UserWorkspace = ({
         </div>
       </aside>
 
-      <div className="space-y-4">
-        <nav className="flex flex-wrap gap-1.5 rounded-[1.5rem] bg-panelAlt p-2 lg:hidden">
+      <div className="space-y-4 p-4">
+        <nav className="flex flex-wrap gap-1.5 rounded-md border border-outlineSoft/40 bg-panel p-2 lg:hidden">
           {navigationSections.flatMap((section) => section.items).map((item) => (
             <button
               key={item.path}
               aria-label={item.label}
-              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
                 currentPath === item.path
-                  ? "bg-accent/10 text-accent shadow-xs"
-                  : "text-textMuted hover:bg-panel/60 hover:text-textMain"
+                  ? "bg-accent/15 text-accent"
+                  : "text-textMuted hover:bg-surfaceHigh hover:text-textMain"
               }`}
               onClick={() => onNavigate(item.path)}
               type="button"

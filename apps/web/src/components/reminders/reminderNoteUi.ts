@@ -41,15 +41,15 @@ export const NOTE_COLOR_STYLES: Record<NoteUiColor, NoteUiStyle> = {
       buttonBorder: "rgba(74,56,0,0.14)"
     },
     dark: {
-      bg: "#312712",
-      border: "#8A6B2F",
-      dot: "#E9B949",
-      text: "#FFF1BF",
-      muted: "#E0CC91",
-      chipBg: "rgba(255,241,191,0.1)",
-      chipText: "#F5DEA0",
-      buttonBg: "rgba(255,255,255,0.06)",
-      buttonBorder: "rgba(255,255,255,0.12)"
+      bg: "#1a1200",
+      border: "#6b4a00",
+      dot: "#ffb300",
+      text: "#fff3cc",
+      muted: "#ffd966",
+      chipBg: "rgba(255,243,204,0.1)",
+      chipText: "#ffe499",
+      buttonBg: "rgba(255,179,0,0.08)",
+      buttonBorder: "rgba(255,179,0,0.2)"
     }
   },
   azul: {
@@ -66,15 +66,15 @@ export const NOTE_COLOR_STYLES: Record<NoteUiColor, NoteUiStyle> = {
       buttonBorder: "rgba(13,43,78,0.14)"
     },
     dark: {
-      bg: "#152638",
-      border: "#4D7BAA",
-      dot: "#58A6F4",
-      text: "#E6F4FF",
-      muted: "#B9D7F4",
-      chipBg: "rgba(230,244,255,0.1)",
-      chipText: "#C9E4FF",
-      buttonBg: "rgba(255,255,255,0.06)",
-      buttonBorder: "rgba(255,255,255,0.12)"
+      bg: "#051525",
+      border: "#0e4060",
+      dot: "#00b4d8",
+      text: "#cdf0ff",
+      muted: "#90d4ee",
+      chipBg: "rgba(0,180,216,0.1)",
+      chipText: "#b8e8f8",
+      buttonBg: "rgba(0,180,216,0.08)",
+      buttonBorder: "rgba(0,180,216,0.2)"
     }
   },
   verde: {
@@ -91,15 +91,15 @@ export const NOTE_COLOR_STYLES: Record<NoteUiColor, NoteUiStyle> = {
       buttonBorder: "rgba(27,58,31,0.14)"
     },
     dark: {
-      bg: "#1B2C1F",
-      border: "#5E8E63",
-      dot: "#6DCB74",
-      text: "#E5F7E6",
-      muted: "#B8D7BA",
-      chipBg: "rgba(229,247,230,0.1)",
-      chipText: "#D2EED4",
-      buttonBg: "rgba(255,255,255,0.06)",
-      buttonBorder: "rgba(255,255,255,0.12)"
+      bg: "#051a0a",
+      border: "#0d4a1a",
+      dot: "#00ff88",
+      text: "#d4fff0",
+      muted: "#80ffcc",
+      chipBg: "rgba(0,255,136,0.1)",
+      chipText: "#a8ffdc",
+      buttonBg: "rgba(0,255,136,0.08)",
+      buttonBorder: "rgba(0,255,136,0.2)"
     }
   },
   rosa: {
@@ -116,15 +116,15 @@ export const NOTE_COLOR_STYLES: Record<NoteUiColor, NoteUiStyle> = {
       buttonBorder: "rgba(74,0,32,0.14)"
     },
     dark: {
-      bg: "#311723",
-      border: "#9E4E6D",
-      dot: "#ED5E9B",
-      text: "#FFE4EF",
-      muted: "#E5B8C8",
-      chipBg: "rgba(255,228,239,0.1)",
-      chipText: "#FFD2E4",
-      buttonBg: "rgba(255,255,255,0.06)",
-      buttonBorder: "rgba(255,255,255,0.12)"
+      bg: "#1a0508",
+      border: "#7a1a20",
+      dot: "#ff1744",
+      text: "#ffe8ea",
+      muted: "#ffb3bb",
+      chipBg: "rgba(255,23,68,0.1)",
+      chipText: "#ffc5cb",
+      buttonBg: "rgba(255,23,68,0.08)",
+      buttonBorder: "rgba(255,23,68,0.2)"
     }
   },
   branco: {

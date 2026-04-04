@@ -41,9 +41,9 @@ export const PRIORITY_LABELS = {
 } as const;
 
 export const RESPONSE_ACTION_STYLES: Record<NotificationResponseStatus, string> = {
-  em_andamento: "border-warning/50 bg-warning/10 text-warning hover:border-warning/70",
-  assumida: "border-accent/50 bg-accent/10 text-accent hover:border-accent/70",
-  resolvida: "border-success/50 bg-success/10 text-success hover:border-success/70"
+  em_andamento: "border-warning/50 bg-warning/10 text-warning hover:border-warning/70 hover:shadow-glow-warn",
+  assumida: "border-accent/50 bg-accent/10 text-accent hover:border-accent/70 hover:shadow-glow-cyan",
+  resolvida: "border-success/50 bg-success/10 text-success hover:border-success/70 hover:shadow-glow-green"
 };
 
 export const formatNotificationDate = (value: string | null): string => {

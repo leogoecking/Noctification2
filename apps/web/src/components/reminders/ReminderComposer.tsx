@@ -96,8 +96,8 @@ export const ReminderComposer = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-end bg-slate-950/55 p-4 backdrop-blur-sm sm:items-center sm:p-6">
-      <div className="w-full max-w-2xl overflow-hidden rounded-[1.5rem] border border-outlineSoft bg-panel shadow-sm">
+    <div className="fixed inset-0 z-50 flex items-end justify-end bg-slate-950/70 p-4 sm:items-center sm:p-6">
+      <div className="w-full max-w-2xl overflow-hidden rounded-md border border-outlineSoft bg-panel shadow-sm">
         <article className="max-h-[92vh] overflow-y-auto p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -183,7 +183,7 @@ export const ReminderComposer = ({
             </div>
 
             {form.noteKind === "checklist" ? (
-              <div className="space-y-3 rounded-2xl border border-outlineSoft bg-panelAlt/70 p-4">
+              <div className="space-y-3 rounded-md border border-outlineSoft bg-panelAlt p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-textMuted">Checklist operacional</p>
                   <button

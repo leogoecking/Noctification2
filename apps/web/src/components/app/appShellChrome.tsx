@@ -47,7 +47,7 @@ const ThemeToggle = ({
   return (
     <button
       aria-label={label}
-      className="flex items-center rounded-full border border-outlineSoft/80 bg-panel px-1 py-1 transition hover:border-accent/40"
+      className="flex items-center rounded-full border border-outlineSoft/60 bg-surfaceHigh px-1 py-1 transition hover:border-accent/50"
       onClick={onToggle}
       title={label}
       type="button"
@@ -78,8 +78,8 @@ const UserBadge = ({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2 rounded-xl border border-outlineSoft/70 bg-panel px-3 py-1.5 shadow-xs">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+      <div className="flex items-center gap-2 rounded-md border border-outlineSoft/50 bg-surfaceHigh px-3 py-1.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent ring-1 ring-accent/30">
           {initial}
         </div>
         <div className="hidden sm:block">
@@ -91,7 +91,7 @@ const UserBadge = ({
       </div>
       <button
         aria-label="Sair da sessão"
-        className="rounded-xl border border-outlineSoft/70 bg-panel px-3 py-2 text-sm font-medium text-textMuted transition hover:border-danger/40 hover:text-danger"
+        className="rounded-md border border-outlineSoft/50 bg-surfaceHigh px-3 py-2 text-sm font-medium text-textMuted transition hover:border-danger/40 hover:text-danger"
         onClick={onLogout}
         type="button"
       >
@@ -108,7 +108,7 @@ export const AppHeader = ({
   onLogout,
   onToggleDarkMode
 }: AppHeaderProps) => (
-  <header className="sticky top-0 z-30 mb-6 flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-outlineSoft/40 bg-canvas/90 px-2 py-2.5 backdrop-blur">
+  <header className="sticky top-0 z-30 mb-6 flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-outlineSoft/60 bg-canvas px-6 py-2.5">
     <div className="flex items-center gap-3">
       <img
         alt="Noctification"
@@ -137,10 +137,10 @@ export const AppToastStack = ({ toasts }: { toasts: Toast[] }) => (
       <div
         key={toast.id}
         role="alert"
-        className={`flex w-80 animate-rise-in items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md ${
+        className={`flex w-80 animate-rise-in items-start gap-3 rounded-md border px-4 py-3 text-sm ${
           toast.tone === "ok"
-            ? "border-success/25 bg-success/12 text-textMain"
-            : "border-danger/25 bg-danger/12 text-textMain"
+            ? "border-success/30 bg-panelAlt text-textMain"
+            : "border-danger/30 bg-panelAlt text-textMain"
         }`}
       >
         {toast.tone === "ok" ? (

@@ -130,7 +130,7 @@ export const TaskBoard = ({
   };
 
   return (
-    <article className="rounded-[1.5rem] border border-outlineSoft/70 bg-panel p-5 shadow-sm">
+    <article className="rounded-md border border-outlineSoft/40 bg-panel p-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-textMuted">{headerEyebrow}</p>
@@ -183,10 +183,10 @@ export const TaskBoard = ({
           <section
             key={column.status}
             aria-label={`Coluna ${column.label}`}
-            className={`min-h-40 min-w-[220px] flex-1 rounded-[1.25rem] p-4 ${
+            className={`min-h-40 min-w-[220px] flex-1 rounded-md border p-4 ${
               isBoardDropTargetStatus(column.status) && dragTaskId !== null
-                ? "bg-accent/5 ring-1 ring-accent/30"
-                : "bg-panelAlt/80"
+                ? "border-accent/40 bg-accent/8 ring-1 ring-accent/30"
+                : "border-outlineSoft/30 bg-surfaceHigh/40"
             }`}
             onDragOver={(event) => {
               if (isBoardDropTargetStatus(column.status)) {
@@ -203,7 +203,7 @@ export const TaskBoard = ({
                   {column.label}
                 </span>
               </div>
-              <span className="rounded-full bg-panel px-2.5 py-1 text-xs text-textMuted">
+              <span className="rounded-full border border-outlineSoft/40 bg-surfaceHigh px-2.5 py-1 text-xs text-textMuted">
                 {column.tasks.length}
               </span>
             </div>
@@ -219,10 +219,10 @@ export const TaskBoard = ({
                 <div
                   key={task.id}
                   aria-label={`Abrir tarefa ${task.title}`}
-                  className={`w-full cursor-pointer rounded-xl border-l-[3px] border-t border-r border-b p-3 text-left transition ${
+                  className={`w-full cursor-pointer rounded-md border-l-[3px] border-t border-r border-b p-3 text-left transition ${
                     selectedTaskId === task.id
-                      ? `${PRIORITY_CARD_BORDER[task.priority]} border-t-outlineSoft/40 border-r-outlineSoft/40 border-b-outlineSoft/40 ring-1 ring-accent/20 bg-accent/5`
-                      : `${PRIORITY_CARD_BORDER[task.priority]} border-t-outlineSoft/40 border-r-outlineSoft/40 border-b-outlineSoft/40 bg-panel hover:border-t-outlineSoft hover:border-r-outlineSoft hover:border-b-outlineSoft hover:bg-surfaceHigh`
+                      ? `${PRIORITY_CARD_BORDER[task.priority]} border-t-outlineSoft/40 border-r-outlineSoft/40 border-b-outlineSoft/40 ring-1 ring-accent/25 bg-accent/8 shadow-glow-cyan`
+                      : `${PRIORITY_CARD_BORDER[task.priority]} border-t-outlineSoft/30 border-r-outlineSoft/30 border-b-outlineSoft/30 bg-panel/70 hover:border-t-outlineSoft/60 hover:border-r-outlineSoft/60 hover:border-b-outlineSoft/60 hover:bg-surfaceHigh`
                   }`}
                   draggable={isBoardMutableStatus(task.status)}
                   onClick={() => onOpenTask(task)}

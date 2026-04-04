@@ -135,7 +135,7 @@ export const AdminSidebar = ({
 
   return (
     <aside
-      className={`rounded-[1.75rem] bg-panelAlt p-4 transition-[width,padding] duration-200 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col ${getSidebarDesktopStateClass(
+      className={`border-r border-outlineSoft/40 bg-panel p-4 transition-[width,padding] duration-200 lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col ${getSidebarDesktopStateClass(
         isExpanded
       )}`}
       onMouseEnter={onMouseEnter}
@@ -146,7 +146,7 @@ export const AdminSidebar = ({
           <SidebarLogo />
           <button
             aria-label={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
-            className="hidden h-8 w-8 items-center justify-center rounded-full border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
+            className="hidden h-8 w-8 items-center justify-center rounded-md border border-outlineSoft/70 bg-panel text-textMuted transition hover:border-accent/40 hover:text-textMain lg:inline-flex"
             onClick={togglePinned}
             title={isPinned ? "Desafixar painel lateral" : "Fixar painel lateral"}
             type="button"
@@ -162,10 +162,10 @@ export const AdminSidebar = ({
       </nav>
 
       <div className="mt-6 space-y-2">
-        <div className="flex items-center gap-3 rounded-2xl bg-panel px-3 py-3">
+        <div className="flex items-center gap-3 rounded-md border border-outlineSoft/40 bg-surfaceHigh px-3 py-3">
           <div
             aria-label="Administração"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent ring-1 ring-accent/20"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent ring-1 ring-accent/35"
           >
             A
           </div>
@@ -176,7 +176,7 @@ export const AdminSidebar = ({
         </div>
         {onLogout ? (
           <button
-            className="group relative flex w-full items-center justify-center gap-3 rounded-2xl border border-outlineSoft/60 bg-panel px-3 py-2.5 text-sm font-medium text-textMuted transition hover:border-danger/40 hover:text-danger"
+            className="group relative flex w-full items-center justify-center gap-3 rounded-md border border-outlineSoft/50 bg-surfaceHigh px-3 py-2.5 text-sm font-medium text-textMuted transition hover:border-danger/40 hover:text-danger"
             onClick={onLogout}
             title={!isExpanded ? "Sair" : undefined}
             type="button"

@@ -200,7 +200,7 @@ export const ReminderQuickBoard = ({
           return (
             <section
               key={lane.id}
-              className="rounded-2xl border border-dashed border-outlineSoft bg-panel/70 p-3"
+              className="rounded-md border border-dashed border-outlineSoft bg-panelAlt p-3"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();

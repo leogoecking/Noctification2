@@ -21,12 +21,12 @@ export const LoginScreen = ({ onLogin, onRegister, isLoading }: LoginScreenProps
   );
 
   return (
-    <div className="mx-auto max-w-md animate-rise-in rounded-3xl bg-panel/95 p-6 shadow-md backdrop-blur ring-1 ring-outlineSoft/50">
-      <div className="mb-5 flex items-center gap-3">
-        <img alt="Noctification" className="h-9 w-9" src="/icons/icon-192.svg" />
+    <div className="mx-auto max-w-md animate-rise-in rounded-lg border border-outlineSoft/60 bg-panel p-8">
+      <div className="mb-6 flex items-center gap-4">
+        <img alt="Noctification" className="h-10 w-10 drop-shadow-lg" src="/icons/icon-192.svg" />
         <div>
-          <p className="text-xs font-medium text-textMuted">Noctification</p>
-          <h2 className="font-display text-2xl font-bold leading-tight text-textMain">{heading}</h2>
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent/70">Noctification</p>
+          <h2 className="font-display text-3xl font-black leading-tight text-textMain">{heading}</h2>
         </div>
       </div>
 
@@ -36,17 +36,17 @@ export const LoginScreen = ({ onLogin, onRegister, isLoading }: LoginScreenProps
           : "Entre com seu login institucional"}
       </p>
 
-      <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-panelAlt p-1">
+      <div className="mb-5 grid grid-cols-2 gap-2 rounded-md border border-outlineSoft/50 bg-surfaceHigh p-1">
         <button
           type="button"
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition ${formMode === "login" ? "bg-panel text-textMain shadow-xs" : "text-textMuted hover:text-textMain"}`}
+          className={`rounded-md px-3 py-2 text-sm font-semibold transition ${formMode === "login" ? "bg-surfaceHighest text-accent bg-surfaceHighest" : "text-textMuted hover:text-textMain"}`}
           onClick={() => setFormMode("login")}
         >
           Entrar
         </button>
         <button
           type="button"
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition ${formMode === "register" ? "bg-panel text-textMain shadow-xs" : "text-textMuted hover:text-textMain"}`}
+          className={`rounded-md px-3 py-2 text-sm font-semibold transition ${formMode === "register" ? "bg-surfaceHighest text-accent bg-surfaceHighest" : "text-textMuted hover:text-textMain"}`}
           onClick={() => setFormMode("register")}
         >
           Criar conta
@@ -102,7 +102,7 @@ export const LoginScreen = ({ onLogin, onRegister, isLoading }: LoginScreenProps
             />
             <button
               type="button"
-              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 text-sm text-textMuted transition hover:text-textMain"
+              className="rounded-md border border-outlineSoft/60 bg-surfaceHigh px-3 text-sm text-textMuted transition hover:border-accent/40 hover:text-textMain"
               onClick={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? "Ocultar" : "Mostrar"}

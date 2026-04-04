@@ -111,7 +111,7 @@ export const AdminDashboardHeader = ({
   const headerCopy = getAdminHeaderCopy(menu, isSearching, isAprPage, isKmlPostePage);
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-panel px-5 py-4 shadow-xs">
+    <header className="flex flex-wrap items-center justify-between gap-4 rounded-md bg-panel px-5 py-4">
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-1.5">
           <span className="rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">

@@ -45,14 +45,14 @@ export const CATEGORIAS: Record<
       timeColor: "#791F1F"
     },
     dark: {
-      bg: "#35181D",
-      border: "#8F4148",
-      pin: "#E86569",
-      titleColor: "#FFE7E8",
-      bodyColor: "#F4B7BA",
-      labelColor: "#FFD1D4",
-      authorColor: "#FF9EA3",
-      timeColor: "#EFB5B8"
+      bg: "#1a0508",
+      border: "#7a1a20",
+      pin: "#ff1744",
+      titleColor: "#ffe8ea",
+      bodyColor: "#ffb3bb",
+      labelColor: "#ffc5cb",
+      authorColor: "#ff8a96",
+      timeColor: "#ffb3bb"
     }
   },
   info: {
@@ -68,14 +68,14 @@ export const CATEGORIAS: Record<
       timeColor: "#0C447C"
     },
     dark: {
-      bg: "#15283B",
-      border: "#4A78A8",
-      pin: "#58A5F1",
-      titleColor: "#E4F3FF",
-      bodyColor: "#B6D7F5",
-      labelColor: "#CCE6FF",
-      authorColor: "#92C8F7",
-      timeColor: "#B6D7F5"
+      bg: "#051525",
+      border: "#0e4060",
+      pin: "#00b4d8",
+      titleColor: "#cdf0ff",
+      bodyColor: "#90d4ee",
+      labelColor: "#b8e8f8",
+      authorColor: "#7fc8e8",
+      timeColor: "#90d4ee"
     }
   },
   aviso: {
@@ -91,14 +91,14 @@ export const CATEGORIAS: Record<
       timeColor: "#633806"
     },
     dark: {
-      bg: "#382915",
-      border: "#9C7234",
-      pin: "#D39A38",
-      titleColor: "#FFF0D4",
-      bodyColor: "#E7C897",
-      labelColor: "#F5DFB5",
-      authorColor: "#F0BF70",
-      timeColor: "#E0C18D"
+      bg: "#1a1200",
+      border: "#6b4a00",
+      pin: "#ffb300",
+      titleColor: "#fff3cc",
+      bodyColor: "#ffd966",
+      labelColor: "#ffe499",
+      authorColor: "#ffc933",
+      timeColor: "#ffd966"
     }
   },
   comunicado: {
@@ -114,14 +114,14 @@ export const CATEGORIAS: Record<
       timeColor: "#27500A"
     },
     dark: {
-      bg: "#1E2D18",
-      border: "#5D8B3B",
-      pin: "#7FBC3A",
-      titleColor: "#EAF8DF",
-      bodyColor: "#BDD9A3",
-      labelColor: "#D8EFC5",
-      authorColor: "#A4D272",
-      timeColor: "#B8D69A"
+      bg: "#051a0a",
+      border: "#0d4a1a",
+      pin: "#00ff88",
+      titleColor: "#d4fff0",
+      bodyColor: "#80ffcc",
+      labelColor: "#a8ffdc",
+      authorColor: "#5cffc0",
+      timeColor: "#80ffcc"
     }
   },
   procedimento: {
@@ -137,14 +137,14 @@ export const CATEGORIAS: Record<
       timeColor: "#26215C"
     },
     dark: {
-      bg: "#252043",
-      border: "#7066B8",
-      pin: "#9B8EF0",
-      titleColor: "#F0ECFF",
-      bodyColor: "#C7BEF5",
-      labelColor: "#DDD5FF",
-      authorColor: "#B4A9F8",
-      timeColor: "#C8C0F1"
+      bg: "#0d1a2a",
+      border: "#1a4060",
+      pin: "#00e5ff",
+      titleColor: "#e0f7ff",
+      bodyColor: "#80d8f0",
+      labelColor: "#b0e8f8",
+      authorColor: "#60c8e8",
+      timeColor: "#80d8f0"
     }
   },
   geral: {
@@ -160,14 +160,14 @@ export const CATEGORIAS: Record<
       timeColor: "#444441"
     },
     dark: {
-      bg: "#2B2924",
-      border: "#60584B",
-      pin: "#9A9284",
-      titleColor: "#F2EEE6",
-      bodyColor: "#CEC8BC",
-      labelColor: "#E3DDD1",
-      authorColor: "#BEB7AA",
-      timeColor: "#C9C2B7"
+      bg: "#0a1520",
+      border: "#1a3a52",
+      pin: "#7fb3d3",
+      titleColor: "#cdf0ff",
+      bodyColor: "#9bbdd4",
+      labelColor: "#b3d0e8",
+      authorColor: "#88aac4",
+      timeColor: "#9bbdd4"
     }
   }
 };

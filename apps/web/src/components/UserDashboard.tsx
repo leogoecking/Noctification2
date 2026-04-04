@@ -262,9 +262,9 @@ export const UserDashboard = ({
 
   return (
     <section className="animate-fade-in space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-panel px-5 py-4 shadow-xs">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-outlineSoft/40 bg-panel px-5 py-4">
         <div>
-          <h2 className="font-display text-lg font-bold text-textMain">
+          <h2 className="font-display text-xl font-black text-textMain">
             {isNotificationsPage ? "Notificações" : "Painel Operacional"}
           </h2>
           <p className="text-sm text-textMuted">
@@ -277,9 +277,9 @@ export const UserDashboard = ({
         <div className="flex flex-wrap items-center gap-2">
           <div
             data-testid="unread-counter"
-            className="rounded-full border border-outlineSoft/60 bg-panelAlt px-3 py-1.5 text-sm text-textMain"
+            className="rounded-full border border-accent/25 bg-surfaceHigh px-3 py-1.5 text-sm text-textMain"
           >
-            Não lidas: <strong className="text-accent">{unreadCount}</strong>
+            Não lidas: <strong className="font-black text-accent">{unreadCount}</strong>
           </div>
           <UserNotificationBell
             bellOpen={bellOpen}
@@ -298,7 +298,7 @@ export const UserDashboard = ({
           />
           {!isNotificationsPage && (
             <button
-              className="rounded-xl border border-outlineSoft bg-panelAlt px-4 py-2 text-sm font-medium text-textMuted transition hover:text-textMain"
+              className="rounded-xl border border-outlineSoft/60 bg-surfaceHigh px-4 py-2 text-sm font-medium text-textMuted transition hover:border-accent/40 hover:text-textMain"
               onClick={onOpenAllNotifications}
               type="button"
             >
@@ -308,7 +308,7 @@ export const UserDashboard = ({
           {isNotificationsPage && (
             <>
               <button
-                className="rounded-xl border border-outlineSoft bg-panelAlt px-4 py-2 text-sm font-medium text-textMuted transition hover:text-textMain"
+                className="rounded-xl border border-outlineSoft/60 bg-surfaceHigh px-4 py-2 text-sm font-medium text-textMuted transition hover:border-accent/40 hover:text-textMain"
                 onClick={onBackToDashboard}
                 type="button"
               >
@@ -329,8 +329,8 @@ export const UserDashboard = ({
       </header>
 
       {isNotificationsPage ? (
-        <article className="rounded-2xl bg-panel p-5 shadow-xs">
-          <div className="mb-4 rounded-xl bg-panelAlt p-3">
+        <article className="rounded-md border border-outlineSoft/40 bg-panel p-5">
+          <div className="mb-4 rounded-xl border border-outlineSoft/30 bg-surfaceHigh/60 p-3">
             <UserNotificationFilterBar filter={filter} onChange={setFilter} />
           </div>
 

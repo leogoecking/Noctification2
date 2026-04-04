@@ -88,17 +88,17 @@ export const AdminAuditList = ({
             </div>
 
             <div className="mt-3 grid gap-2 md:grid-cols-3">
-              <div className="rounded-lg bg-panel/80 p-2.5">
+              <div className="rounded-md bg-panelAlt p-2.5">
                 <p className="text-xs uppercase tracking-wider text-textMuted">
                   {AUDIT_LABELS.category}
                 </p>
                 <p className="mt-1 text-sm text-textMain">{getAuditCategory(event.event_type).label}</p>
               </div>
-              <div className="rounded-lg bg-panel/80 p-2.5">
+              <div className="rounded-md bg-panelAlt p-2.5">
                 <p className="text-xs uppercase tracking-wider text-textMuted">{AUDIT_LABELS.actor}</p>
                 <p className="mt-1 text-sm text-textMain">{formatAuditActor(event.actor)}</p>
               </div>
-              <div className="rounded-lg bg-panel/80 p-2.5">
+              <div className="rounded-md bg-panelAlt p-2.5">
                 <p className="text-xs uppercase tracking-wider text-textMuted">{AUDIT_LABELS.target}</p>
                 <p className="mt-1 text-sm text-textMain">
                   {formatAuditTargetType(event.target_type)} #{event.target_id ?? "-"}
@@ -106,7 +106,7 @@ export const AdminAuditList = ({
               </div>
             </div>
 
-            <div className="mt-2 rounded-lg bg-panel/80 p-2.5">
+            <div className="mt-2 rounded-md bg-panelAlt p-2.5">
               <p className="text-xs uppercase tracking-wider text-textMuted">{AUDIT_LABELS.details}</p>
               <p className="mt-1 text-sm text-textMain">{summarizeAuditMetadata(event.metadata)}</p>
             </div>

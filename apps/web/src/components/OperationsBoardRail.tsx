@@ -356,7 +356,7 @@ export const OperationsBoardRail = ({
   return (
     <>
       <article
-        className="rounded-[1.5rem] border border-outlineSoft/70 bg-panel p-5 shadow-sm"
+        className="rounded-md border border-outlineSoft/70 bg-panel p-5"
         data-testid="operations-board-rail"
       >
         <div
@@ -375,13 +375,14 @@ export const OperationsBoardRail = ({
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                background: "#639922",
-                animation: "livepulse 2s ease-in-out infinite"
+                background: "#00ff88",
+                animation: "livepulse 2s ease-in-out infinite",
+                boxShadow: "0 0 8px rgba(0,255,136,0.6)"
               }}
             />
             <style>{`@keyframes livepulse { 0%,100%{opacity:1} 50%{opacity:.3} }`}</style>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>{title}</div>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>{title}</div>
               <div className="mt-1 text-xs text-textMuted">{subtitle}</div>
             </div>
           </div>
@@ -401,10 +402,10 @@ export const OperationsBoardRail = ({
                 {totalUrgentes} urgente{totalUrgentes > 1 ? "s" : ""}
               </span>
             ) : null}
-            <span className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-[11px] font-medium text-textMuted">
+            <span className="rounded-full border border-outlineSoft/50 bg-surfaceHigh px-3 py-1 text-[11px] font-medium text-textMuted">
               {totalVisualizacoes} visualizações
             </span>
-            <span className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-[11px] font-medium text-textMuted">
+            <span className="rounded-full border border-outlineSoft/50 bg-surfaceHigh px-3 py-1 text-[11px] font-medium text-textMuted">
               {totalReacoes} reações
             </span>
           </div>
@@ -421,8 +422,9 @@ export const OperationsBoardRail = ({
                 padding: "4px 12px",
                 borderRadius: 20,
                 border: "0.5px solid rgba(0,0,0,0.12)",
-                background: filtro === item.key ? "rgb(var(--color-text-main))" : "rgb(var(--color-panel-alt))",
-                color: filtro === item.key ? "rgb(var(--color-panel))" : "rgb(var(--color-text-muted))",
+                background: filtro === item.key ? "rgb(var(--color-accent))" : "rgb(var(--color-surface-high))",
+                color: filtro === item.key ? "#ffffff" : "rgb(var(--color-text-muted))",
+                boxShadow: filtro === item.key ? "0 0 10px rgba(0,180,216,0.3)" : "none",
                 cursor: "pointer",
                 fontFamily: "inherit",
                 transition: "all 0.15s"

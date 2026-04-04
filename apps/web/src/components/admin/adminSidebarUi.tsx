@@ -10,17 +10,17 @@ export interface AdminSidebarNavItem {
 }
 
 export const SidebarLogo = () => (
-  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-panelAlt ring-1 ring-outlineSoft/60">
+  <div className="flex h-11 w-11 items-center justify-center rounded-md bg-panelAlt ring-1 ring-outlineSoft/60">
     <img alt="Noctification" className="h-7 w-7 object-contain" src="/icons/icon-192.svg" />
   </div>
 );
 
 const menuBaseClass =
-  "flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition";
+  "flex w-full items-center gap-3 rounded-md px-4 py-2.5 text-sm font-medium transition";
 
 export const menuButtonClass = (active: boolean): string => {
   return `${menuBaseClass} ${
-    active ? "bg-accent/10 text-accent shadow-xs" : "text-textMuted hover:bg-panel/60 hover:text-textMain"
+    active ? "bg-accent/15 text-accent border-l-2 border-accent" : "text-textMuted hover:bg-surfaceHigh hover:text-textMain"
   }`;
 };
 
