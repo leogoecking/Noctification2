@@ -169,8 +169,8 @@ describe("OperationsBoardRail", () => {
     );
 
     expect(screen.getByRole("button", { name: /Turno da madrugada/i })).toHaveStyle({
-      background: "#2B2924",
-      border: "1.5px solid #60584B"
+      background: "#0a1520",
+      border: "1.5px solid #1a3a52"
     });
   });
 

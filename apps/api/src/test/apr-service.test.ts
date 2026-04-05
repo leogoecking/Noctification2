@@ -293,6 +293,127 @@ describe("APR service", () => {
     ]);
   });
 
+  it('ignora divergencia de assunto quando o ID existe e o assunto for "CHECK LIST DE POPS"', () => {
+    const audit = compareAprBases(
+      [
+        {
+          id: 1,
+          monthRef: "2026-03",
+          sourceType: "system",
+          externalId: "235269",
+          openedOn: "2026-03-02",
+          subject: "CHECK LIST DE POPS",
+          collaborator: "Felipe",
+          rawPayload: null,
+          createdAt: "x",
+          updatedAt: "x"
+        }
+      ],
+      [
+        {
+          id: 2,
+          monthRef: "2026-03",
+          sourceType: "manual",
+          externalId: "235269",
+          openedOn: "2026-03-02",
+          subject: "CHECK LIST DE POPS",
+          collaborator: "Felipe",
+          rawPayload: null,
+          createdAt: "x",
+          updatedAt: "x"
+        }
+      ]
+    );
+
+    expect(audit.summary).toMatchObject({
+      totalSistema: 1,
+      totalManual: 1,
+      conferido: 1,
+      soSistema: 0,
+      soManual: 0,
+      totalIds: 1
+    });
+    expect(audit.details[0]?.status).toBe("Conferido");
+    expect(audit.details[0]?.changed).toEqual([]);
+  });
+
+  it('nao marca como divergente item presente apenas no sistema quando o assunto for "CHECK LIST DE POPS"', () => {
+    const audit = compareAprBases(
+      [
+        {
+          id: 1,
+          monthRef: "2026-03",
+          sourceType: "system",
+          externalId: "235269",
+          openedOn: "2026-03-02",
+          subject: "CHECK LIST DE POPS",
+          collaborator: "Felipe",
+          rawPayload: null,
+          createdAt: "x",
+          updatedAt: "x"
+        }
+      ],
+      []
+    );
+
+    expect(audit.summary).toMatchObject({
+      totalSistema: 1,
+      totalManual: 0,
+      conferido: 1,
+      soSistema: 0,
+      soManual: 0,
+      totalIds: 1
+    });
+    expect(audit.details[0]).toMatchObject({
+      externalId: "235269",
+      status: "Conferido"
+    });
+  });
+
+  it('ignora alteracao de assunto no historico quando o assunto for "CHECK LIST DE POPS"', () => {
+    const history = compareAprHistory(
+      [
+        {
+          id: 1,
+          monthRef: "2026-03",
+          sourceType: "system",
+          externalId: "235269",
+          openedOn: "2026-03-02",
+          subject: "CHECK LIST DE POPS",
+          collaborator: "Felipe",
+          rawPayload: null,
+          createdAt: "x",
+          updatedAt: "x"
+        }
+      ],
+      [
+        {
+          id: 2,
+          monthRef: "2026-02",
+          sourceType: "system",
+          externalId: "235269",
+          openedOn: "2026-03-02",
+          subject: "CHECK LIST DE POPS",
+          collaborator: "Felipe",
+          rawPayload: null,
+          createdAt: "x",
+          updatedAt: "x"
+        }
+      ]
+    );
+
+    expect(history.summary).toMatchObject({
+      totalAtual: 1,
+      totalAnterior: 1,
+      novo: 0,
+      alterado: 0,
+      semAlteracao: 1,
+      totalIds: 1
+    });
+    expect(history.details[0]?.status).toBe("Sem alteração");
+    expect(history.details[0]?.changed).toEqual([]);
+  });
+
   it("mantem um catalogo isolado de colaboradores a partir das entradas APR", () => {
     createAprManualEntryService(db, {
       requestedMonthRef: "2026-03",

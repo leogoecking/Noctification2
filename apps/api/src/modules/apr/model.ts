@@ -55,6 +55,9 @@ export const normalizeComparableText = (value: unknown): string =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
+export const isAprRecognitionExceptionSubject = (value: unknown): boolean =>
+  normalizeComparableText(value) === "check list de pops";
+
 export const normalizeSubject = (value: string): string =>
   normalizeWhitespace(value).toLocaleUpperCase("pt-BR");
 

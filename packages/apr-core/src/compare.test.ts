@@ -51,4 +51,57 @@ describe("apr-core compare", () => {
     expect(result.details[0]?.changed).toContain("Assunto");
     expect(result.details[1]?.status).toBe("Novo");
   });
+
+  it('keeps matching IDs as present when the subject is "CHECK LIST DE POPS"', () => {
+    const result = compareBases(
+      [{ ID: "1", dataAbertura: "2026-03-01", assunto: "CHECK LIST DE POPS", colaborador: "Felipe" }],
+      [{ ID: "1", dataAbertura: "2026-03-01", assunto: "CHECK LIST DE POPS", colaborador: "Felipe" }]
+    );
+
+    expect(result.summary).toEqual({
+      totalSistema: 1,
+      totalManual: 1,
+      conferido: 1,
+      soSistema: 0,
+      soManual: 0,
+      totalIds: 1
+    });
+    expect(result.details.map((detail) => [detail.ID, detail.status, detail.changed])).toEqual([
+      ["1", "Conferido", []]
+    ]);
+  });
+
+  it('does not mark a system-only row as divergent when the subject is "CHECK LIST DE POPS"', () => {
+    const result = compareBases(
+      [{ ID: "1", dataAbertura: "2026-03-01", assunto: "CHECK LIST DE POPS", colaborador: "Felipe" }],
+      []
+    );
+
+    expect(result.summary).toEqual({
+      totalSistema: 1,
+      totalManual: 0,
+      conferido: 1,
+      soSistema: 0,
+      soManual: 0,
+      totalIds: 1
+    });
+    expect(result.details.map((detail) => [detail.ID, detail.status])).toEqual([["1", "Conferido"]]);
+  });
+
+  it('ignores subject-only history changes when the subject is "CHECK LIST DE POPS"', () => {
+    const result = compareMonthToPrevious(
+      [{ ID: "1", dataAbertura: "2026-03-01", assunto: "CHECK LIST DE POPS", colaborador: "Felipe" }],
+      [{ ID: "1", dataAbertura: "2026-02-01", assunto: "CHECK LIST DE POPS", colaborador: "Felipe" }]
+    );
+
+    expect(result.summary).toEqual({
+      totalAtual: 1,
+      totalAnterior: 1,
+      novo: 0,
+      alterado: 1,
+      semAlteracao: 0,
+      totalIds: 1
+    });
+    expect(result.details[0]?.changed).toEqual(["Data de abertura"]);
+  });
 });

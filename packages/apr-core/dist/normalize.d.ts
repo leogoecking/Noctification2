@@ -3,6 +3,7 @@ export declare const normalizeText: (value: unknown) => string;
 export declare const unwrapSpreadsheetFormulaText: (value: unknown) => string;
 export declare const normalizeHeader: (header: unknown) => string;
 export declare const normalizeSubjectPattern: (value: unknown) => string;
+export declare const isAprRecognitionExceptionSubject: (value: unknown) => boolean;
 export declare const employeeNameKey: (value: unknown) => string;
 export declare const employeeNameTokens: (value: unknown) => string[];
 export declare const canonicalEmployeeMatch: (value: unknown) => string;

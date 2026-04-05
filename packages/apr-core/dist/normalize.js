@@ -25,6 +25,7 @@ export const normalizeSubjectPattern = (value) => {
     const clean = String(value ?? "").trim().replace(/\s+/g, " ");
     return clean ? clean.toLocaleUpperCase("pt-BR") : "";
 };
+export const isAprRecognitionExceptionSubject = (value) => normalizeText(value).toLowerCase() === "check list de pops";
 export const employeeNameKey = (value) => normalizeText(value)
     .toLowerCase()
     .replace(/[^a-z0-9 ]/g, " ")
