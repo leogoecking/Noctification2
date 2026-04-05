@@ -331,13 +331,13 @@ export const getVisibleCollaboratorSuggestions = (
     .slice(0, 12);
 };
 
-export const openAuditReportPreview = (
+export const buildAuditReportHtml = (
   selectedMonth: string,
   audit: AprAuditResponse
-): boolean => {
+): string | null => {
   const divergentDetails = audit.details.filter((item) => item.status !== "Conferido");
   if (!divergentDetails.length) {
-    return false;
+    return null;
   }
 
   const reportRows = divergentDetails
@@ -357,39 +357,100 @@ export const openAuditReportPreview = (
     })
     .join("");
 
-  const reportHtml = `<!DOCTYPE html>
+  const collaboratorTotals = [...audit.details.reduce((accumulator, item) => {
+    const collaborator = item.manual?.collaborator ?? item.system?.collaborator ?? "ausente";
+    accumulator.set(collaborator, (accumulator.get(collaborator) ?? 0) + 1);
+    return accumulator;
+  }, new Map<string, number>()).entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "pt-BR"))
+    .map(
+      ([collaborator, total]) =>
+        `<tr><td>${escapeHtml(collaborator)}</td><td>${String(total)}</td></tr>`
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <title>Relatorio APR ${escapeHtml(selectedMonth)}</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+      body { font-family: Arial, sans-serif; margin: 24px; color: #111827; line-height: 1.4; }
       h1, h2 { margin: 0 0 12px; }
-      p { margin: 0 0 8px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      p { margin: 0; }
+      section { margin-top: 20px; }
+      ul { margin: 8px 0 0; padding-left: 20px; }
+      li { margin: 4px 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
       th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; font-size: 12px; }
       th { background: #f3f4f6; }
+      .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .summary-card { border: 1px solid #d1d5db; border-radius: 10px; padding: 12px; background: #f9fafb; }
+      .summary-label { display: block; font-size: 11px; text-transform: uppercase; color: #6b7280; margin-bottom: 6px; }
+      .summary-value { font-size: 20px; font-weight: 700; color: #111827; }
       .meta { margin-top: 12px; color: #4b5563; font-size: 12px; }
     </style>
   </head>
   <body>
     <h1>Relatorio de divergencias APR</h1>
     <p><strong>Referencia:</strong> ${escapeHtml(formatMonthLabel(selectedMonth))} (${escapeHtml(selectedMonth)})</p>
-    <p><strong>Total de divergencias:</strong> ${String(audit.summary.divergentes)}</p>
+    <section>
+      <h2>Resumo do mes</h2>
+      <div class="summary">
+        <div class="summary-card">
+          <span class="summary-label">Total de APR</span>
+          <span class="summary-value">${String(audit.summary.totalIds)}</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Total de divergencias</span>
+          <span class="summary-value">${String(audit.summary.divergentes)}</span>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>APR por colaborador</h2>
+      ${
+        collaboratorTotals
+          ? `<table>
+              <thead>
+                <tr>
+                  <th>Colaborador</th>
+                  <th>Total de APR</th>
+                </tr>
+              </thead>
+              <tbody>${collaboratorTotals}</tbody>
+            </table>`
+          : "<p>Sem colaboradores no mes.</p>"
+      }
+    </section>
     <p class="meta">Gerado em ${escapeHtml(new Date().toLocaleString("pt-BR"))}</p>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Status</th>
-          <th>Assunto</th>
-          <th>Nome do colaborador</th>
-        </tr>
-      </thead>
-      <tbody>${reportRows}</tbody>
-    </table>
+    <section>
+      <h2>Divergencias</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Status</th>
+            <th>Assunto</th>
+            <th>Nome do colaborador</th>
+          </tr>
+        </thead>
+        <tbody>${reportRows}</tbody>
+      </table>
+    </section>
   </body>
 </html>`;
+
+};
+
+export const openAuditReportPreview = (
+  selectedMonth: string,
+  audit: AprAuditResponse
+): boolean => {
+  const reportHtml = buildAuditReportHtml(selectedMonth, audit);
+  if (!reportHtml) {
+    return false;
+  }
 
   const reportBlob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
   const reportUrl = URL.createObjectURL(reportBlob);

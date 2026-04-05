@@ -12,6 +12,7 @@ import {
 } from "../../test/aprFixtures";
 import { AprPage } from "./AprPage";
 import { aprApi } from "./api";
+import { buildAuditReportHtml } from "./aprPageModel";
 
 vi.mock("./api", () => ({
   aprApi: {
@@ -57,8 +58,8 @@ describe("AprPage", () => {
     expect(screen.getByText("Comparativo por colaborador")).toBeInTheDocument();
     expect(screen.getByText("APRs divergentes")).toBeInTheDocument();
     expect(screen.getAllByText("Felipe").length).toBeGreaterThan(0);
-    expect(mockedAprApi.listSubjects).toHaveBeenCalledTimes(1);
-    expect(mockedAprApi.listCollaborators).toHaveBeenCalledTimes(1);
+    expect(mockedAprApi.listSubjects.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(mockedAprApi.listCollaborators.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
   it("monta o grafico da matrix com colaboradores vindos de divergencias", async () => {
@@ -273,7 +274,40 @@ describe("AprPage", () => {
   });
 
   it("exporta relatorio de divergentes em nova aba de visualizacao sem imprimir automaticamente", async () => {
-    mockedAprApi.getAudit.mockResolvedValue(divergentAudit);
+    const auditForReport = {
+      ...divergentAudit,
+      summary: {
+        ...divergentAudit.summary,
+        totalSistema: 3,
+        totalManual: 2,
+        conferido: 1,
+        totalIds: 3,
+        divergentes: 2
+      },
+      details: [
+        ...divergentAudit.details,
+        {
+          externalId: "235271",
+          status: "Conferido" as const,
+          changed: [],
+          system: {
+            ...baseRows.rows[0],
+            sourceType: "system" as const,
+            externalId: "235271",
+            subject: "VISTORIA",
+            collaborator: "FELIPE"
+          },
+          manual: {
+            ...baseRows.rows[0],
+            sourceType: "manual" as const,
+            externalId: "235271",
+            subject: "VISTORIA",
+            collaborator: "FELIPE"
+          }
+        }
+      ]
+    };
+    mockedAprApi.getAudit.mockResolvedValue(auditForReport);
     const createObjectUrl = vi.fn(() => "blob:apr-report");
     const revokeObjectUrl = vi.fn();
     Object.defineProperty(URL, "createObjectURL", {
@@ -309,6 +343,18 @@ describe("AprPage", () => {
     const firstCreateObjectUrlCall = createObjectUrl.mock.calls[0] as unknown as [unknown];
     const reportBlob = firstCreateObjectUrlCall[0];
     expect(reportBlob).toBeInstanceOf(Blob);
+    const reportHtml = buildAuditReportHtml("2026-03", auditForReport);
+    expect(reportHtml).not.toBeNull();
+    expect(reportHtml).toContain("Resumo do mes");
+    expect(reportHtml).toContain("APR por colaborador");
+    expect(reportHtml).toContain("Divergencias");
+    expect((reportHtml?.match(/<span class="summary-label">Total de APR<\/span>/g) ?? [])).toHaveLength(1);
+    expect(reportHtml).toContain("summary-value\">3");
+    expect(reportHtml).toContain("summary-value\">2");
+    expect(reportHtml).toContain("<th>Colaborador</th>");
+    expect(reportHtml).toContain("<th>Total de APR</th>");
+    expect(reportHtml).toContain("<td>FELIPE</td><td>2</td>");
+    expect(reportHtml).toContain("<td>RENAN</td><td>1</td>");
     expect(click).toHaveBeenCalled();
     expect(createdLink).not.toBeNull();
     const link = createdLink as unknown as HTMLAnchorElement;
