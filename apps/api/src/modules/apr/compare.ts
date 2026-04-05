@@ -1,5 +1,5 @@
 import type { ParsedAprRow } from "./model";
-import { normalizeComparableText } from "./model";
+import { isAprRecognitionExceptionSubject, normalizeComparableText } from "./model";
 
 export interface AprAuditDetail {
   externalId: string;
@@ -47,8 +47,14 @@ export const compareAprBases = (systemRows: ParsedAprRow[], manualRows: ParsedAp
     const manual = manualMap.get(externalId) ?? null;
     const changed: string[] = [];
     let status: AprAuditDetail["status"];
+    const shouldIgnoreAuditDivergence =
+      isAprRecognitionExceptionSubject(system?.subject) ||
+      isAprRecognitionExceptionSubject(manual?.subject);
 
-    if (system && manual) {
+    if (shouldIgnoreAuditDivergence) {
+      status = "Conferido";
+      summary.conferido++;
+    } else if (system && manual) {
       status = "Conferido";
       summary.conferido++;
 
@@ -100,6 +106,9 @@ export const compareAprHistory = (currentRows: ParsedAprRow[], previousRows: Par
     const previous = previousMap.get(externalId) ?? null;
     const changed: string[] = [];
     let status: AprHistoryDetail["status"];
+    const shouldIgnoreSubjectDifference =
+      isAprRecognitionExceptionSubject(current?.subject) ||
+      isAprRecognitionExceptionSubject(previous?.subject);
 
     if (!previous) {
       status = "Novo";
@@ -108,7 +117,10 @@ export const compareAprHistory = (currentRows: ParsedAprRow[], previousRows: Par
       if (current?.openedOn !== previous.openedOn) {
         changed.push("Data de abertura");
       }
-      if (normalizeComparableText(current?.subject) !== normalizeComparableText(previous.subject)) {
+      if (
+        !shouldIgnoreSubjectDifference &&
+        normalizeComparableText(current?.subject) !== normalizeComparableText(previous.subject)
+      ) {
         changed.push("Assunto");
       }
       if (

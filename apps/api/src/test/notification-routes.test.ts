@@ -196,6 +196,108 @@ describe("notification routes", () => {
     expect((response.body as { error: string }).error).toMatch(/status deve ser read ou unread/i);
   });
 
+  it("filtra historico administrativo por scope operacional concluido e prioridade", () => {
+    const createNotificationHandler = getRouteHandler(adminRouter, "/notifications", "post");
+    const respondHandler = getRouteHandler(meRouter, "/notifications/:id/respond", "post");
+    const listHistoryHandler = getRouteHandler(adminRouter, "/notifications", "get");
+
+    const highResponse = createMockResponse();
+    createNotificationHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Resolvida",
+          message: "Encerrada",
+          priority: "high",
+          recipient_mode: "users",
+          recipient_ids: [regularUser.id]
+        }
+      },
+      highResponse
+    );
+
+    const highNotificationId = (highResponse.body as { notification: { id: number } }).notification.id;
+
+    const normalResponse = createMockResponse();
+    createNotificationHandler(
+      {
+        authUser: adminUser,
+        body: {
+          title: "Ainda ativa",
+          message: "Em andamento",
+          priority: "normal",
+          recipient_mode: "users",
+          recipient_ids: [regularUser.id]
+        }
+      },
+      normalResponse
+    );
+
+    const normalNotificationId = (normalResponse.body as { notification: { id: number } }).notification.id;
+
+    const resolveRes = createMockResponse();
+    respondHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(highNotificationId) },
+        body: {
+          operational_status: "resolvida",
+          response_message: "Fechado"
+        }
+      },
+      resolveRes
+    );
+
+    expect(resolveRes.statusCode).toBe(200);
+
+    const progressRes = createMockResponse();
+    respondHandler(
+      {
+        authUser: regularUser,
+        params: { id: String(normalNotificationId) },
+        body: {
+          operational_status: "em_andamento",
+          response_message: "Investigando"
+        }
+      },
+      progressRes
+    );
+
+    expect(progressRes.statusCode).toBe(200);
+
+    const historyRes = createMockResponse();
+    listHistoryHandler(
+      {
+        authUser: adminUser,
+        query: {
+          scope: "operational_completed",
+          priority: "high"
+        }
+      },
+      historyRes
+    );
+
+    expect(historyRes.statusCode).toBe(200);
+    expect(
+      (historyRes.body as {
+        notifications: Array<{
+          id: number;
+          stats: { resolved: number; operationalCompleted: number };
+          recipients: Array<{ operationalStatus: string }>;
+        }>;
+      }).notifications
+    ).toMatchObject([
+      {
+        id: highNotificationId,
+        stats: {
+          resolved: 1,
+          operationalCompleted: 1
+        },
+        recipients: [{ operationalStatus: "resolvida" }]
+      }
+    ]);
+  });
+
   it("marca todas como visualizadas sem perder resposta operacional", () => {
     const createNotificationHandler = getRouteHandler(adminRouter, "/notifications", "post");
     const listNotificationsHandler = getRouteHandler(meRouter, "/notifications", "get");

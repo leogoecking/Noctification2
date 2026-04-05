@@ -175,11 +175,11 @@ export const ReminderQuickBoard = ({
   const activeCount = reminders.filter((entry) => entry.item.isActive).length;
 
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-outlineSoft bg-[linear-gradient(135deg,rgba(148,163,184,0.08),rgba(15,23,42,0.02))] shadow-glow">
+    <article className="overflow-hidden rounded-[1.5rem] border border-outlineSoft bg-[linear-gradient(135deg,rgba(148,163,184,0.08),rgba(15,23,42,0.02))] shadow-sm">
       <div className="border-b border-outlineSoft/80 px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-textMuted">Quadro rapido</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-textMuted">Quadro rapido</p>
             <h4 className="mt-1 font-display text-base text-textMain">Organizacao visual dos lembretes</h4>
             <p className="text-sm text-textMuted">
               Arraste os cards entre colunas para manter a rotina organizada sem mexer na biblioteca completa.
@@ -200,7 +200,7 @@ export const ReminderQuickBoard = ({
           return (
             <section
               key={lane.id}
-              className="rounded-2xl border border-dashed border-outlineSoft bg-panel/70 p-3"
+              className="rounded-md border border-dashed border-outlineSoft bg-panelAlt p-3"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();

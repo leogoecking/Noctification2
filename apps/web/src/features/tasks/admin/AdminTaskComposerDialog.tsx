@@ -40,7 +40,7 @@ export const AdminTaskComposerDialog = ({
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-accent">Formulario</p>
+              <p className="text-xs uppercase tracking-wider text-accent">Formulario</p>
               <h4 className="mt-1 font-display text-lg text-textMain">
                 {form.id > 0 ? "Editar tarefa" : "Nova tarefa administrativa"}
               </h4>

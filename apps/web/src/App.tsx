@@ -10,7 +10,6 @@ import { useToastQueue } from "./hooks/useToastQueue";
 import { useWebPushSubscription } from "./hooks/useWebPushSubscription";
 import { primeReminderAudio } from "./lib/reminderAudio";
 import { isAprModuleEnabled, isKmlPosteModuleEnabled } from "./lib/featureFlags";
-import type { AuthUser } from "./types";
 import {
   AppHeader,
   AppToastStack,
@@ -38,7 +37,7 @@ export default function App() {
     }
 
     if (!currentUser) {
-      if (currentPath !== "/login" && currentPath !== "/admin/login") {
+      if (currentPath !== "/login") {
         navigate("/login", true);
       }
       return;
@@ -59,11 +58,6 @@ export default function App() {
       return;
     }
 
-    if (currentUser.role === "user" && currentPath === "/admin/login") {
-      navigate("/", true);
-      return;
-    }
-
     if (currentUser.role === "user") {
       const allowedPaths = new Set<AppPath>(["/", "/notifications", "/reminders", "/tasks"]);
       if (aprModuleEnabled) {
@@ -80,30 +74,12 @@ export default function App() {
   }, [aprModuleEnabled, currentPath, currentUser, kmlPosteModuleEnabled, loadingSession, navigate]);
 
   const login = useCallback(
-    async (loginValue: string, password: string, expectedRole: AuthUser["role"]) => {
+    async (loginValue: string, password: string) => {
       setSubmittingAuth(true);
 
       try {
-        const response = await api.login(loginValue, password, expectedRole);
-        const user = response.user;
-
-        if (user.role !== expectedRole) {
-          try {
-            await api.logout();
-          } catch {
-            // Best-effort cleanup for older API behavior that accepted the session.
-          }
-
-          setCurrentUser(null);
-          throw new ApiError(
-            expectedRole === "admin"
-              ? "Use /login para acesso de usuario"
-              : "Use /admin/login para acesso administrativo",
-            403
-          );
-        }
-
-        setCurrentUser(user);
+        const response = await api.login(loginValue, password);
+        setCurrentUser(response.user);
         navigate("/", true);
         pushToast("Login realizado com sucesso", "ok");
       } catch (error) {
@@ -177,30 +153,19 @@ export default function App() {
     <main className="min-h-screen bg-canvas text-textMain">
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 lg:px-6">
         <AppHeader
-          currentPath={currentPath}
           currentUser={currentUser}
           pageTitle={pageTitle}
           darkMode={darkMode}
           onLogout={() => void logout()}
-          onNavigate={navigate}
           onToggleDarkMode={toggleDarkMode}
         />
 
         {loadingSession && <p className="text-sm text-textMuted">Carregando sessao...</p>}
 
-        {!loadingSession && !currentUser && currentPath === "/login" && (
+        {!loadingSession && !currentUser && (
           <LoginScreen
-            mode="user"
-            onLogin={(loginValue, password) => login(loginValue, password, "user")}
+            onLogin={login}
             onRegister={register}
-            isLoading={submittingAuth}
-          />
-        )}
-
-        {!loadingSession && !currentUser && currentPath === "/admin/login" && (
-          <LoginScreen
-            mode="admin"
-            onLogin={(loginValue, password) => login(loginValue, password, "admin")}
             isLoading={submittingAuth}
           />
         )}

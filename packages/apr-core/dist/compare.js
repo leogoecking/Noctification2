@@ -1,4 +1,4 @@
-import { normalizeText } from "./normalize.js";
+import { isAprRecognitionExceptionSubject, normalizeText } from "./normalize.js";
 export const buildRowMap = (rows) => {
     const result = new Map();
     for (const row of rows || []) {
@@ -24,7 +24,13 @@ export const compareBases = (systemRows, manualRows) => {
         const manual = manualMap.get(id) ?? null;
         const changed = [];
         let status;
-        if (system && manual) {
+        const shouldIgnoreAuditDivergence = isAprRecognitionExceptionSubject(system?.assunto) ||
+            isAprRecognitionExceptionSubject(manual?.assunto);
+        if (shouldIgnoreAuditDivergence) {
+            status = "Conferido";
+            summary.conferido++;
+        }
+        else if (system && manual) {
             status = "Conferido";
             summary.conferido++;
             if (system.dataAbertura !== manual.dataAbertura) {
@@ -67,6 +73,8 @@ export const compareMonthToPrevious = (currentRows, previousRows) => {
         const previous = previousMap.get(id) ?? null;
         const changed = [];
         let status;
+        const shouldIgnoreSubjectDifference = isAprRecognitionExceptionSubject(current?.assunto) ||
+            isAprRecognitionExceptionSubject(previous?.assunto);
         if (!previous) {
             status = "Novo";
             summary.novo++;
@@ -75,7 +83,8 @@ export const compareMonthToPrevious = (currentRows, previousRows) => {
             if (current?.dataAbertura !== previous.dataAbertura) {
                 changed.push("Data de abertura");
             }
-            if (normalizeText(current?.assunto) !== normalizeText(previous.assunto)) {
+            if (!shouldIgnoreSubjectDifference &&
+                normalizeText(current?.assunto) !== normalizeText(previous.assunto)) {
                 changed.push("Assunto");
             }
             if (normalizeText(current?.colaborador) !== normalizeText(previous.colaborador)) {

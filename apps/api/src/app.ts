@@ -63,7 +63,7 @@ export const createApp = (db: Database.Database, io: Server, config: AppConfig) 
   app.use("/api/v1/admin", createTaskAdminRouterWithIo(db, io, config));
   app.use("/api/v1/me", createMeRouter(db, io, config));
   app.use("/api/v1/me", createReminderMeRouter(db, io, config));
-  app.use("/api/v1/me", createOperationsBoardMeRouter(db, config));
+  app.use("/api/v1/me", createOperationsBoardMeRouter(db, io, config));
   app.use("/api/v1/me", createTaskMeRouterWithIo(db, io, config));
 
   if (config.enableAprModule) {

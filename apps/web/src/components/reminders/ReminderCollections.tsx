@@ -69,7 +69,7 @@ export const ReminderCollections = ({
       <div
         key={entry.item.id}
         className={`rounded-xl border-l-4 bg-panelAlt p-4 ${colorStyle.accent} ${
-          entry.meta.pinned ? "ring-1 ring-warning/50 shadow-glow" : ""
+          entry.meta.pinned ? "ring-1 ring-warning/50 shadow-sm" : ""
         }`}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -203,7 +203,7 @@ export const ReminderCollections = ({
           {pinnedReminders.length > 0 ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <h5 className="text-xs font-bold uppercase tracking-[0.18em] text-warning">Fixados</h5>
+                <h5 className="text-xs font-bold uppercase tracking-wider text-warning">Fixados</h5>
                 <span className="text-xs text-textMuted">{pinnedReminders.length} itens</span>
               </div>
               <div className="rounded-2xl border border-warning/30 bg-warning/5 p-3">
@@ -215,7 +215,7 @@ export const ReminderCollections = ({
           {regularReminders.length > 0 ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <h5 className="text-xs font-bold uppercase tracking-[0.18em] text-textMuted">Fluxo geral</h5>
+                <h5 className="text-xs font-bold uppercase tracking-wider text-textMuted">Fluxo geral</h5>
                 <span className="text-xs text-textMuted">{regularReminders.length} itens</span>
               </div>
               <div className="space-y-3">{regularReminders.map(renderReminderCard)}</div>

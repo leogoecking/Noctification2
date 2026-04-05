@@ -24,13 +24,15 @@ interface NotificationAlertCenterProps {
   onError: (message: string) => void;
   onToast: (message: string) => void;
   onOpenNotifications: () => void;
+  onPlaySound?: (priority: "low" | "normal" | "high" | "critical") => void;
 }
 
 export const NotificationAlertCenter = ({
   isVisible,
   onError,
   onToast,
-  onOpenNotifications
+  onOpenNotifications,
+  onPlaySound,
 }: NotificationAlertCenterProps) => {
   const [alerts, setAlerts] = useState<NotificationVisualAlert[]>([]);
   const { permission, requestPermission, notify, closeNotification } = useBrowserNotifications({
@@ -89,7 +91,13 @@ export const NotificationAlertCenter = ({
       upsertAlert(nextNotification, reminderCount, false);
 
       void (async () => {
-        const played = await playSystemAlert(payload.id, profile);
+        let played: boolean;
+        if (onPlaySound) {
+          onPlaySound(payload.priority);
+          played = true;
+        } else {
+          played = await playSystemAlert(payload.id, profile);
+        }
         const body =
           payload.message.trim() || `Recebida em ${new Date(payload.createdAt).toLocaleString("pt-BR")}`;
 
@@ -110,7 +118,7 @@ export const NotificationAlertCenter = ({
         );
       })();
     },
-    [notify, upsertAlert]
+    [notify, onPlaySound, upsertAlert]
   );
 
   const onUpdated = useCallback(

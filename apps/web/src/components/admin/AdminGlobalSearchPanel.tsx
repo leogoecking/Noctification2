@@ -17,8 +17,8 @@ const totalResults = (props: Omit<AdminGlobalSearchPanelProps, "query" | "onOpen
   props.users.length + props.notifications.length + props.auditEvents.length + props.tasks.length;
 
 const EmptyState = ({ query }: { query: string }) => (
-  <article className="rounded-[1.5rem] bg-panel p-6 shadow-glow">
-    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+  <article className="rounded-[1.5rem] bg-panel p-6 shadow-sm">
+    <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
       Busca global
     </p>
     <h3 className="mt-2 font-display text-2xl font-extrabold tracking-tight text-textMain">
@@ -79,8 +79,8 @@ export const AdminGlobalSearchPanel = ({
 
   return (
     <div className="space-y-6">
-      <article className="rounded-[1.5rem] bg-panel p-6 shadow-glow">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-textMuted">
+      <article className="rounded-[1.5rem] bg-panel p-6 shadow-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-textMuted">
           Busca global
         </p>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">

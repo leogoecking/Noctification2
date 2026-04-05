@@ -216,7 +216,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
             metaRowRenderer={(task) => (
               <>
                 <span
-                  className={`rounded-full px-2 py-1 text-[10px] ${buildTaskSlaInfo(task).badgeClassName}`}
+                  className={`rounded-full px-2 py-1 text-xs ${buildTaskSlaInfo(task).badgeClassName}`}
                   title={buildTaskSlaInfo(task).detail}
                 >
                   {buildTaskSlaInfo(task).label}
@@ -238,7 +238,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
       <div className="fixed bottom-8 right-8 z-20">
         <button
           aria-label="Nova tarefa"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-glow transition hover:scale-[1.02]"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-sm transition hover:scale-[1.02]"
           onClick={openCreateTask}
           type="button"
         >
@@ -249,34 +249,33 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
       {(composerOpen || form.id > 0) && (
         <div
           aria-label="Overlay do formulario da tarefa"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-textMain/70 p-3 sm:p-6"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-3 sm:p-6"
           onClick={resetForm}
         >
           <div
             aria-label="Formulario da tarefa"
             aria-modal="true"
-            className="w-full max-w-2xl rounded-[1.25rem] bg-panel p-5 shadow-2xl"
+            className="flex max-h-[min(90vh,640px)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.25rem] bg-panel shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
-            <div className="space-y-4">
+            <div className="shrink-0 px-5 pt-5 pb-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-accent">Kanban</p>
-                  <h4 className="mt-1 font-display text-lg text-textMain">
-                    {form.id > 0 ? "Editar tarefa" : "Nova tarefa"}
-                  </h4>
-                  <p className="text-sm text-textMuted">Cadastro rapido da tarefa dentro da fila.</p>
-                </div>
+                <h4 className="font-display text-xl font-bold text-textMain">
+                  {form.id > 0 ? "Editar tarefa" : "Nova tarefa"}
+                </h4>
                 <button
                   aria-label="Fechar formulario da tarefa"
-                  className="rounded-full border border-outlineSoft bg-panelAlt px-3 py-1 text-xs text-textMain"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-outlineSoft bg-panelAlt text-sm text-textMain"
                   onClick={resetForm}
                   type="button"
                 >
-                  Fechar
+                  ×
                 </button>
               </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 pb-5">
+            <div className="space-y-4">
 
               <input
                 className="input"
@@ -344,6 +343,7 @@ export const TaskUserPanel = ({ user, onError, onToast }: TaskUserPanelProps) =>
                   {form.id > 0 ? "Salvar tarefa" : "Criar tarefa"}
                 </button>
               </div>
+            </div>
             </div>
           </div>
         </div>

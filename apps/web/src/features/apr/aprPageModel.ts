@@ -118,7 +118,7 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-export const normalizeSearchValue = (value: string): string => value.trim().toLowerCase();
+const normalizeSearchValue = (value: string): string => value.trim().toLowerCase();
 
 export const clampPage = (page: number, totalPages: number): number =>
   Math.min(Math.max(page, 1), Math.max(totalPages, 1));

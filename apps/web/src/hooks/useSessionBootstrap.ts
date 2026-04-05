@@ -24,7 +24,6 @@ export const useSessionBootstrap = () => {
   return {
     currentUser,
     setCurrentUser,
-    loadingSession,
-    reloadSession: loadSession
+    loadingSession
   };
 };

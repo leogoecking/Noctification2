@@ -1,12 +1,12 @@
 import path from "node:path";
 import { createServer, type Server as HttpServer } from "node:http";
-import request from "supertest";
 import bcrypt from "bcryptjs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { connectDatabase, nowIso, runMigrations } from "../db";
 import type { AppConfig } from "../config";
 import { setupSocket } from "../socket";
+import { dispatchExpressRequest, type DispatchResponse } from "./express-test-client";
 
 const testConfig: AppConfig = {
   nodeEnv: "test",
@@ -28,10 +28,7 @@ const testConfig: AppConfig = {
   }
 };
 
-const describeHttp =
-  process.env.NOCTIFICATION_RUN_HTTP_TESTS === "1" ? describe : describe.skip;
-
-describeHttp("API notification flow", () => {
+describe("API notification flow", () => {
   let db: ReturnType<typeof connectDatabase>;
   let server: HttpServer;
   let app: ReturnType<typeof createApp>;
@@ -51,8 +48,9 @@ describeHttp("API notification flow", () => {
     ).run(adminPasswordHash, timestamp, timestamp, userPasswordHash, timestamp, timestamp);
   };
 
-  const extractCookie = (response: request.Response): string => {
-    const rawCookie = response.headers["set-cookie"]?.[0];
+  const extractCookie = (response: DispatchResponse): string => {
+    const setCookie = response.headers["set-cookie"];
+    const rawCookie = Array.isArray(setCookie) ? setCookie[0] : setCookie;
     if (!rawCookie) {
       throw new Error("Cookie de sessao nao retornado");
     }
@@ -60,29 +58,45 @@ describeHttp("API notification flow", () => {
     return rawCookie.split(";")[0];
   };
 
+  const responseBody = <T>(response: DispatchResponse): T => response.body as T;
+
+  const createRequest = (method: "GET" | "POST" | "PATCH" | "DELETE", pathName: string, cookie?: string) => {
+    const execute = (body?: unknown) =>
+      dispatchExpressRequest(app, {
+        method,
+        path: pathName,
+        cookie,
+        body
+      });
+
+    return {
+      send: (body: unknown) => execute(body),
+      then: <TResult1 = DispatchResponse, TResult2 = never>(
+        onfulfilled?: ((value: DispatchResponse) => TResult1 | PromiseLike<TResult1>) | null,
+        onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+      ) => execute().then(onfulfilled, onrejected),
+      catch: <TResult = never>(
+        onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
+      ) => execute().catch(onrejected),
+      finally: (onfinally?: (() => void) | null) => execute().finally(onfinally ?? undefined)
+    };
+  };
+
   const withCookie = (_instance: unknown, cookie?: string) => {
     return {
-      get: (path: string) => {
-        const req = request(server).get(path);
-        return cookie ? req.set("Cookie", cookie) : req;
-      },
-      post: (path: string) => {
-        const req = request(server).post(path);
-        return cookie ? req.set("Cookie", cookie) : req;
-      },
-      patch: (path: string) => {
-        const req = request(server).patch(path);
-        return cookie ? req.set("Cookie", cookie) : req;
-      },
-      delete: (path: string) => {
-        const req = request(server).delete(path);
-        return cookie ? req.set("Cookie", cookie) : req;
-      }
+      get: (pathName: string) => createRequest("GET", pathName, cookie),
+      post: (pathName: string) => createRequest("POST", pathName, cookie),
+      patch: (pathName: string) => createRequest("PATCH", pathName, cookie),
+      delete: (pathName: string) => createRequest("DELETE", pathName, cookie)
     };
   };
 
   const loginAs = async (login: string, password: string): Promise<string> => {
-    const response = await request(server).post("/api/v1/auth/login").send({ login, password });
+    const response = await dispatchExpressRequest(app, {
+      method: "POST",
+      path: "/api/v1/auth/login",
+      body: { login, password }
+    });
     expect(response.status).toBe(200);
     return extractCookie(response);
   };
@@ -109,12 +123,12 @@ describeHttp("API notification flow", () => {
 
     const me = await client.get("/api/v1/auth/me");
     expect(me.status).toBe(200);
-    expect(me.body.user.login).toBe("admin");
+    expect(responseBody<{ user: { login: string } }>(me).user.login).toBe("admin");
 
     const logout = await client.post("/api/v1/auth/logout");
     expect(logout.status).toBe(204);
 
-    const meAfterLogout = await client.get("/api/v1/auth/me");
+    const meAfterLogout = await withCookie(app).get("/api/v1/auth/me");
     expect(meAfterLogout.status).toBe(401);
   });
 
@@ -153,13 +167,14 @@ describeHttp("API notification flow", () => {
     });
 
     expect(register.status).toBe(201);
-    expect(register.body.user.login).toBe("novo_user");
-    expect(register.body.user.role).toBe("user");
+    const registerBody = responseBody<{ user: { login: string; role: string } }>(register);
+    expect(registerBody.user.login).toBe("novo_user");
+    expect(registerBody.user.role).toBe("user");
 
     const cookie = extractCookie(register);
     const me = await withCookie(app, cookie).get("/api/v1/auth/me");
     expect(me.status).toBe(200);
-    expect(me.body.user.login).toBe("novo_user");
+    expect(responseBody<{ user: { login: string } }>(me).user.login).toBe("novo_user");
   });
 
   it("retorna 409 para cadastro com login duplicado", async () => {
@@ -191,7 +206,7 @@ describeHttp("API notification flow", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toMatch(/admin fixo/i);
+    expect(responseBody<{ error: string }>(response).error).toMatch(/admin fixo/i);
   });
 
   it("envia para all apenas usuarios comuns ativos", async () => {
@@ -207,6 +222,7 @@ describeHttp("API notification flow", () => {
     });
 
     expect(response.status).toBe(201);
+    const createNotificationBody = responseBody<{ notification: { id: number } }>(response);
 
     const recipients = db
       .prepare(
@@ -218,7 +234,7 @@ describeHttp("API notification flow", () => {
           ORDER BY u.login ASC
         `
       )
-      .all(response.body.notification.id) as Array<{ login: string }>;
+      .all(createNotificationBody.notification.id) as Array<{ login: string }>;
 
     expect(recipients.map((item) => item.login)).toEqual(["user"]);
   });
@@ -229,7 +245,7 @@ describeHttp("API notification flow", () => {
     const response = await withCookie(app, cookie).get("/api/v1/admin/notifications?status=invalido");
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toMatch(/status deve ser read ou unread/i);
+    expect(responseBody<{ error: string }>(response).error).toMatch(/status deve ser read ou unread/i);
   });
 
   it("nao perde notificacoes nao lidas antigas ao filtrar status unread", async () => {
@@ -283,9 +299,10 @@ describeHttp("API notification flow", () => {
     const unreadResponse = await withCookie(app, cookie).get("/api/v1/admin/notifications?status=unread");
 
     expect(unreadResponse.status).toBe(200);
-    expect(unreadResponse.body.notifications.length).toBe(5);
+    const unreadResponseBody = responseBody<{ notifications: Array<{ stats: { unread: number } }> }>(unreadResponse);
+    expect(unreadResponseBody.notifications.length).toBe(5);
     expect(
-      unreadResponse.body.notifications.every(
+      unreadResponseBody.notifications.every(
         (item: { stats: { unread: number } }) => item.stats.unread > 0
       )
     ).toBe(true);
@@ -298,7 +315,13 @@ describeHttp("API notification flow", () => {
     const userClient = withCookie(app, userCookie);
 
     const usersResponse = await adminClient.get("/api/v1/admin/users");
-    const targetUser = usersResponse.body.users.find((item: { login: string }) => item.login === "user");
+    const usersResponseBody = responseBody<{ users: Array<{ id: number; login: string }> }>(usersResponse);
+    const targetUser = usersResponseBody.users.find((item: { login: string }) => item.login === "user");
+    expect(targetUser).toBeTruthy();
+
+    if (!targetUser) {
+      throw new Error("Usuario alvo nao encontrado para o fluxo de notificacoes");
+    }
 
     await adminClient.post("/api/v1/admin/notifications").send({
       title: "N1",
@@ -318,41 +341,52 @@ describeHttp("API notification flow", () => {
 
     const unreadBefore = await userClient.get("/api/v1/me/notifications?status=unread");
     expect(unreadBefore.status).toBe(200);
-    expect(unreadBefore.body.notifications.length).toBe(2);
+    const unreadBeforeBody = responseBody<{ notifications: Array<{ id: number }> }>(unreadBefore);
+    expect(unreadBeforeBody.notifications.length).toBe(2);
 
-    const firstId = unreadBefore.body.notifications[0].id as number;
+    const firstId = unreadBeforeBody.notifications[0].id as number;
     const respond = await userClient.post(`/api/v1/me/notifications/${firstId}/respond`).send({
       response_status: "em_andamento",
       response_message: "Investigando"
     });
 
     expect(respond.status).toBe(200);
-    expect(respond.body.responseStatus).toBe("em_andamento");
-    expect(respond.body.isVisualized).toBe(true);
+    const respondBody = responseBody<{ responseStatus: string; isVisualized: boolean }>(respond);
+    expect(respondBody.responseStatus).toBe("em_andamento");
+    expect(respondBody.isVisualized).toBe(true);
 
     const unreadAfterRespond = await userClient.get("/api/v1/me/notifications?status=unread");
     expect(unreadAfterRespond.status).toBe(200);
-    expect(unreadAfterRespond.body.notifications.length).toBe(1);
+    expect(responseBody<{ notifications: unknown[] }>(unreadAfterRespond).notifications.length).toBe(1);
 
     const readAll = await userClient.post("/api/v1/me/notifications/read-all");
     expect(readAll.status).toBe(200);
-    expect(readAll.body.updatedCount).toBe(1);
+    expect(responseBody<{ updatedCount: number }>(readAll).updatedCount).toBe(1);
 
     const unreadAfterAll = await userClient.get("/api/v1/me/notifications?status=unread");
     expect(unreadAfterAll.status).toBe(200);
-    expect(unreadAfterAll.body.notifications.length).toBe(0);
+    expect(responseBody<{ notifications: unknown[] }>(unreadAfterAll).notifications.length).toBe(0);
 
     const allNotifications = await userClient.get("/api/v1/me/notifications");
     expect(allNotifications.status).toBe(200);
+    const allNotificationsBody = responseBody<{
+      notifications: Array<{ id: number; isVisualized: boolean; responseStatus: string | null }>;
+    }>(allNotifications);
     expect(
-      allNotifications.body.notifications.every(
+      allNotificationsBody.notifications.every(
         (item: { isVisualized: boolean }) => item.isVisualized
       )
     ).toBe(true);
 
-    const inProgressNotification = allNotifications.body.notifications.find(
+    const inProgressNotification = allNotificationsBody.notifications.find(
       (item: { id: number }) => item.id === firstId
     );
+    expect(inProgressNotification).toBeTruthy();
+
+    if (!inProgressNotification) {
+      throw new Error("Notificacao em andamento nao encontrada apos leitura global");
+    }
+
     expect(inProgressNotification.responseStatus).toBe("em_andamento");
   });
 
@@ -371,11 +405,14 @@ describeHttp("API notification flow", () => {
     });
 
     expect(create.status).toBe(201);
-    expect(create.body.reminder.title).toBe("Tomar agua");
-    expect(create.body.reminder.weekdays).toEqual([1, 3, 5]);
-    expect(create.body.reminder.isActive).toBe(true);
+    const createBody = responseBody<{
+      reminder: { id: number; title: string; weekdays: number[]; isActive: boolean };
+    }>(create);
+    expect(createBody.reminder.title).toBe("Tomar agua");
+    expect(createBody.reminder.weekdays).toEqual([1, 3, 5]);
+    expect(createBody.reminder.isActive).toBe(true);
 
-    const reminderId = create.body.reminder.id as number;
+    const reminderId = createBody.reminder.id as number;
 
     const update = await userClient.patch(`/api/v1/me/reminders/${reminderId}`).send({
       title: "Tomar agua cedo",
@@ -384,8 +421,9 @@ describeHttp("API notification flow", () => {
     });
 
     expect(update.status).toBe(200);
-    expect(update.body.reminder.title).toBe("Tomar agua cedo");
-    expect(update.body.reminder.repeatType).toBe("daily");
+    const updateBody = responseBody<{ reminder: { title: string; repeatType: string } }>(update);
+    expect(updateBody.reminder.title).toBe("Tomar agua cedo");
+    expect(updateBody.reminder.repeatType).toBe("daily");
 
     const toggle = await userClient.patch(`/api/v1/me/reminders/${reminderId}/toggle`).send({
       isActive: false
@@ -395,12 +433,13 @@ describeHttp("API notification flow", () => {
 
     const inactiveOnly = await userClient.get("/api/v1/me/reminders?active=false");
     expect(inactiveOnly.status).toBe(200);
-    expect(inactiveOnly.body.reminders).toHaveLength(1);
-    expect(inactiveOnly.body.reminders[0].title).toBe("Tomar agua cedo");
+    const inactiveOnlyBody = responseBody<{ reminders: Array<{ title: string }> }>(inactiveOnly);
+    expect(inactiveOnlyBody.reminders).toHaveLength(1);
+    expect(inactiveOnlyBody.reminders[0].title).toBe("Tomar agua cedo");
 
     const activeOnly = await userClient.get("/api/v1/me/reminders?active=true");
     expect(activeOnly.status).toBe(200);
-    expect(activeOnly.body.reminders).toHaveLength(0);
+    expect(responseBody<{ reminders: unknown[] }>(activeOnly).reminders).toHaveLength(0);
   });
 
   it("permite concluir a propria ocorrencia de lembrete e impede acesso a lembrete de outro usuario", async () => {
@@ -436,12 +475,13 @@ describeHttp("API notification flow", () => {
 
     const listOccurrences = await userClient.get("/api/v1/me/reminder-occurrences?status=pending");
     expect(listOccurrences.status).toBe(200);
-    expect(listOccurrences.body.occurrences).toHaveLength(1);
-    expect(listOccurrences.body.occurrences[0].title).toBe("Medicacao");
+    const listOccurrencesBody = responseBody<{ occurrences: Array<{ title: string }> }>(listOccurrences);
+    expect(listOccurrencesBody.occurrences).toHaveLength(1);
+    expect(listOccurrencesBody.occurrences[0].title).toBe("Medicacao");
 
     const complete = await userClient.post(`/api/v1/me/reminder-occurrences/${occurrenceId}/complete`);
     expect(complete.status).toBe(200);
-    expect(complete.body.ok).toBe(true);
+    expect(responseBody<{ ok: boolean }>(complete).ok).toBe(true);
 
     const completedRow = db
       .prepare(

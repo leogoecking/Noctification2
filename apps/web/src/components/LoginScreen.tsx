@@ -1,80 +1,73 @@
 import { useMemo, useState } from "react";
 
 interface LoginScreenProps {
-  mode: "user" | "admin";
   onLogin: (login: string, password: string) => Promise<void>;
   onRegister?: (name: string, login: string, password: string) => Promise<void>;
   isLoading: boolean;
 }
 
-export const LoginScreen = ({ mode, onLogin, onRegister, isLoading }: LoginScreenProps) => {
+export const LoginScreen = ({ onLogin, onRegister, isLoading }: LoginScreenProps) => {
   const [formMode, setFormMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
-  const [login, setLogin] = useState(mode === "admin" ? "admin" : "");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const isRegisterMode = mode === "user" && formMode === "register";
+  const isRegisterMode = formMode === "register";
 
-  const heading = useMemo(() => {
-    if (mode === "admin") {
-      return "Acesso administrativo";
-    }
-
-    return isRegisterMode ? "Criar conta" : "Acesso interno";
-  }, [isRegisterMode, mode]);
+  const heading = useMemo(
+    () => (isRegisterMode ? "Criar conta" : "Acesso interno"),
+    [isRegisterMode]
+  );
 
   return (
-    <div className="mx-auto max-w-md animate-rise-in rounded-3xl bg-panel/95 p-6 shadow-glow backdrop-blur ring-1 ring-outlineSoft/50">
-      <p className="text-xs uppercase tracking-[0.22em] text-accent">Noctification</p>
-      <h1 className="mt-2 font-display text-3xl text-textMain">{heading}</h1>
-      <p className="mt-1 text-sm text-textMuted">
-        {mode === "admin"
-          ? "Use as credenciais fixas admin/admin"
-          : isRegisterMode
-            ? "Informe nome, login e senha para criar seu acesso"
-            : "Entre com seu login institucional"}
+    <div className="mx-auto max-w-md animate-rise-in rounded-lg border border-outlineSoft/60 bg-panel p-8">
+      <div className="mb-6 flex items-center gap-4">
+        <img alt="Noctification" className="h-10 w-10 drop-shadow-lg" src="/icons/icon-192.svg" />
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent/70">Noctification</p>
+          <h2 className="font-display text-3xl font-black leading-tight text-textMain">{heading}</h2>
+        </div>
+      </div>
+
+      <p className="mb-5 text-sm text-textMuted">
+        {isRegisterMode
+          ? "Informe nome, login e senha para criar seu acesso"
+          : "Entre com seu login institucional"}
       </p>
 
-      {mode === "user" && (
-        <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-panelAlt p-1">
-          <button
-            type="button"
-            className={`rounded-lg px-3 py-2 text-sm ${formMode === "login" ? "bg-accent text-white" : "text-textMuted"}`}
-            onClick={() => setFormMode("login")}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            className={`rounded-lg px-3 py-2 text-sm ${formMode === "register" ? "bg-accent text-white" : "text-textMuted"}`}
-            onClick={() => setFormMode("register")}
-          >
-            Criar conta
-          </button>
-        </div>
-      )}
+      <div className="mb-5 grid grid-cols-2 gap-2 rounded-md border border-outlineSoft/50 bg-surfaceHigh p-1">
+        <button
+          type="button"
+          className={`rounded-md px-3 py-2 text-sm font-semibold transition ${formMode === "login" ? "bg-surfaceHighest text-accent bg-surfaceHighest" : "text-textMuted hover:text-textMain"}`}
+          onClick={() => setFormMode("login")}
+        >
+          Entrar
+        </button>
+        <button
+          type="button"
+          className={`rounded-md px-3 py-2 text-sm font-semibold transition ${formMode === "register" ? "bg-surfaceHighest text-accent bg-surfaceHighest" : "text-textMuted hover:text-textMain"}`}
+          onClick={() => setFormMode("register")}
+        >
+          Criar conta
+        </button>
+      </div>
 
       <form
-        className="mt-6 space-y-3"
+        className="space-y-3"
         onSubmit={async (event) => {
           event.preventDefault();
-
           if (isRegisterMode) {
-            if (!onRegister) {
-              return;
-            }
-
+            if (!onRegister) return;
             await onRegister(name, login, password);
             return;
           }
-
           await onLogin(login, password);
         }}
       >
         {isRegisterMode && (
           <label className="block space-y-1">
-            <span className="text-xs text-textMuted">Nome</span>
+            <span className="text-xs font-medium text-textMuted">Nome</span>
             <input
               className="input"
               value={name}
@@ -86,19 +79,18 @@ export const LoginScreen = ({ mode, onLogin, onRegister, isLoading }: LoginScree
         )}
 
         <label className="block space-y-1">
-          <span className="text-xs text-textMuted">Login</span>
+          <span className="text-xs font-medium text-textMuted">Login</span>
           <input
             className="input"
             value={login}
             onChange={(event) => setLogin(event.target.value)}
             autoComplete="username"
-            readOnly={mode === "admin"}
             required
           />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs text-textMuted">Senha</span>
+          <span className="text-xs font-medium text-textMuted">Senha</span>
           <div className="flex gap-2">
             <input
               className="input flex-1"
@@ -110,7 +102,7 @@ export const LoginScreen = ({ mode, onLogin, onRegister, isLoading }: LoginScree
             />
             <button
               type="button"
-              className="rounded-lg border border-outlineSoft bg-panelAlt px-3 text-sm text-textMuted"
+              className="rounded-md border border-outlineSoft/60 bg-surfaceHigh px-3 text-sm text-textMuted transition hover:border-accent/40 hover:text-textMain"
               onClick={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? "Ocultar" : "Mostrar"}
@@ -118,14 +110,10 @@ export const LoginScreen = ({ mode, onLogin, onRegister, isLoading }: LoginScree
           </div>
         </label>
 
-        <button type="submit" className="btn-accent w-full" disabled={isLoading}>
+        <button type="submit" className="btn-primary w-full" disabled={isLoading}>
           {isLoading
-            ? isRegisterMode
-              ? "Criando..."
-              : "Entrando..."
-            : isRegisterMode
-              ? "Criar conta"
-              : "Entrar"}
+            ? isRegisterMode ? "Criando..." : "Entrando..."
+            : isRegisterMode ? "Criar conta" : "Entrar"}
         </button>
       </form>
     </div>

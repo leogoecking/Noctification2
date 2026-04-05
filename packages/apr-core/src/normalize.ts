@@ -38,6 +38,9 @@ export const normalizeSubjectPattern = (value: unknown): string => {
   return clean ? clean.toLocaleUpperCase("pt-BR") : "";
 };
 
+export const isAprRecognitionExceptionSubject = (value: unknown): boolean =>
+  normalizeText(value).toLowerCase() === "check list de pops";
+
 export const employeeNameKey = (value: unknown): string =>
   normalizeText(value)
     .toLowerCase()

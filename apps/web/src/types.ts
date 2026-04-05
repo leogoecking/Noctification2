@@ -48,7 +48,8 @@ export type OperationsBoardEventType =
   | "updated"
   | "commented"
   | "resolved"
-  | "reopened";
+  | "reopened"
+  | "viewed";
 
 export interface PaginationInfo {
   page: number;
@@ -338,11 +339,14 @@ export interface ReminderOccurrenceItem {
   description: string;
 }
 
+export type MuralCategory = "urgente" | "info" | "aviso" | "comunicado" | "procedimento" | "geral";
+
 export interface OperationsBoardMessageItem {
   id: number;
   title: string;
   body: string;
   status: OperationsBoardStatus;
+  category: MuralCategory;
   authorUserId: number;
   authorName: string;
   authorLogin: string;

@@ -1,93 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError } from "../../lib/api";
-import { aprApi } from "./api";
 import {
-  AUDIT_ROWS_PER_PAGE,
   EMPTY_MANUAL_FORM,
-  MANUAL_ROWS_PER_PAGE,
-  buildDivergentAuditRows,
-  buildAprCollaboratorRiskBars,
-  clampPage,
   currentMonthRef,
-  filterAuditRows,
-  filterHistoryRows,
-  filterManualRows,
-  getVisibleCollaboratorSuggestions,
-  getVisibleSubjectSuggestions,
   openAuditReportPreview,
-  paginateRows,
-  sortMonthsDesc,
-  type AprManualFormState
+  sortMonthsDesc
 } from "./aprPageModel";
+import { aprApi } from "./api";
+import type { UseAprPageControllerParams, UseAprPageControllerResult } from "./aprPageControllerTypes";
 import { useAprCatalogData } from "./useAprCatalogData";
+import { useAprPageDerivedState } from "./useAprPageDerivedState";
+import { useAprPageMutations } from "./useAprPageMutations";
 import { useAprMonthData } from "./useAprMonthData";
-import type {
-  AprAuditResponse,
-  AprCollaboratorSuggestion,
-  AprHistoryResponse,
-  AprImportResult,
-  AprMonthItem,
-  AprMonthSummary,
-  AprRow,
-  AprSourceType,
-  AprSubjectSuggestion
-} from "./types";
-
-interface UseAprPageControllerParams {
-  onError: (message: string) => void;
-  onToast: (message: string) => void;
-}
-
-export interface UseAprPageControllerResult {
-  months: AprMonthItem[];
-  orderedMonths: AprMonthItem[];
-  selectedMonth: string;
-  setSelectedMonth: React.Dispatch<React.SetStateAction<string>>;
-  historySource: AprSourceType;
-  setHistorySource: React.Dispatch<React.SetStateAction<AprSourceType>>;
-  summary: AprMonthSummary | null;
-  manualRows: AprRow[];
-  subjectSuggestions: AprSubjectSuggestion[];
-  collaboratorSuggestions: AprCollaboratorSuggestion[];
-  audit: AprAuditResponse;
-  history: AprHistoryResponse;
-  manualForm: AprManualFormState;
-  setManualForm: React.Dispatch<React.SetStateAction<AprManualFormState>>;
-  manualPage: number;
-  setManualPage: React.Dispatch<React.SetStateAction<number>>;
-  auditPage: number;
-  setAuditPage: React.Dispatch<React.SetStateAction<number>>;
-  manualSearch: string;
-  setManualSearch: React.Dispatch<React.SetStateAction<string>>;
-  auditSearch: string;
-  setAuditSearch: React.Dispatch<React.SetStateAction<string>>;
-  historySearch: string;
-  setHistorySearch: React.Dispatch<React.SetStateAction<string>>;
-  importFiles: Record<AprSourceType, File | null>;
-  setImportFileForSource: (source: AprSourceType, file: File | null) => void;
-  importResult: AprImportResult | null;
-  loadingMonths: boolean;
-  loadingMonthData: boolean;
-  savingManual: boolean;
-  uploading: boolean;
-  collaboratorRiskBars: ReturnType<typeof buildAprCollaboratorRiskBars>;
-  filteredManualRows: AprRow[];
-  manualTotalPages: number;
-  paginatedManualRows: AprRow[];
-  divergentAuditRows: ReturnType<typeof buildDivergentAuditRows>;
-  filteredAuditRows: ReturnType<typeof buildDivergentAuditRows>;
-  auditTotalPages: number;
-  paginatedAuditRows: ReturnType<typeof buildDivergentAuditRows>;
-  filteredHistoryRows: AprHistoryResponse["details"];
-  visibleSubjectSuggestions: AprSubjectSuggestion[];
-  visibleCollaboratorSuggestions: AprCollaboratorSuggestion[];
-  resetManualForm: () => void;
-  startEditManual: (row: AprRow) => void;
-  saveManual: () => Promise<void>;
-  removeManual: (row: AprRow) => Promise<void>;
-  submitImport: (source: AprSourceType) => Promise<void>;
-  exportAuditPdf: () => void;
-}
+import type { AprMonthItem, AprRow, AprSourceType } from "./types";
+import type { AprManualFormState } from "./aprPageModel";
 
 export const useAprPageController = ({
   onError,
@@ -102,19 +28,14 @@ export const useAprPageController = ({
   const [manualSearch, setManualSearch] = useState("");
   const [auditSearch, setAuditSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
-  const [importFiles, setImportFiles] = useState<Record<AprSourceType, File | null>>({
-    manual: null,
-    system: null
-  });
-  const [importResult, setImportResult] = useState<AprImportResult | null>(null);
   const [loadingMonths, setLoadingMonths] = useState(true);
-  const [savingManual, setSavingManual] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   const orderedMonths = useMemo(() => sortMonthsDesc(months), [months]);
   const hasSelectedMonthInCatalog = months.some((item) => item.monthRef === selectedMonth);
-  const canLoadSelectedMonth = !loadingMonths && (months.length === 0 || hasSelectedMonthInCatalog);
 
+  const { subjectSuggestions, collaboratorSuggestions, loadCatalogData } = useAprCatalogData({
+    onError
+  });
   const loadMonths = useCallback(async () => {
     setLoadingMonths(true);
 
@@ -137,9 +58,7 @@ export const useAprPageController = ({
     }
   }, [onError]);
 
-  const { subjectSuggestions, collaboratorSuggestions, loadCatalogData } = useAprCatalogData({
-    onError
-  });
+  const canLoadSelectedMonth = !loadingMonths && (months.length === 0 || hasSelectedMonthInCatalog);
   const { summary, manualRows, audit, history, loadingMonthData, loadMonthData } = useAprMonthData({
     selectedMonth,
     historySource,
@@ -165,137 +84,27 @@ export const useAprPageController = ({
     });
   }, []);
 
-  const refreshAfterMutation = useCallback(
-    async (monthRef?: string) => {
-      await Promise.all([loadMonths(), loadCatalogData()]);
-      if (monthRef && monthRef !== selectedMonth) {
-        setSelectedMonth(monthRef);
-        return;
-      }
-
-      await loadMonthData();
-    },
-    [loadCatalogData, loadMonthData, loadMonths, selectedMonth]
-  );
-
-  const saveManual = useCallback(async () => {
-    setSavingManual(true);
-
-    try {
-      if (manualForm.id) {
-        const response = await aprApi.updateManual(selectedMonth, manualForm.id, manualForm);
-        resetManualForm();
-        await refreshAfterMutation(response.savedMonthRef);
-        onToast(response.moved ? "Lancamento movido e atualizado" : "Lancamento atualizado");
-        return;
-      }
-
-      const response = await aprApi.createManual(selectedMonth, manualForm);
-      resetManualForm();
-      await refreshAfterMutation(response.savedMonthRef);
-      onToast(response.moved ? "Lancamento criado em outro mes de referencia" : "Lancamento criado");
-    } catch (error) {
-      onError(error instanceof ApiError ? error.message : "Falha ao salvar lancamento manual");
-    } finally {
-      setSavingManual(false);
-    }
-  }, [manualForm, onError, onToast, refreshAfterMutation, resetManualForm, selectedMonth]);
-
-  const removeManual = useCallback(
-    async (row: AprRow) => {
-      try {
-        await aprApi.deleteManual(selectedMonth, row.id);
-        if (manualForm.id === row.id) {
-          resetManualForm();
-        }
-        await refreshAfterMutation();
-        onToast("Lancamento removido");
-      } catch (error) {
-        onError(error instanceof ApiError ? error.message : "Falha ao remover lancamento");
-      }
-    },
-    [manualForm.id, onError, onToast, refreshAfterMutation, resetManualForm, selectedMonth]
-  );
-
-  const setImportFileForSource = useCallback((source: AprSourceType, file: File | null) => {
-    setImportFiles((current) => ({
-      ...current,
-      [source]: file
-    }));
-  }, []);
-
-  const submitImport = useCallback(async (source: AprSourceType) => {
-    const file = importFiles[source];
-
-    if (!file) {
-      onError("Selecione um arquivo para importar");
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      const response = await aprApi.importRows(source, file, selectedMonth);
-      setImportResult(response);
-      setImportFiles((current) => ({
-        ...current,
-        [source]: null
-      }));
-      await refreshAfterMutation(response.monthRef);
-      onToast("Importacao APR concluida");
-    } catch (error) {
-      onError(error instanceof ApiError ? error.message : "Falha ao importar arquivo APR");
-    } finally {
-      setUploading(false);
-    }
-  }, [importFiles, onError, onToast, refreshAfterMutation, selectedMonth]);
-
-  const collaboratorRiskBars = useMemo(
-    () => buildAprCollaboratorRiskBars(manualRows, audit, history),
-    [manualRows, audit, history]
-  );
-  const filteredManualRows = useMemo(
-    () => filterManualRows(manualRows, manualSearch),
-    [manualRows, manualSearch]
-  );
-  const manualTotalPages = useMemo(
-    () => Math.max(1, Math.ceil(filteredManualRows.length / MANUAL_ROWS_PER_PAGE)),
-    [filteredManualRows.length]
-  );
-  const paginatedManualRows = useMemo(
-    () => paginateRows(filteredManualRows, manualPage, MANUAL_ROWS_PER_PAGE),
-    [filteredManualRows, manualPage]
-  );
-  const divergentAuditRows = useMemo(() => buildDivergentAuditRows(audit), [audit]);
-  const filteredAuditRows = useMemo(
-    () => filterAuditRows(divergentAuditRows, auditSearch),
-    [auditSearch, divergentAuditRows]
-  );
-  const auditTotalPages = useMemo(
-    () => Math.max(1, Math.ceil(filteredAuditRows.length / AUDIT_ROWS_PER_PAGE)),
-    [filteredAuditRows.length]
-  );
-  const paginatedAuditRows = useMemo(
-    () => paginateRows(filteredAuditRows, auditPage, AUDIT_ROWS_PER_PAGE),
-    [auditPage, filteredAuditRows]
-  );
-  const filteredHistoryRows = useMemo(
-    () => filterHistoryRows(history, historySearch),
-    [history, historySearch]
-  );
-
-  useEffect(() => {
-    setManualPage(1);
-    setAuditPage(1);
-  }, [selectedMonth]);
-
-  useEffect(() => {
-    setManualPage((current) => clampPage(current, manualTotalPages));
-  }, [manualTotalPages]);
-
-  useEffect(() => {
-    setAuditPage((current) => clampPage(current, auditTotalPages));
-  }, [auditTotalPages]);
+  const {
+    importFiles,
+    importResult,
+    savingManual,
+    uploading,
+    setImportFileForSource,
+    saveManual,
+    removeManual,
+    submitImport
+  } = useAprPageMutations({
+    onError,
+    onToast,
+    selectedMonth,
+    setSelectedMonth,
+    manualForm,
+    manualFormId: manualForm.id,
+    resetManualForm,
+    loadMonths,
+    loadCatalogData,
+    loadMonthData
+  });
 
   const exportAuditPdf = useCallback(() => {
     const exported = openAuditReportPreview(selectedMonth, audit);
@@ -304,14 +113,34 @@ export const useAprPageController = ({
     }
   }, [audit, onError, selectedMonth]);
 
-  const visibleSubjectSuggestions = useMemo(
-    () => getVisibleSubjectSuggestions(subjectSuggestions, manualForm.subject),
-    [manualForm.subject, subjectSuggestions]
-  );
-  const visibleCollaboratorSuggestions = useMemo(
-    () => getVisibleCollaboratorSuggestions(collaboratorSuggestions, manualForm.collaborator),
-    [collaboratorSuggestions, manualForm.collaborator]
-  );
+  const {
+    collaboratorRiskBars,
+    filteredManualRows,
+    manualTotalPages,
+    paginatedManualRows,
+    divergentAuditRows,
+    filteredAuditRows,
+    auditTotalPages,
+    paginatedAuditRows,
+    filteredHistoryRows,
+    visibleSubjectSuggestions,
+    visibleCollaboratorSuggestions
+  } = useAprPageDerivedState({
+    selectedMonth,
+    manualRows,
+    audit,
+    history,
+    manualSearch,
+    auditSearch,
+    historySearch,
+    manualPage,
+    setManualPage,
+    auditPage,
+    setAuditPage,
+    subjectSuggestions,
+    collaboratorSuggestions,
+    manualForm
+  });
 
   return {
     months,

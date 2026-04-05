@@ -4,6 +4,9 @@ import App from "./App";
 import { registerAppServiceWorker } from "./lib/pwa";
 import "./styles/index.css";
 
+// Dark mode is the default — apply before React mounts to avoid flash
+document.documentElement.classList.add("dark");
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />

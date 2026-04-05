@@ -168,3 +168,15 @@ export const emitNotificationCreatedToAdmins = (
 ): void => {
   io.to("admins").emit("notification:created", payload);
 };
+
+export interface BoardViewedPayload {
+  messageId: number;
+  actorUserId: number;
+  actorName: string;
+  actorLogin: string;
+  viewedAt: string;
+}
+
+export const emitBoardViewed = (io: Server, payload: BoardViewedPayload): void => {
+  io.emit("operations_board:viewed", payload);
+};
