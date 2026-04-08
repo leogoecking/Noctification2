@@ -15,15 +15,8 @@ export const createOperationsBoardMeRouter = (
 
   router.use(authenticate(db, config));
 
-  registerOperationsBoardReadRoutes({
-    router,
-    db,
-    io
-  });
-  registerOperationsBoardWriteRoutes({
-    router,
-    db
-  });
+  registerOperationsBoardReadRoutes({ router, db, io });
+  registerOperationsBoardWriteRoutes({ router, db, io });
 
   return router;
 };

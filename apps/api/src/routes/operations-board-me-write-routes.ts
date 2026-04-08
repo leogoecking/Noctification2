@@ -1,5 +1,7 @@
 import type { Router } from "express";
 import type Database from "better-sqlite3";
+import type { Server } from "socket.io";
+import { emitBoardChanged } from "../socket";
 import { parsePositiveId, requireAuthUser } from "./me-route-shared";
 import {
   addBoardComment,
@@ -14,11 +16,13 @@ import {
 interface RegisterOperationsBoardWriteRoutesParams {
   router: Router;
   db: Database.Database;
+  io: Server;
 }
 
 export const registerOperationsBoardWriteRoutes = ({
   router,
-  db
+  db,
+  io
 }: RegisterOperationsBoardWriteRoutesParams) => {
   router.post("/operations-board", (req, res) => {
     const authUser = requireAuthUser(req.authUser, res);
@@ -41,6 +45,7 @@ export const registerOperationsBoardWriteRoutes = ({
       category,
       actorUserId: authUser.id
     });
+    emitBoardChanged(io, { event: "created", messageId: message.id });
     res.status(201).json({ message: normalizeBoardMessage(message) });
   });
 
@@ -89,6 +94,7 @@ export const registerOperationsBoardWriteRoutes = ({
       nextCategory,
       actorUserId: authUser.id
     });
+    emitBoardChanged(io, { event: "updated", messageId: message.id });
     res.json({ message: normalizeBoardMessage(message) });
   });
 
@@ -121,6 +127,7 @@ export const registerOperationsBoardWriteRoutes = ({
       actorUserId: authUser.id,
       body
     });
+    emitBoardChanged(io, { event: "commented", messageId });
     res.status(201).json({ event });
   });
 };

@@ -4,6 +4,7 @@ import type {
   TaskAutomationHealthItem,
 } from "../../types";
 import { OperationsBoardRail } from "../OperationsBoardRail";
+import { WeatherWidget } from "../WeatherWidget";
 import type { AdminMetrics } from "./types";
 import {
   AdminOverviewAudit,
@@ -71,6 +72,7 @@ export const AdminOverviewPanel = ({
         </div>
 
         <div className="space-y-6 xl:col-span-3">
+          <WeatherWidget />
           <AdminOverviewSystemHealth
             taskHealth={taskHealth}
             loading={loadingHealth}

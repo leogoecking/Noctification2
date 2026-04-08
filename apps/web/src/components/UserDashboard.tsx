@@ -16,6 +16,7 @@ import {
   toLocalNotification,
   type FilterMode
 } from "./user-notifications/userNotificationUi";
+import { WeatherWidget } from "./WeatherWidget";
 
 interface UserDashboardProps {
   user: AuthUser;
@@ -348,12 +349,19 @@ export const UserDashboard = ({
           />
         </article>
       ) : (
-        <OperationsBoardRail
-          currentUserName={user.name}
-          onError={onError}
-          onToast={onToast}
-          subtitle="Avisos de turno e alinhamentos compartilhados com toda a operacao"
-        />
+        <div className="grid gap-6 xl:grid-cols-12">
+          <div className="xl:col-span-9">
+            <OperationsBoardRail
+              currentUserName={user.name}
+              onError={onError}
+              onToast={onToast}
+              subtitle="Avisos de turno e alinhamentos compartilhados com toda a operacao"
+            />
+          </div>
+          <div className="xl:col-span-3">
+            <WeatherWidget />
+          </div>
+        </div>
       )}
 
       {criticalModal && (

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
+import { subscribeBoardChanged } from "../lib/boardEvents";
+import { useBoardSocket } from "../hooks/useBoardSocket";
 import type { OperationsBoardEventItem, OperationsBoardMessageItem } from "../types";
 import { useOperationsBoardSocket } from "../hooks/useOperationsBoardSocket";
 import type { BoardViewedPayload } from "../hooks/useOperationsBoardSocket";
@@ -163,6 +165,14 @@ export const OperationsBoardRail = ({
   }, []);
 
   useOperationsBoardSocket({ onViewed: handleBoardViewed });
+
+  useBoardSocket();
+
+  useEffect(() => {
+    return subscribeBoardChanged(() => {
+      void loadMessages();
+    });
+  }, [loadMessages]);
 
   const saveMessage = async () => {
     if (!formTitle.trim() || !formBody.trim()) {

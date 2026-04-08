@@ -180,3 +180,12 @@ export interface BoardViewedPayload {
 export const emitBoardViewed = (io: Server, payload: BoardViewedPayload): void => {
   io.emit("operations_board:viewed", payload);
 };
+
+export interface BoardChangedPayload {
+  event: "created" | "updated" | "commented";
+  messageId: number;
+}
+
+export const emitBoardChanged = (io: Server, payload: BoardChangedPayload): void => {
+  io.emit("board:changed", payload);
+};
